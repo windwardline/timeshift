@@ -1,0 +1,15 @@
+# dependencies
+/node_modules
+# next.js
+/.next/
+/out/
+/build
+# env (never commit real secrets)
+.env
+.env*.local
+# vitest / coverage
+/coverage
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
