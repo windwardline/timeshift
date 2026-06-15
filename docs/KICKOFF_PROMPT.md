@@ -6,7 +6,7 @@ session, with this repo open.
 
 ---
 
-```
+```text
 You are working in the TimeShift repository — a jetlag/layover visualizer built as a
 5-day TDD sprint. Before writing ANY code, read these files in full and treat them as
 the source of truth:

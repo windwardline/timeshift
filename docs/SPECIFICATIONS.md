@@ -18,7 +18,7 @@ layover blocks, and sleep-window recommendations.
 
 ## 3. Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │  Next.js (App Router)                                     │
 │                                                           │
@@ -93,7 +93,7 @@ model FlightSegment {
 ```
 
 Three entities (Users, Trips, Flight Segments) demonstrate the relational model:
-User 1—* Trip 1—* FlightSegment, with cascade deletes.
+`User 1—* Trip 1—* FlightSegment`, with cascade deletes.
 
 ## 6. API Contract
 
@@ -103,7 +103,7 @@ User 1—* Trip 1—* FlightSegment, with cascade deletes.
 | POST   | `/api/auth/login`             | Authenticate, return session              |
 | POST   | `/api/auth/logout`            | Destroy session                           |
 | GET    | `/api/profile`                | Read profile (incl. homeTimeZone)         |
-| PUT    | `/api/profile`                | Update homeTimeZone                        |
+| PUT    | `/api/profile`                | Update homeTimeZone                       |
 | GET    | `/api/trips`                  | List current user's trips                 |
 | POST   | `/api/trips`                  | Create a trip                             |
 | GET    | `/api/trips/[id]`             | Read one trip (owner only)                |
@@ -121,7 +121,7 @@ Every trip/segment route enforces ownership; non-owners receive 403/404 and no d
 Pure functions, each unit-tested before implementation:
 
 | Function | Signature (conceptual) | Responsibility |
-|----------|------------------------|----------------|
+| --- | --- | --- |
 | `offsetMinutes` | `(utc: Date, tz: string) → number` | DST-aware UTC offset for a zone at an instant |
 | `toUtc` | `(localISO: string, tz: string) → Date` | Normalize a local wall-time to UTC |
 | `localParts` | `(utc: Date, tz: string) → {date, time, offset}` | Render a UTC instant in a zone |
@@ -167,12 +167,12 @@ IDL crossings, sleep windows confined to in-air segments and aligned to destinat
 ## 11. 5-Day Sprint Plan
 
 | Day | Focus |
-|-----|-------|
-| 1   | Specs, user stories, acceptance criteria, TDD plan, context file (this set) |
-| 2   | Scaffold (Next.js + Prisma + Vitest), DB schema/migration, **TDD engine: offsets/DST + leap year** |
-| 3   | **TDD engine: IDL crossings + timeline assembly + sleep windows**; auth |
-| 4   | API routes (trips, segments, timeline) test-first; ownership isolation |
-| 5   | Timeline visualization + arcs, polish, README test-evidence, final coverage |
+| --- | --- |
+| 1 | Specs, user stories, acceptance criteria, TDD plan, context file (this set) |
+| 2 | Scaffold (Next.js + Prisma + Vitest), DB schema/migration, **TDD engine: offsets/DST + leap year** |
+| 3 | **TDD engine: IDL crossings + timeline assembly + sleep windows**; auth |
+| 4 | API routes (trips, segments, timeline) test-first; ownership isolation |
+| 5 | Timeline visualization + arcs, polish, README test-evidence, final coverage |
 
 ## 12. Definition of Done (per story)
 
