@@ -42,7 +42,7 @@ silently.
 
 - Persist **all** timestamps in **UTC**. Store the original IANA zone string alongside.
 - **Never hand-roll offset or DST tables.** Delegate offsets/DST to Luxon.
-- The engine's own *reasoning* (date-line detection, timeline assembly, layover
+- The engine's own _reasoning_ (date-line detection, timeline assembly, layover
   detection, sleep windows, arc positioning) is hand-written and **must be test-driven**.
 - Engine functions are **pure**: no DB, no `fetch`, no framework imports inside
   `lib/engine/`. This keeps them unit-testable.
@@ -71,10 +71,10 @@ Work in small, reviewable steps. At each step:
 
 Use **Conventional Commits**, tied to the TDD phase:
 
-- Red commit:  `test: add failing test for <unit> (<US-id>)`
+- Red commit: `test: add failing test for <unit> (<US-id>)`
 - Green commit: `feat: implement <unit> to pass <US-id>` (or `fix:` when fixing)
-- Refactor:    `refactor: <what changed> (suite green)`
-- Docs/specs:  `docs: <what changed>`
+- Refactor: `refactor: <what changed> (suite green)`
+- Docs/specs: `docs: <what changed>`
 
 One logical change per commit. Do not bundle unrelated changes. Do not force-push.
 
@@ -102,3 +102,24 @@ Red-Green-Refactor history is captured · the work is committed per §7.
 
 If a requirement is ambiguous, the acceptance criteria conflict, or a change would
 violate any rule above — **stop and ask** rather than guessing.
+
+## 12. Committing a spec change (Day 1 / pre-build routine)
+
+Whenever a doc in this repo is edited (a spec, story, criterion, or this file),
+publish it to GitHub with the same three steps every time. Run from the repo root
+(`timeshift/`):
+
+```bash
+git add .
+git commit -m "docs: <short description of what changed>"
+git push
+```
+
+Rules for this routine:
+
+- Keep the message in the `docs:` Conventional Commit type, present tense, specific —
+  e.g. `docs: tighten IDL acceptance criteria`, not `docs: update`.
+- One logical doc change per commit. If you edited three unrelated files, make three
+  commits.
+- This is the pre-build routine only. Once the build starts, commits follow the TDD
+  git workflow in §7 (`test:` for Red, `feat:`/`fix:` for Green, `refactor:`).
