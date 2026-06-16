@@ -42,7 +42,7 @@ silently.
 
 - Persist **all** timestamps in **UTC**. Store the original IANA zone string alongside.
 - **Never hand-roll offset or DST tables.** Delegate offsets/DST to Luxon.
-- The engine's own _reasoning_ (date-line detection, timeline assembly, layover
+- The engine's own *reasoning* (date-line detection, timeline assembly, layover
   detection, sleep windows, arc positioning) is hand-written and **must be test-driven**.
 - Engine functions are **pure**: no DB, no `fetch`, no framework imports inside
   `lib/engine/`. This keeps them unit-testable.
@@ -71,20 +71,33 @@ Work in small, reviewable steps. At each step:
 
 Use **Conventional Commits**, tied to the TDD phase:
 
-- Red commit: `test: add failing test for <unit> (<US-id>)`
+- Red commit:  `test: add failing test for <unit> (<US-id>)`
 - Green commit: `feat: implement <unit> to pass <US-id>` (or `fix:` when fixing)
-- Refactor: `refactor: <what changed> (suite green)`
-- Docs/specs: `docs: <what changed>`
+- Refactor:    `refactor: <what changed> (suite green)`
+- Docs/specs:  `docs: <what changed>`
 
 One logical change per commit. Do not bundle unrelated changes. Do not force-push.
 
-## 8. Test evidence for the README
+## 8. Test evidence
 
-- After each Red and each Green run, the **real terminal output** is captured and saved
-  to `docs/screenshots/` using the filenames already referenced in `README.md`.
-- These are screenshots of the actual local Vitest runs at that phase — they document
-  the project's real test history. Do not fabricate or mock test output.
-- At sprint end, run `npm run test:coverage` and capture the full passing suite.
+Two evidence types, both captured from real runs:
+
+**A. TDD cycle logs (Red-Green-Refactor proof).**
+- Pipe every test run to a file: Red to `docs/logs/NN-name-red.txt`, Green to
+  `docs/logs/NN-name-green.txt` (NN = zero-padded phase order). Example:
+  `npm run test:run -- lib/engine/time.test.ts > docs/logs/01-offsets-red.txt 2>&1`
+- Confirm each Red fails for the RIGHT reason before implementing.
+- Commit the code change plus BOTH captures together, one commit per unit
+  (`test:` / `feat:` per §7). Captures are real run output — never edited or fabricated.
+
+**B. E2E regression check (Playwright, after deploy).**
+- A Playwright script opens the deployed app, drives it to a known itinerary, and
+  screenshots to `docs/screenshots/`.
+- The SAME script ASSERTS the headline numbers (computed arrival, offset, sleep-window
+  label) as a regression check — it is a test, not just a screenshotter.
+
+At sprint end, run `npm run test:coverage` and capture the full passing suite to
+`docs/logs/`.
 
 ## 9. Scope discipline (5 days)
 

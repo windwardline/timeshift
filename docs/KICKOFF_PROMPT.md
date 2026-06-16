@@ -6,7 +6,7 @@ session, with this repo open.
 
 ---
 
-```text
+```
 You are working in the TimeShift repository — a jetlag/layover visualizer built as a
 5-day TDD sprint. Before writing ANY code, read these files in full and treat them as
 the source of truth:
@@ -36,8 +36,11 @@ Once I say "go", work in this order, strictly test-first:
    The engine functions must be pure (no DB/framework imports). Hold engine coverage
    at 100%.
 
-3. After each Green, RUN THE FULL SUITE and print the output so I can screenshot the
-   real run for the README, then PAUSE for my confirmation before the next phase.
+3. CAPTURE EVERY RUN: pipe each test run to a file — Red to docs/logs/NN-name-red.txt,
+   Green to docs/logs/NN-name-green.txt (NN = zero-padded phase order). Confirm each Red
+   fails for the right reason, then commit the code change plus BOTH captures together in
+   one commit. After each Green, run the FULL SUITE, print the output, and PAUSE for my
+   confirmation before the next phase.
 
 Hard rules (from CLAUDE.md — do not violate):
   - Never write production code before its failing test exists.
@@ -50,7 +53,14 @@ Hard rules (from CLAUDE.md — do not violate):
     change per commit. Never force-push.
   - Stay within the user stories in scope; flag anything that looks like scope creep
     and ask before building it.
-  - Do not fabricate or mock test output — only ever show real runs.
+  - For every module: write the failing test and pipe output to
+    docs/logs/NN-name-red.txt; confirm it fails for the right reason; implement the
+    minimum; re-run capturing to docs/logs/NN-name-green.txt; commit the code plus BOTH
+    captures together in one commit.
+  - After the app deploys, write a Playwright script that opens it, drives it to a known
+    itinerary, screenshots to docs/screenshots/, and ASSERTS the headline numbers
+    (arrival time, offset, sleep-window label) as a regression check.
+  - Do not fabricate or mock test output — only ever capture real runs.
 
 Start by reading the files and giving me your confirmation. Wait for "go".
 ```
@@ -62,8 +72,8 @@ Start by reading the files and giving me your confirmation. Wait for "go".
 1. Open the repo in VS Code with the Claude Code CLI.
 2. Paste the block above as your first message.
 3. Reply `go` after it confirms its understanding.
-4. At each phase, when it prints the Red and Green runs, screenshot the terminal and
-   save the images to `docs/screenshots/` using the filenames already referenced in
-   `README.md` (e.g. `01-offsets-red.png`, `01-offsets-green.png`). Those become your
-   README test evidence.
+4. The Red and Green runs are auto-captured to `docs/logs/` (e.g. `01-offsets-red.txt`,
+   `01-offsets-green.txt`) and committed with the code. The Playwright E2E script (after
+   deploy) writes its shots to `docs/screenshots/` and asserts the headline numbers.
+   Both feed the Test Evidence section of `README.md`.
 5. Keep approving phase by phase so the git history stays in clean Red/Green steps.
