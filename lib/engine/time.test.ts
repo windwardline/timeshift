@@ -27,4 +27,16 @@ describe('toUtc', () => {
     }).not.toThrow();
     expect(result?.toISOString()).toBe('2025-03-09T07:30:00.000Z');
   });
+
+  // US-E1: a fall-back ambiguous local time occurs twice. On 2025-11-02 in
+  // America/New_York, 02:00 EDT falls back to 01:00 EST, so 01:30 happens at
+  // both 01:30 EDT (UTC-4 -> 05:30 UTC) and 01:30 EST (UTC-5 -> 06:30 UTC). We
+  // resolve to the FIRST occurrence (01:30 EDT = 05:30 UTC) deterministically.
+  it('resolves a fall-back ambiguous local time to the first occurrence without throwing', () => {
+    let result: Date | undefined;
+    expect(() => {
+      result = toUtc('2025-11-02T01:30', 'America/New_York');
+    }).not.toThrow();
+    expect(result?.toISOString()).toBe('2025-11-02T05:30:00.000Z');
+  });
 });

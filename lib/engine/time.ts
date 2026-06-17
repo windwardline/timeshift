@@ -22,6 +22,13 @@ export function offsetMinutes(utc: Date, tz: string): number {
  * 03:30 EDT (07:30 UTC). This matches a traveler's intuition that "the clock
  * skipped ahead", and is Luxon's default handling of gap times, so we rely on
  * it rather than hand-rolling DST logic (see CLAUDE.md §4).
+ *
+ * DST overlap resolution (decision, per US-E1): a local time that occurs twice
+ * because the clocks fell back is resolved to the *first* occurrence — e.g.
+ * 2025-11-02T01:30 in America/New_York (02:00 EDT → 01:00 EST) is read as
+ * 01:30 EDT (05:30 UTC), not the later 01:30 EST (06:30 UTC). This is Luxon's
+ * default for ambiguous times, so — as with the gap case — we inherit it rather
+ * than hand-rolling DST logic.
  */
 export function toUtc(localISO: string, tz: string): Date {
   return DateTime.fromISO(localISO, { zone: tz }).toUTC().toJSDate();
