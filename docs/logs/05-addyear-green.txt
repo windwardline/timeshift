@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/engine/time.test.ts (6 tests) 17ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  17:25:49
+   Duration  164ms (transform 17ms, setup 0ms, import 26ms, tests 17ms, environment 0ms)

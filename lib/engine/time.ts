@@ -48,3 +48,16 @@ export function durationMinutes(segment: {
 }): number {
   return (segment.arrivalTime.getTime() - segment.departureTime.getTime()) / 60000;
 }
+
+/**
+ * Add `years` calendar years to a UTC instant, clamping an overflowed day to the
+ * last valid day of the target month.
+ *
+ * Adding to a leap day yields the last valid February day in a non-leap year —
+ * 2024-02-29 + 1 year -> 2025-02-28 — rather than overflowing into March. Luxon
+ * clamps month overflow by default; native Date.setFullYear would instead roll
+ * 2024-02-29 forward to 2025-03-01, so we delegate to Luxon (CLAUDE.md §4).
+ */
+export function addYears(utc: Date, years: number): Date {
+  return DateTime.fromJSDate(utc, { zone: 'utc' }).plus({ years }).toJSDate();
+}
