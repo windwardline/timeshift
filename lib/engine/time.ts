@@ -33,3 +33,18 @@ export function offsetMinutes(utc: Date, tz: string): number {
 export function toUtc(localISO: string, tz: string): Date {
   return DateTime.fromISO(localISO, { zone: tz }).toUTC().toJSDate();
 }
+
+/**
+ * True elapsed UTC duration of a segment, in minutes.
+ *
+ * A JS `Date` is an absolute instant (epoch milliseconds), so subtracting the
+ * two instants is inherently leap-day safe: a span crossing 2024-02-29 counts
+ * that day exactly once with no calendar arithmetic (see CLAUDE.md §4). The
+ * result is positive whenever arrival follows departure in absolute time.
+ */
+export function durationMinutes(segment: {
+  departureTime: Date;
+  arrivalTime: Date;
+}): number {
+  return (segment.arrivalTime.getTime() - segment.departureTime.getTime()) / 60000;
+}
