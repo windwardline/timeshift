@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { offsetMinutes, toUtc } from './time';
+import { offsetMinutes, toUtc, durationMinutes } from './time';
 
 // US-E1: UTC offsets must be DST-aware. America/New_York is EST (-300) in winter
 // and EDT (-240) in summer; a static offset would get one of these wrong.
@@ -38,5 +38,20 @@ describe('toUtc', () => {
       result = toUtc('2025-11-02T01:30', 'America/New_York');
     }).not.toThrow();
     expect(result?.toISOString()).toBe('2025-11-02T05:30:00.000Z');
+  });
+});
+
+// US-E2: durationMinutes is the true elapsed UTC minutes between a segment's
+// departure and arrival. A span crossing the leap day 2024-02-29 must count that
+// day exactly once: 2024-02-28T12:00Z -> 2024-03-01T12:00Z is two full days
+// (2880 min) because 2024 is a leap year, not 1440. Deriving the duration from
+// the absolute UTC instants keeps it leap-safe.
+describe('durationMinutes', () => {
+  it('counts the leap day 2024-02-29 exactly once across a UTC span', () => {
+    const segment = {
+      departureTime: new Date('2024-02-28T12:00:00Z'),
+      arrivalTime: new Date('2024-03-01T12:00:00Z'),
+    };
+    expect(durationMinutes(segment)).toBe(2880);
   });
 });

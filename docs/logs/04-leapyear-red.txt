@@ -1,0 +1,29 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/engine/time.test.ts (5 tests | 1 failed) 19ms
+     ✓ returns -300 (EST) for America/New_York in January 15ms
+     ✓ returns -240 (EDT) for America/New_York in July 0ms
+     ✓ resolves a spring-forward non-existent local time forward without throwing 1ms
+     ✓ resolves a fall-back ambiguous local time to the first occurrence without throwing 0ms
+     × counts the leap day 2024-02-29 exactly once across a UTC span 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/engine/time.test.ts > durationMinutes > counts the leap day 2024-02-29 exactly once across a UTC span
+TypeError: durationMinutes is not a function
+ ❯ lib/engine/time.test.ts:55:12
+     53|       arrivalTime: new Date('2024-03-01T12:00:00Z'),
+     54|     };
+     55|     expect(durationMinutes(segment)).toBe(2880);
+       |            ^
+     56|   });
+     57| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  17:22:25
+   Duration  176ms (transform 17ms, setup 0ms, import 28ms, tests 19ms, environment 0ms)
