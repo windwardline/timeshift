@@ -43,40 +43,55 @@ Build kickoff prompt for Claude Code: [`docs/KICKOFF_PROMPT.md`](docs/KICKOFF_PR
 
 ## Test Evidence (TDD)
 
-> Populated during the sprint from real runs.
+> Populated during the sprint from real runs. Captures are numbered **per unit** in
+> `docs/TDD_PLAN.md` order (`NN-name`), so the numbering tracks the units built rather
+> than one entry per phase. Only links to committed files appear below; unbuilt phases
+> are listed as pending.
 
 ### TDD cycle logs (Red → Green → Refactor)
 
-Every module's failing and passing runs are piped to `docs/logs/` and committed
-alongside the code that produced them:
+Each unit's failing and passing runs are piped to `docs/logs/` and committed
+alongside the code that produced them.
 
-- Offsets & DST — [`01-offsets-red.txt`](docs/logs/01-offsets-red.txt) → [`01-offsets-green.txt`](docs/logs/01-offsets-green.txt)
-- Leap year — [`02-leapyear-red.txt`](docs/logs/02-leapyear-red.txt) → [`02-leapyear-green.txt`](docs/logs/02-leapyear-green.txt)
-- IDL crossings — [`03-idl-red.txt`](docs/logs/03-idl-red.txt) → [`03-idl-green.txt`](docs/logs/03-idl-green.txt)
-- Sleep windows — [`04-sleep-red.txt`](docs/logs/04-sleep-red.txt) → [`04-sleep-green.txt`](docs/logs/04-sleep-green.txt)
-- Full suite + coverage — [`05-suite-coverage.txt`](docs/logs/05-suite-coverage.txt)
+**Phase 0 — Harness**
+
+- Sanity check — [`00-sanity-green.txt`](docs/logs/00-sanity-green.txt) (green only; trivial `1 + 1` harness proof)
+
+**Phase 1 — UTC offsets & DST (US-E1)**
+
+- Offsets (EST/EDT) — [`01-offsets-red.txt`](docs/logs/01-offsets-red.txt) → [`01-offsets-green.txt`](docs/logs/01-offsets-green.txt)
+- Spring-forward gap — [`02-springforward-red.txt`](docs/logs/02-springforward-red.txt) → [`02-springforward-green.txt`](docs/logs/02-springforward-green.txt)
+- Fall-back ambiguous hour — [`03-fallback-green.txt`](docs/logs/03-fallback-green.txt) (green only — see note)
+
+> **No Red phase for the fall-back unit.** The first-occurrence resolution is inherited
+> from Luxon (which resolves an ambiguous local time to the earlier instant), and `toUtc`
+> already existed from the spring-forward unit — so this test characterizes
+> existing-correct behavior rather than driving new code. No Red was fabricated; a single
+> green run was captured.
+
+**Pending (not yet built):** Leap year (US-E2), IDL crossings (US-E3), day/night arcs
+(US-D2), timeline assembly (US-D1/D3), sleep windows (US-E4), and the full suite +
+coverage run at sprint end.
 
 ### TDD cycle screenshots (colored Red → Green)
 
-Every Red and Green run is also captured as a colored screenshot — produced from the
-same run as the log above via `npm run capture -- <NN-name-red|green> <vitest args>`
-(see `scripts/capture-tdd.sh` + `scripts/render-tdd.mjs`). Red runs render the failing
-tests and assertion errors in red; Green runs render the passing suite in green. Images
-share the same `NN-name-{red,green}` numbering as the logs:
+Each run above is also captured as a colored screenshot — produced from the same run as
+its log via `npm run capture -- <NN-name-(red|green)> <vitest args>` (see
+`scripts/capture-tdd.sh` + `scripts/render-tdd.mjs`). Red runs render failing tests and
+assertion errors in red; green runs render the passing suite in green. Images share the
+`NN-name` numbering of the logs:
 
-- Offsets & DST — `docs/screenshots/01-offsets-red.png` → `docs/screenshots/01-offsets-green.png`
-- Leap year — `docs/screenshots/02-leapyear-red.png` → `docs/screenshots/02-leapyear-green.png`
-- IDL crossings — `docs/screenshots/03-idl-red.png` → `docs/screenshots/03-idl-green.png`
-- Sleep windows — `docs/screenshots/04-sleep-red.png` → `docs/screenshots/04-sleep-green.png`
+- Sanity check — `docs/screenshots/00-sanity-green.png`
+- Offsets (EST/EDT) — `docs/screenshots/01-offsets-red.png` → `docs/screenshots/01-offsets-green.png`
+- Spring-forward gap — `docs/screenshots/02-springforward-red.png` → `docs/screenshots/02-springforward-green.png`
+- Fall-back ambiguous hour — `docs/screenshots/03-fallback-green.png` (green only — see note above)
 
 ### End-to-end verification (Playwright)
 
-The deployed app is driven to a known itinerary and screenshotted; the same script
-asserts the headline numbers (arrival time, offset, sleep-window label) as a
-regression check.
-
-![Timeline E2E — known itinerary](docs/screenshots/e2e-timeline.png)
-![Sleep-window E2E](docs/screenshots/e2e-sleep.png)
+Planned for after deploy: the deployed app will be driven to a known itinerary and
+screenshotted, and the same script will assert the headline numbers (arrival time,
+offset, sleep-window label) as a regression check. Screenshots will be embedded here
+once the run exists — not linked while the files are absent.
 
 ---
 
