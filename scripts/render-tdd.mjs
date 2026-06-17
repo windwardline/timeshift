@@ -133,7 +133,15 @@ try {
 
 await mkdir('docs/logs', { recursive: true });
 await mkdir('docs/screenshots', { recursive: true });
-await writeFile(LOG_PATH, textLog.replace(ANSI_RE, '').trimEnd() + '\n', 'utf8');
+// Strip ANSI and the json reporter's "JSON report written to <tmp>" notice, which
+// leaks a throwaway temp path into the committed log.
+const cleanLog = textLog
+  .replace(ANSI_RE, '')
+  .split('\n')
+  .filter((line) => !/^JSON report written to /.test(line))
+  .join('\n')
+  .trimEnd();
+await writeFile(LOG_PATH, cleanLog + '\n', 'utf8');
 await screenshot(buildHtml(json, textLog), PNG_PATH);
 
 const ok = json.success === true && (json.numFailedTests ?? 0) === 0;
