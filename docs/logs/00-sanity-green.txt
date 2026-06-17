@@ -1,0 +1,11 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ sanity.test.ts (1 test) 2ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  20:53:50
+   Duration  122ms (transform 9ms, setup 0ms, import 14ms, tests 2ms, environment 0ms)
+
+JSON report written to /var/folders/py/l7p851m11xb7m4zm5dvc8tb80000gn/T/tmp.xur8IU5S1Y

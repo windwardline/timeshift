@@ -56,6 +56,19 @@ alongside the code that produced them:
 - Sleep windows — [`04-sleep-red.txt`](docs/logs/04-sleep-red.txt) → [`04-sleep-green.txt`](docs/logs/04-sleep-green.txt)
 - Full suite + coverage — [`05-suite-coverage.txt`](docs/logs/05-suite-coverage.txt)
 
+### TDD cycle screenshots (colored Red → Green)
+
+Every Red and Green run is also captured as a colored screenshot — produced from the
+same run as the log above via `npm run capture -- <NN-name-red|green> <vitest args>`
+(see `scripts/capture-tdd.sh` + `scripts/render-tdd.mjs`). Red runs render the failing
+tests and assertion errors in red; Green runs render the passing suite in green. Images
+share the same `NN-name-{red,green}` numbering as the logs:
+
+- Offsets & DST — `docs/screenshots/01-offsets-red.png` → `docs/screenshots/01-offsets-green.png`
+- Leap year — `docs/screenshots/02-leapyear-red.png` → `docs/screenshots/02-leapyear-green.png`
+- IDL crossings — `docs/screenshots/03-idl-red.png` → `docs/screenshots/03-idl-green.png`
+- Sleep windows — `docs/screenshots/04-sleep-red.png` → `docs/screenshots/04-sleep-green.png`
+
 ### End-to-end verification (Playwright)
 
 The deployed app is driven to a known itinerary and screenshotted; the same script

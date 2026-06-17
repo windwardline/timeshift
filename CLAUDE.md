@@ -29,8 +29,12 @@ criteria in `docs/ACCEPTANCE_CRITERIA.md`, and the test-writing plan in
 ## 3. Stack — do not substitute without flagging
 
 - **Next.js (App Router)** — frontend + API route handlers.
-- **PostgreSQL** + **Prisma** — persistence; `schema.prisma` is the single source of
-  truth for the data model.
+- **PostgreSQL** + **Prisma (pinned to `^6`)** — persistence; `schema.prisma` is the
+  single source of truth for the data model. **Stay on Prisma 6 for this sprint:**
+  Prisma 7's mandatory driver-adapter model removes `url` from the `datasource` block
+  (it moves to `prisma.config.ts`) and renames the generator, which breaks the
+  `schema.prisma`/`datasource` syntax the specs are written against. Do not bump to
+  `7.x` without re-flagging.
 - **Vitest** — all tests.
 - **Luxon** — all UTC-offset and DST resolution (it carries the IANA tz database).
 - **SunCalc** — sunrise/sunset for day/night arcs.

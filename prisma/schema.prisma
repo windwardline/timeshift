@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  homeTimeZone String // IANA tz, e.g. "America/New_York"
+  createdAt    DateTime @default(now())
+  trips        Trip[]
+}
+
+model Trip {
+  id          String          @id @default(cuid())
+  name        String
+  destination String // IANA tz of the destination
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  segments    FlightSegment[]
+  createdAt   DateTime        @default(now())
+}
+
+model FlightSegment {
+  id               String   @id @default(cuid())
+  tripId           String
+  trip             Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  sequence         Int // order within the trip (0-based)
+  departureAirport String // IATA code, e.g. "JFK"
+  arrivalAirport   String // IATA code, e.g. "LHR"
+  departureTime    DateTime // stored in UTC
+  arrivalTime      DateTime // stored in UTC
+  departureTz      String // IANA tz
+  arrivalTz        String // IANA tz
+  departureLat     Float?
+  departureLng     Float?
+  arrivalLat       Float?
+  arrivalLng       Float?
+
+  @@unique([tripId, sequence])
+}
