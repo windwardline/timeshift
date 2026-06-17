@@ -1,0 +1,30 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/engine/time.test.ts (6 tests | 1 failed) 17ms
+     ✓ returns -300 (EST) for America/New_York in January 13ms
+     ✓ returns -240 (EDT) for America/New_York in July 0ms
+     ✓ resolves a spring-forward non-existent local time forward without throwing 1ms
+     ✓ resolves a fall-back ambiguous local time to the first occurrence without throwing 0ms
+     ✓ counts the leap day 2024-02-29 exactly once across a UTC span 0ms
+     × clamps leap-day 2024-02-29 + 1 year to 2025-02-28 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/engine/time.test.ts > addYears > clamps leap-day 2024-02-29 + 1 year to 2025-02-28
+TypeError: addYears is not a function
+ ❯ lib/engine/time.test.ts:64:20
+     62| describe('addYears', () => {
+     63|   it('clamps leap-day 2024-02-29 + 1 year to 2025-02-28', () => {
+     64|     const result = addYears(new Date('2024-02-29T00:00:00Z'), 1);
+       |                    ^
+     65|     expect(result.toISOString()).toBe('2025-02-28T00:00:00.000Z');
+     66|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  17:25:06
+   Duration  151ms (transform 14ms, setup 0ms, import 23ms, tests 17ms, environment 0ms)

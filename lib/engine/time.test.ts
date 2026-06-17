@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { offsetMinutes, toUtc, durationMinutes } from './time';
+import { offsetMinutes, toUtc, durationMinutes, addYears } from './time';
 
 // US-E1: UTC offsets must be DST-aware. America/New_York is EST (-300) in winter
 // and EDT (-240) in summer; a static offset would get one of these wrong.
@@ -53,5 +53,15 @@ describe('durationMinutes', () => {
       arrivalTime: new Date('2024-03-01T12:00:00Z'),
     };
     expect(durationMinutes(segment)).toBe(2880);
+  });
+});
+
+// US-E2: adding one calendar year to a leap day must not invent a phantom
+// Feb 29 in a non-leap year. 2024-02-29 + 1 year clamps to the last valid day
+// of February 2025 -> 2025-02-28, not 2025-03-01.
+describe('addYears', () => {
+  it('clamps leap-day 2024-02-29 + 1 year to 2025-02-28', () => {
+    const result = addYears(new Date('2024-02-29T00:00:00Z'), 1);
+    expect(result.toISOString()).toBe('2025-02-28T00:00:00.000Z');
   });
 });
