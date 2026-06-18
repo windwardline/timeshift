@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/engine/timeline.test.ts (1 test) 2ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  11:19:13
+   Duration  199ms (transform 28ms, setup 0ms, import 37ms, tests 2ms, environment 0ms)
