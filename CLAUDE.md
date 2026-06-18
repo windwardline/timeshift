@@ -140,3 +140,13 @@ Rules for this routine:
   commits.
 - This is the pre-build routine only. Once the build starts, commits follow the TDD
   git workflow in §7 (`test:` for Red, `feat:`/`fix:` for Green, `refactor:`).
+
+## 13. AI integration boundary
+
+- An AI/LLM call is a network call. Per §4 it is forbidden in `lib/engine/`. All AI code lives in `lib/ai/` and is server-only.
+- The provider call is isolated to one thin wrapper: `lib/ai/client.ts`. It is the only module in `lib/ai/` that touches the network/SDK. Everything else in `lib/ai/` is pure: facts assembly, prompt assembly, response parsing.
+- TDD law (§2) applies to the deterministic surface. `buildAdvicePrompt`, `parseAdviceResponse`, and `generateAdvice` (with the client mocked) are driven Red→Green like any engine unit, and held to 100% coverage (§10) — including the malformed-response and client-error branches.
+- The live provider call is never unit-tested and never snapshot-asserted: model output is non-deterministic. It is exercised only in the demo with a real key. `lib/ai/client.ts` is the single module excluded from coverage; mark the exclusion explicitly.
+- Tests never call the real API and never require a key. The mocked client returns fixtures. The suite and coverage must pass with no key present (grading/CI runs keyless).
+- The API key lives in `.env.local` (gitignored, like `DATABASE_URL`, §3). `.env.example` documents the variable name with no value. The key is read server-side only (API route / server action) — never imported into a client component, never shipped to the browser.
+- Evidence (§8): deterministic AI units get the usual red/green logs + colored screenshots. The live call is demo-only — capture a redacted server-side request log (request id and/or token usage; key redacted) as demo evidence. The README states plainly which parts are mocked-and-unit-tested and which part is live-and-demo-only. Real runs only — never fabricate a model response and present it as live output.
