@@ -83,4 +83,19 @@ describe('crossesDateLine', () => {
     expect(crossesDateLine(segment)).toBe(true);
     expect(durationMinutes(segment)).toBeGreaterThan(0);
   });
+
+  // US-E3: a normal same-direction flight that does NOT cross the IDL must not be
+  // flagged. JFK -> LHR departs America/New_York 2025-06-01 18:00 EDT (22:00 UTC)
+  // and arrives Europe/London 2025-06-02 06:00 BST (05:00 UTC): the local arrival
+  // is later than the local departure and the calendar advances only as far as
+  // the flight's own elapsed time, so there is no date-line crossing.
+  it('returns false for a non-IDL JFK -> LHR flight', () => {
+    const segment = {
+      departureTime: new Date('2025-06-01T22:00:00Z'),
+      arrivalTime: new Date('2025-06-02T05:00:00Z'),
+      departureTz: 'America/New_York',
+      arrivalTz: 'Europe/London',
+    };
+    expect(crossesDateLine(segment)).toBe(false);
+  });
 });
