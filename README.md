@@ -84,8 +84,12 @@ alongside the code that produced them.
 > driven Red first, then satisfied by a single precede-check implementation captured as
 > `06-idl-green`. The LA → Sydney Red (`07`) then forced the eastward calendar-leap branch.
 
-**Pending (not yet built):** day/night arcs (US-D2), timeline assembly (US-D1/D3), sleep
-windows (US-E4), and the full suite + coverage run at sprint end.
+**Phase 4 — Day/night arcs (US-D2)**
+
+- Sunrise/sunset tiling — [`08-arcs-red.txt`](docs/logs/08-arcs-red.txt) → [`08-arcs-green.txt`](docs/logs/08-arcs-green.txt)
+
+**Pending (not yet built):** timeline assembly (US-D1/D3), sleep windows (US-E4), and the
+full suite + coverage run at sprint end.
 
 ### TDD cycle screenshots (colored Red → Green)
 
@@ -104,6 +108,7 @@ assertion errors in red; green runs render the passing suite in green. Images sh
 - West crossing (Tokyo → LA) — `docs/screenshots/06-idl-tokyo-red.png` → `docs/screenshots/06-idl-green.png`
 - Non-crossing guard (JFK → LHR) — `docs/screenshots/06-idl-noncrossing-red.png` → `docs/screenshots/06-idl-green.png`
 - East crossing leap (LA → Sydney) — `docs/screenshots/07-idl-sydney-red.png` → `docs/screenshots/07-idl-sydney-green.png`
+- Sunrise/sunset tiling — `docs/screenshots/08-arcs-red.png` → `docs/screenshots/08-arcs-green.png`
 
 ### End-to-end verification (Playwright)
 
