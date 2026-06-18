@@ -98,4 +98,22 @@ describe('crossesDateLine', () => {
     };
     expect(crossesDateLine(segment)).toBe(false);
   });
+
+  // US-E3 (reverse): a Los Angeles -> Sydney flight crosses the IDL eastward and
+  // "gains" a day, so the local calendar leaps an extra day even on a sub-24h
+  // flight: depart America/Los_Angeles 2025-06-01 22:00 PDT (05:00 UTC), arrive
+  // Australia/Sydney 2025-06-03 07:30 AEST (21:30 UTC) — the local date jumps
+  // from Jun 1 to Jun 3 (+2 days) for a ~16.5h flight. The local arrival reads
+  // *later* than departure, so the precede check alone misses it; the engine must
+  // also flag the calendar leap.
+  it('flags a Los Angeles -> Sydney crossing via the calendar leap', () => {
+    const segment = {
+      departureTime: new Date('2025-06-02T05:00:00Z'),
+      arrivalTime: new Date('2025-06-02T21:30:00Z'),
+      departureTz: 'America/Los_Angeles',
+      arrivalTz: 'Australia/Sydney',
+    };
+    expect(crossesDateLine(segment)).toBe(true);
+    expect(durationMinutes(segment)).toBeGreaterThan(0);
+  });
 });

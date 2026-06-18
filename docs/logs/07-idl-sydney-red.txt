@@ -1,0 +1,40 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/engine/time.test.ts (9 tests | 1 failed) 20ms
+     ✓ returns -300 (EST) for America/New_York in January 14ms
+     ✓ returns -240 (EDT) for America/New_York in July 0ms
+     ✓ resolves a spring-forward non-existent local time forward without throwing 1ms
+     ✓ resolves a fall-back ambiguous local time to the first occurrence without throwing 0ms
+     ✓ counts the leap day 2024-02-29 exactly once across a UTC span 0ms
+     ✓ clamps leap-day 2024-02-29 + 1 year to 2025-02-28 0ms
+     ✓ flags a Tokyo -> Los Angeles crossing while keeping positive duration 0ms
+     ✓ returns false for a non-IDL JFK -> LHR flight 0ms
+     × flags a Los Angeles -> Sydney crossing via the calendar leap 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/engine/time.test.ts > crossesDateLine > flags a Los Angeles -> Sydney crossing via the calendar leap
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ lib/engine/time.test.ts:116:38
+    114|       arrivalTz: 'Australia/Sydney',
+    115|     };
+    116|     expect(crossesDateLine(segment)).toBe(true);
+       |                                      ^
+    117|     expect(durationMinutes(segment)).toBeGreaterThan(0);
+    118|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  22:29:26
+   Duration  157ms (transform 16ms, setup 0ms, import 25ms, tests 20ms, environment 0ms)
