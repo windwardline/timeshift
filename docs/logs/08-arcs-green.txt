@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/engine/arcs.test.ts (1 test) 28ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  10:54:33
+   Duration  163ms (transform 16ms, setup 0ms, import 27ms, tests 28ms, environment 0ms)
