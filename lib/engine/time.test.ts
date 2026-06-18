@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { offsetMinutes, toUtc, durationMinutes, addYears } from './time';
+import { offsetMinutes, toUtc, durationMinutes, addYears, crossesDateLine } from './time';
 
 // US-E1: UTC offsets must be DST-aware. America/New_York is EST (-300) in winter
 // and EDT (-240) in summer; a static offset would get one of these wrong.
@@ -63,5 +63,24 @@ describe('addYears', () => {
   it('clamps leap-day 2024-02-29 + 1 year to 2025-02-28', () => {
     const result = addYears(new Date('2024-02-29T00:00:00Z'), 1);
     expect(result.toISOString()).toBe('2025-02-28T00:00:00.000Z');
+  });
+});
+
+// US-E3: a Tokyo -> Los Angeles flight crosses the International Date Line. Going
+// west over the line you "lose" a day, so the local arrival clock/date can be
+// earlier than the local departure even on a genuine ~9.5h flight: depart
+// Asia/Tokyo 2025-03-10 17:00 JST (08:00 UTC), arrive America/Los_Angeles
+// 2025-03-10 10:35 PDT (17:35 UTC) — same calendar date, earlier clock. The
+// engine must flag the crossing while durationMinutes stays positive.
+describe('crossesDateLine', () => {
+  it('flags a Tokyo -> Los Angeles crossing while keeping positive duration', () => {
+    const segment = {
+      departureTime: new Date('2025-03-10T08:00:00Z'),
+      arrivalTime: new Date('2025-03-10T17:35:00Z'),
+      departureTz: 'Asia/Tokyo',
+      arrivalTz: 'America/Los_Angeles',
+    };
+    expect(crossesDateLine(segment)).toBe(true);
+    expect(durationMinutes(segment)).toBeGreaterThan(0);
   });
 });
