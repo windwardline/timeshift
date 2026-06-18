@@ -61,3 +61,34 @@ export function durationMinutes(segment: {
 export function addYears(utc: Date, years: number): Date {
   return DateTime.fromJSDate(utc, { zone: 'utc' }).plus({ years }).toJSDate();
 }
+
+/**
+ * Whether a flight segment crosses the International Date Line.
+ *
+ * The crossing is not encoded in the UTC instants — local time is just
+ * UTC + zone offset — so we infer it from the relationship between the local
+ * departure and local arrival, per the US-E3 acceptance criteria.
+ *
+ * West-over-the-line crossings (e.g. Tokyo -> Los Angeles) "lose" a day: the
+ * naive local arrival wall-clock reads *earlier* than the local departure even
+ * though real elapsed time is positive. That earlier-than-departure reading is
+ * the signal flagged here.
+ *
+ * (East-over-the-line crossings such as LA -> Sydney instead make the local
+ * calendar *leap* an extra day; that branch is added under US-E3's Sydney case.)
+ */
+export function crossesDateLine(segment: {
+  departureTime: Date;
+  arrivalTime: Date;
+  departureTz: string;
+  arrivalTz: string;
+}): boolean {
+  const depOffset = offsetMinutes(segment.departureTime, segment.departureTz);
+  const arrOffset = offsetMinutes(segment.arrivalTime, segment.arrivalTz);
+
+  // Naive local wall-clock instants (UTC + offset), compared as if on one clock.
+  const naiveDepMs = segment.departureTime.getTime() + depOffset * 60000;
+  const naiveArrMs = segment.arrivalTime.getTime() + arrOffset * 60000;
+
+  return naiveArrMs < naiveDepMs;
+}
