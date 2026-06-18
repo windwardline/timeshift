@@ -88,8 +88,12 @@ alongside the code that produced them.
 
 - Sunrise/sunset tiling — [`08-arcs-red.txt`](docs/logs/08-arcs-red.txt) → [`08-arcs-green.txt`](docs/logs/08-arcs-green.txt)
 
-**Pending (not yet built):** timeline assembly (US-D1/D3), sleep windows (US-E4), and the
-full suite + coverage run at sprint end.
+**Phase 5 — Timeline assembly (US-D1/D3)**
+
+- Segments + layover axis — [`09-timeline-red.txt`](docs/logs/09-timeline-red.txt) → [`09-timeline-green.txt`](docs/logs/09-timeline-green.txt)
+
+**Pending (not yet built):** sleep windows (US-E4), and the full suite + coverage run at
+sprint end.
 
 ### TDD cycle screenshots (colored Red → Green)
 
@@ -109,6 +113,7 @@ assertion errors in red; green runs render the passing suite in green. Images sh
 - Non-crossing guard (JFK → LHR) — `docs/screenshots/06-idl-noncrossing-red.png` → `docs/screenshots/06-idl-green.png`
 - East crossing leap (LA → Sydney) — `docs/screenshots/07-idl-sydney-red.png` → `docs/screenshots/07-idl-sydney-green.png`
 - Sunrise/sunset tiling — `docs/screenshots/08-arcs-red.png` → `docs/screenshots/08-arcs-green.png`
+- Segments + layover axis — `docs/screenshots/09-timeline-red.png` → `docs/screenshots/09-timeline-green.png`
 
 ### End-to-end verification (Playwright)
 
