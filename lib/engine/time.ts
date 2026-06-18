@@ -67,15 +67,13 @@ export function addYears(utc: Date, years: number): Date {
  *
  * The crossing is not encoded in the UTC instants — local time is just
  * UTC + zone offset — so we infer it from the relationship between the local
- * departure and local arrival, per the US-E3 acceptance criteria.
+ * departure and local arrival, per the US-E3 acceptance criteria, in two ways:
  *
- * West-over-the-line crossings (e.g. Tokyo -> Los Angeles) "lose" a day: the
- * naive local arrival wall-clock reads *earlier* than the local departure even
- * though real elapsed time is positive. That earlier-than-departure reading is
- * the signal flagged here.
- *
- * (East-over-the-line crossings such as LA -> Sydney instead make the local
- * calendar *leap* an extra day; that branch is added under US-E3's Sydney case.)
+ * - West-over-the-line (e.g. Tokyo -> Los Angeles) "loses" a day: the naive
+ *   local arrival wall-clock reads *earlier* than the local departure even
+ *   though real elapsed time is positive.
+ * - East-over-the-line (e.g. LA -> Sydney) "gains" a day: the local calendar
+ *   leaps more whole days than the flight's own elapsed time spans.
  */
 export function crossesDateLine(segment: {
   departureTime: Date;
@@ -83,12 +81,19 @@ export function crossesDateLine(segment: {
   departureTz: string;
   arrivalTz: string;
 }): boolean {
-  const depOffset = offsetMinutes(segment.departureTime, segment.departureTz);
-  const arrOffset = offsetMinutes(segment.arrivalTime, segment.arrivalTz);
+  const depLocal = DateTime.fromJSDate(segment.departureTime, { zone: segment.departureTz });
+  const arrLocal = DateTime.fromJSDate(segment.arrivalTime, { zone: segment.arrivalTz });
 
   // Naive local wall-clock instants (UTC + offset), compared as if on one clock.
-  const naiveDepMs = segment.departureTime.getTime() + depOffset * 60000;
-  const naiveArrMs = segment.arrivalTime.getTime() + arrOffset * 60000;
+  const naiveDepMs = segment.departureTime.getTime() + depLocal.offset * 60000;
+  const naiveArrMs = segment.arrivalTime.getTime() + arrLocal.offset * 60000;
+  if (naiveArrMs < naiveDepMs) return true;
 
-  return naiveArrMs < naiveDepMs;
+  // Otherwise flag the eastward case where the local calendar date leaps further
+  // than the flight's elapsed days would carry it on its own.
+  const depCivil = DateTime.utc(depLocal.year, depLocal.month, depLocal.day);
+  const arrCivil = DateTime.utc(arrLocal.year, arrLocal.month, arrLocal.day);
+  const calendarDays = arrCivil.diff(depCivil, 'days').days;
+  const flightDays = Math.ceil(durationMinutes(segment) / 1440);
+  return calendarDays > flightDays;
 }
