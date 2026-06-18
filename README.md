@@ -74,9 +74,18 @@ alongside the code that produced them.
 - Duration across leap day — [`04-leapyear-red.txt`](docs/logs/04-leapyear-red.txt) → [`04-leapyear-green.txt`](docs/logs/04-leapyear-green.txt)
 - Add-year clamping — [`05-addyear-red.txt`](docs/logs/05-addyear-red.txt) → [`05-addyear-green.txt`](docs/logs/05-addyear-green.txt)
 
-**Pending (not yet built):** IDL crossings (US-E3), day/night arcs (US-D2), timeline
-assembly (US-D1/D3), sleep windows (US-E4), and the full suite + coverage run at sprint
-end.
+**Phase 3 — International Date Line (US-E3)**
+
+- West crossing (Tokyo → LA) — [`06-idl-tokyo-red.txt`](docs/logs/06-idl-tokyo-red.txt) → [`06-idl-green.txt`](docs/logs/06-idl-green.txt)
+- Non-crossing guard (JFK → LHR) — [`06-idl-noncrossing-red.txt`](docs/logs/06-idl-noncrossing-red.txt) → [`06-idl-green.txt`](docs/logs/06-idl-green.txt)
+- East crossing leap (LA → Sydney) — [`07-idl-sydney-red.txt`](docs/logs/07-idl-sydney-red.txt) → [`07-idl-sydney-green.txt`](docs/logs/07-idl-sydney-green.txt)
+
+> **One Green for two unit-06 Reds.** The west-crossing and non-crossing tests were both
+> driven Red first, then satisfied by a single precede-check implementation captured as
+> `06-idl-green`. The LA → Sydney Red (`07`) then forced the eastward calendar-leap branch.
+
+**Pending (not yet built):** day/night arcs (US-D2), timeline assembly (US-D1/D3), sleep
+windows (US-E4), and the full suite + coverage run at sprint end.
 
 ### TDD cycle screenshots (colored Red → Green)
 
@@ -92,6 +101,9 @@ assertion errors in red; green runs render the passing suite in green. Images sh
 - Fall-back ambiguous hour — `docs/screenshots/03-fallback-green.png` (green only — see note above)
 - Duration across leap day — `docs/screenshots/04-leapyear-red.png` → `docs/screenshots/04-leapyear-green.png`
 - Add-year clamping — `docs/screenshots/05-addyear-red.png` → `docs/screenshots/05-addyear-green.png`
+- West crossing (Tokyo → LA) — `docs/screenshots/06-idl-tokyo-red.png` → `docs/screenshots/06-idl-green.png`
+- Non-crossing guard (JFK → LHR) — `docs/screenshots/06-idl-noncrossing-red.png` → `docs/screenshots/06-idl-green.png`
+- East crossing leap (LA → Sydney) — `docs/screenshots/07-idl-sydney-red.png` → `docs/screenshots/07-idl-sydney-green.png`
 
 ### End-to-end verification (Playwright)
 
