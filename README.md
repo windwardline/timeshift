@@ -69,9 +69,14 @@ alongside the code that produced them.
 > existing-correct behavior rather than driving new code. No Red was fabricated; a single
 > green run was captured.
 
-**Pending (not yet built):** Leap year (US-E2), IDL crossings (US-E3), day/night arcs
-(US-D2), timeline assembly (US-D1/D3), sleep windows (US-E4), and the full suite +
-coverage run at sprint end.
+**Phase 2 — Leap year (US-E2)**
+
+- Duration across leap day — [`04-leapyear-red.txt`](docs/logs/04-leapyear-red.txt) → [`04-leapyear-green.txt`](docs/logs/04-leapyear-green.txt)
+- Add-year clamping — [`05-addyear-red.txt`](docs/logs/05-addyear-red.txt) → [`05-addyear-green.txt`](docs/logs/05-addyear-green.txt)
+
+**Pending (not yet built):** IDL crossings (US-E3), day/night arcs (US-D2), timeline
+assembly (US-D1/D3), sleep windows (US-E4), and the full suite + coverage run at sprint
+end.
 
 ### TDD cycle screenshots (colored Red → Green)
 
@@ -85,6 +90,8 @@ assertion errors in red; green runs render the passing suite in green. Images sh
 - Offsets (EST/EDT) — `docs/screenshots/01-offsets-red.png` → `docs/screenshots/01-offsets-green.png`
 - Spring-forward gap — `docs/screenshots/02-springforward-red.png` → `docs/screenshots/02-springforward-green.png`
 - Fall-back ambiguous hour — `docs/screenshots/03-fallback-green.png` (green only — see note above)
+- Duration across leap day — `docs/screenshots/04-leapyear-red.png` → `docs/screenshots/04-leapyear-green.png`
+- Add-year clamping — `docs/screenshots/05-addyear-red.png` → `docs/screenshots/05-addyear-green.png`
 
 ### End-to-end verification (Playwright)
 
