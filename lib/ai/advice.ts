@@ -9,6 +9,16 @@ export interface LlmClient {
   complete(prompt: string): Promise<string>;
 }
 
+// Typed failure for a failed provider call (AC-F1.5), so a network/provider
+// error surfaces as a known type rather than crashing the caller with a raw
+// error of unknown shape.
+export class AdviceGenerationError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'AdviceGenerationError';
+  }
+}
+
 // AI-4/AI-5 (US-F1 / AC-F1.4, AC-F1.5): orchestrate facts -> prompt -> client ->
 // parsed plan. Pure orchestration; the client is injected.
 export async function generateAdvice(

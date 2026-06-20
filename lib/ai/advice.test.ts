@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { generateAdvice, type LlmClient } from './advice';
+import { generateAdvice, AdviceGenerationError, type LlmClient } from './advice';
 import type { TripFacts } from './facts';
 
 const facts: TripFacts = {
@@ -38,5 +38,17 @@ describe('generateAdvice', () => {
     expect(promptArg).toContain('780');
 
     expect(result).toEqual(plan);
+  });
+
+  // AI-5 / AC-F1.5: when the provider call fails, generateAdvice surfaces a
+  // typed AdviceGenerationError rather than letting the raw error crash the
+  // caller.
+  it('surfaces a typed AdviceGenerationError when the client throws', async () => {
+    const complete = vi.fn().mockRejectedValue(new Error('network down'));
+    const client: LlmClient = { complete };
+
+    await expect(generateAdvice(facts, client)).rejects.toBeInstanceOf(
+      AdviceGenerationError,
+    );
   });
 });

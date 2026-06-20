@@ -1,0 +1,26 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/advice.test.ts (2 tests | 1 failed) 5ms
+     ✓ calls the client with a facts-bearing prompt and returns the parsed plan 2ms
+     × surfaces a typed AdviceGenerationError when the client throws 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/advice.test.ts > generateAdvice > surfaces a typed AdviceGenerationError when the client throws
+AssertionError: expected Error: network down to be an instance of AdviceGenerationError
+ ❯ lib/ai/advice.test.ts:50:47
+     48|     const client: LlmClient = { complete };
+     49|
+     50|     await expect(generateAdvice(facts, client)).rejects.toBeInstanceOf(
+       |                                               ^
+     51|       AdviceGenerationError,
+     52|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  02:29:38
+   Duration  162ms (transform 19ms, setup 0ms, import 42ms, tests 5ms, environment 0ms)
