@@ -8,8 +8,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      // The temporal engine is the TDD core held at 100% coverage.
-      include: ['lib/engine/**'],
+      // The temporal engine and the deterministic AI surface are the TDD core,
+      // held at 100% coverage. lib/ai/client.ts (the only real-network module)
+      // excludes itself with a /* v8 ignore file */ pragma per docs/AI_ADVICE.md §6.
+      include: ['lib/engine/**', 'lib/ai/**'],
     },
   },
   resolve: {

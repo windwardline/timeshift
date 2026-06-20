@@ -30,4 +30,24 @@ describe('buildAdvicePrompt', () => {
     expect(prompt).toContain('780');
     expect(prompt).toContain('2025-06-02T10:00:00Z');
   });
+
+  // AC-F1.1 (branch coverage): the prompt adapts to trip shape. A westward
+  // Tokyo -> LA hop reads as "behind" origin, an empty sleep plan as "none
+  // recommended", and the date-line crossing is flagged — pinning the branches
+  // buildAdvicePrompt added for the live prompt.
+  it('describes a westward, date-line-crossing trip with no sleep window', () => {
+    const westward: TripFacts = {
+      originZone: 'Asia/Tokyo',
+      destinationZone: 'America/Los_Angeles',
+      offsetDeltaMinutes: -1020,
+      crossesDateLine: true,
+      sleepWindows: [],
+    };
+
+    const prompt = buildAdvicePrompt(westward);
+
+    expect(prompt).toContain('behind origin');
+    expect(prompt).toContain('none recommended');
+    expect(prompt).toContain('International Date Line: yes');
+  });
 });
