@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/engine/sleep.test.ts (2 tests) 19ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  12:33:39
+   Duration  171ms (transform 21ms, setup 0ms, import 31ms, tests 19ms, environment 0ms)
