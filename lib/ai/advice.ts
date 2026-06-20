@@ -1,5 +1,6 @@
 import type { TripFacts } from './facts';
-import type { AdvicePlan } from './parse';
+import { buildAdvicePrompt } from './prompt';
+import { parseAdviceResponse, type AdvicePlan } from './parse';
 
 // The network seam. `generateAdvice` depends only on this interface, so tests
 // inject a mock and never touch the real provider (CLAUDE.md §13). The single
@@ -14,9 +15,7 @@ export async function generateAdvice(
   facts: TripFacts,
   client: LlmClient,
 ): Promise<AdvicePlan> {
-  // Red stub: returns a placeholder and never calls the client, so the
-  // orchestration test fails on assertion. Replaced in Green.
-  void facts;
-  void client;
-  return { summary: '', preFlight: [], inFlight: [], postArrival: [] };
+  const prompt = buildAdvicePrompt(facts);
+  const raw = await client.complete(prompt);
+  return parseAdviceResponse(raw);
 }
