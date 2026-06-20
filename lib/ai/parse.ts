@@ -22,5 +22,18 @@ export class AdviceParseError extends Error {
 }
 
 export function parseAdviceResponse(raw: string): AdvicePlan {
-  return advicePlanSchema.parse(JSON.parse(raw));
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch (cause) {
+    throw new AdviceParseError('Advice response was not valid JSON', { cause });
+  }
+
+  const result = advicePlanSchema.safeParse(json);
+  if (!result.success) {
+    throw new AdviceParseError('Advice response did not match the expected shape', {
+      cause: result.error,
+    });
+  }
+  return result.data;
 }

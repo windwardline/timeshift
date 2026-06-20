@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/ai/parse.test.ts (3 tests) 3ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  02:26:52
+   Duration  156ms (transform 14ms, setup 0ms, import 36ms, tests 3ms, environment 0ms)
