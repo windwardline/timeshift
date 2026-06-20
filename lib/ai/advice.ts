@@ -26,6 +26,11 @@ export async function generateAdvice(
   client: LlmClient,
 ): Promise<AdvicePlan> {
   const prompt = buildAdvicePrompt(facts);
-  const raw = await client.complete(prompt);
+  let raw: string;
+  try {
+    raw = await client.complete(prompt);
+  } catch (cause) {
+    throw new AdviceGenerationError('The advice provider call failed', { cause });
+  }
   return parseAdviceResponse(raw);
 }
