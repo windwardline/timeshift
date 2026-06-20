@@ -1,0 +1,47 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/facts.test.ts (1 test | 1 failed) 6ms
+     × derives zones, offset delta, IDL flag, and sleep-window facts 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/facts.test.ts > assembleTripFacts > derives zones, offset delta, IDL flag, and sleep-window facts
+AssertionError: expected { originZone: '', …(4) } to deeply equal { Object (originZone, destinationZone, ...) }
+
+- Expected
++ Received
+
+  {
+    "crossesDateLine": false,
+-   "destinationZone": "Asia/Tokyo",
+-   "offsetDeltaMinutes": 780,
+-   "originZone": "America/New_York",
+-   "sleepWindows": [
+-     {
+-       "endUtc": "2025-06-02T21:00:00.000Z",
+-       "label": "22:00–06:00 Asia/Tokyo (09:00–17:00 America/New_York)",
+-       "startUtc": "2025-06-02T13:00:00.000Z",
+-     },
+-   ],
++   "destinationZone": "",
++   "offsetDeltaMinutes": 0,
++   "originZone": "",
++   "sleepWindows": [],
+  }
+
+ ❯ lib/ai/facts.test.ts:31:19
+     29|     const facts = assembleTripFacts(segments, sleepWindows);
+     30|
+     31|     expect(facts).toEqual({
+       |                   ^
+     32|       originZone: 'America/New_York',
+     33|       destinationZone: 'Asia/Tokyo',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  12:43:34
+   Duration  148ms (transform 14ms, setup 0ms, import 21ms, tests 6ms, environment 0ms)
