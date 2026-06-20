@@ -1,0 +1,56 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/engine/scale.test.ts (2 tests | 2 failed) 5ms
+     × maps an instant to its fraction along the axis 4ms
+     × maps a UTC interval to a positioned rect on a pixel axis 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/engine/scale.test.ts > fractionAt > maps an instant to its fraction along the axis
+AssertionError: expected -1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ -1
+
+ ❯ lib/engine/scale.test.ts:13:42
+     11| describe('fractionAt', () => {
+     12|   it('maps an instant to its fraction along the axis', () => {
+     13|     expect(fractionAt(axis.start, axis)).toBe(0);
+       |                                          ^
+     14|     expect(fractionAt(new Date('2025-06-02T10:30:00Z'), axis)).toBe(0.…
+     15|     expect(fractionAt(axis.end, axis)).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/engine/scale.test.ts > intervalToRect > maps a UTC interval to a positioned rect on a pixel axis
+AssertionError: expected { x: -1, width: -1 } to deeply equal { x: 150, width: 300 }
+
+- Expected
++ Received
+
+  {
+-   "width": 300,
+-   "x": 150,
++   "width": -1,
++   "x": -1,
+  }
+
+ ❯ lib/engine/scale.test.ts:27:18
+     25|       600,
+     26|     );
+     27|     expect(rect).toEqual({ x: 150, width: 300 });
+       |                  ^
+     28|   });
+     29| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  13:18:20
+   Duration  146ms (transform 14ms, setup 0ms, import 21ms, tests 5ms, environment 0ms)
