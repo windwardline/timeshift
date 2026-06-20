@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/ai/prompt.test.ts (1 test) 2ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  02:23:06
+   Duration  159ms (transform 14ms, setup 0ms, import 21ms, tests 2ms, environment 0ms)
