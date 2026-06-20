@@ -45,11 +45,13 @@ export function createTrip(input: NewTripInput) {
 }
 
 // The pipeline's input query: fetch one trip with all its segments ordered by
-// sequence. This single ordered `include` is what feeds the temporal engine —
-// the join's job is to hand the engine a correctly ordered list of legs.
-export function getTripWithSegments(id: string) {
-  return prisma.trip.findUnique({
-    where: { id },
+// sequence, scoped to its owner so the database itself enforces access control
+// (US-B4) — callers pass a session-derived userId, never a client-supplied one.
+// This single ownership-scoped, ordered `include` is what feeds the temporal
+// engine: the join hands the engine a correctly ordered list of legs.
+export function getTripWithSegments(id: string, userId: string) {
+  return prisma.trip.findFirst({
+    where: { id, userId },
     include: orderedSegments,
   });
 }
