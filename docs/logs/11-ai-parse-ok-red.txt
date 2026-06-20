@@ -1,0 +1,46 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/parse.test.ts (1 test | 1 failed) 5ms
+     × parses a well-formed JSON response into a complete AdvicePlan 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/parse.test.ts > parseAdviceResponse > parses a well-formed JSON response into a complete AdvicePlan
+AssertionError: expected { summary: '', preFlight: [], …(2) } to deeply equal { …(4) }
+
+- Expected
++ Received
+
+  {
+-   "inFlight": [
+-     "Sleep during the Tokyo-night window.",
+-   ],
+-   "postArrival": [
+-     "Get morning sunlight in Tokyo.",
+-   ],
+-   "preFlight": [
+-     "Sleep an hour earlier for two nights.",
+-   ],
+-   "summary": "Shift your clock east before you fly.",
++   "inFlight": [],
++   "postArrival": [],
++   "preFlight": [],
++   "summary": "",
+  }
+
+ ❯ lib/ai/parse.test.ts:17:18
+     15|     const plan = parseAdviceResponse(raw);
+     16|
+     17|     expect(plan).toEqual({
+       |                  ^
+     18|       summary: 'Shift your clock east before you fly.',
+     19|       preFlight: ['Sleep an hour earlier for two nights.'],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  02:24:24
+   Duration  149ms (transform 14ms, setup 0ms, import 20ms, tests 5ms, environment 0ms)
