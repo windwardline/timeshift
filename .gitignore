@@ -9,6 +9,8 @@
 .env*.local
 # vitest / coverage
 /coverage
+# typescript
+*.tsbuildinfo
 # misc
 .DS_Store
 *.pem
