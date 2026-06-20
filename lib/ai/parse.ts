@@ -12,6 +12,15 @@ const advicePlanSchema = z.object({
 
 export type AdvicePlan = z.infer<typeof advicePlanSchema>;
 
+// Typed failure for a malformed or non-conforming model response (AC-F1.3), so
+// callers never see a generic SyntaxError/ZodError and never a half-built plan.
+export class AdviceParseError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'AdviceParseError';
+  }
+}
+
 export function parseAdviceResponse(raw: string): AdvicePlan {
   return advicePlanSchema.parse(JSON.parse(raw));
 }
