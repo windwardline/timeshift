@@ -5,6 +5,7 @@ import { dayNightArcs } from '@/lib/engine/arcs';
 import { recommendSleepWindows } from '@/lib/engine/sleep';
 import { offsetMinutes } from '@/lib/engine/time';
 import { Timeline } from '@/components/Timeline';
+import { AdvicePanel } from '@/components/AdvicePanel';
 
 // DB-backed: render at request time rather than prerendering at build.
 export const dynamic = 'force-dynamic';
@@ -67,6 +68,8 @@ export default async function Home() {
         Warm bands are daylight at the destination, dark bands night; blue bars are flights, hatched
         blocks layovers, and the shaded {'☾'} spans are recommended in-flight sleep windows.
       </p>
+
+      <AdvicePanel tripId={trip.id} />
     </main>
   );
 }
