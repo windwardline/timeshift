@@ -1,3 +1,4 @@
+import { offsetMinutes, crossesDateLine } from '../engine/time';
 import type { Segment } from '../engine/timeline';
 import type { SleepWindow } from '../engine/sleep';
 
@@ -27,15 +28,26 @@ export function assembleTripFacts(
   segments: Segment[],
   sleepWindows: SleepWindow[],
 ): TripFacts {
-  // Red stub: a placeholder so the test fails on assertion, not on a missing
-  // import. Replaced with the real assembly in Green.
-  void segments;
-  void sleepWindows;
+  const first = segments[0];
+  const last = segments[segments.length - 1];
+  const originZone = first.departureTz;
+  const destinationZone = last.arrivalTz;
+
+  // The offset shift the traveler actually experiences: destination offset at
+  // arrival minus origin offset at departure (each DST-correct via the engine).
+  const offsetDeltaMinutes =
+    offsetMinutes(last.arrivalTime, destinationZone) -
+    offsetMinutes(first.departureTime, originZone);
+
   return {
-    originZone: '',
-    destinationZone: '',
-    offsetDeltaMinutes: 0,
-    crossesDateLine: false,
-    sleepWindows: [],
+    originZone,
+    destinationZone,
+    offsetDeltaMinutes,
+    crossesDateLine: segments.some((segment) => crossesDateLine(segment)),
+    sleepWindows: sleepWindows.map((window) => ({
+      startUtc: window.start.toISOString(),
+      endUtc: window.end.toISOString(),
+      label: window.label,
+    })),
   };
 }
