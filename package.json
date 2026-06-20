@@ -11,7 +11,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "capture": "sh scripts/capture-tdd.sh",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
