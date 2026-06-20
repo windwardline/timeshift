@@ -92,8 +92,33 @@ alongside the code that produced them.
 
 - Segments + layover axis — [`09-timeline-red.txt`](docs/logs/09-timeline-red.txt) → [`09-timeline-green.txt`](docs/logs/09-timeline-green.txt)
 
-**Pending (not yet built):** sleep windows (US-E4), and the full suite + coverage run at
-sprint end.
+**Phase 6 — Sleep windows (US-E4)**
+
+- Red-eye in-air window — [`16-sleep-redeye-red.txt`](docs/logs/16-sleep-redeye-red.txt) → [`16-sleep-redeye-green.txt`](docs/logs/16-sleep-redeye-green.txt)
+- Short daytime hop → zero windows — [`17-sleep-daytime-green.txt`](docs/logs/17-sleep-daytime-green.txt) (green only — see note)
+- Never during a layover (covers in-air guard) — [`18-sleep-layover-green.txt`](docs/logs/18-sleep-layover-green.txt) (green only — see note)
+
+> **Green-on-arrival for the daytime + layover cases.** The red-eye Red drove the general
+> night-clipping implementation; the daytime-hop and layover cases were already handled
+> correctly by it (zero windows when nothing overlaps destination night; layovers skipped
+> as ground time), so they characterize existing behavior and close the branch-coverage
+> gap rather than driving new code. No Red was fabricated.
+
+**Timeline geometry (US-D1)**
+
+- Scale helper (time → x) — [`20-scale-red.txt`](docs/logs/20-scale-red.txt) → [`20-scale-green.txt`](docs/logs/20-scale-green.txt)
+
+**AI advice feature (US-F1)** — the deterministic glue, driven Red → Green against a **mocked** model client (no key required):
+
+- Prompt carries the facts — [`10-ai-prompt-red.txt`](docs/logs/10-ai-prompt-red.txt) → [`10-ai-prompt-green.txt`](docs/logs/10-ai-prompt-green.txt)
+- Prompt branch coverage — [`15-ai-prompt-branches-green.txt`](docs/logs/15-ai-prompt-branches-green.txt) (green only — pins westward/IDL/no-sleep branches)
+- Well-formed response parses — [`11-ai-parse-ok-red.txt`](docs/logs/11-ai-parse-ok-red.txt) → [`11-ai-parse-ok-green.txt`](docs/logs/11-ai-parse-ok-green.txt)
+- Malformed response fails safely — [`12-ai-parse-bad-red.txt`](docs/logs/12-ai-parse-bad-red.txt) → [`12-ai-parse-bad-green.txt`](docs/logs/12-ai-parse-bad-green.txt)
+- Orchestration calls client + returns plan — [`13-ai-generate-ok-red.txt`](docs/logs/13-ai-generate-ok-red.txt) → [`13-ai-generate-ok-green.txt`](docs/logs/13-ai-generate-ok-green.txt)
+- Orchestration degrades on client failure — [`14-ai-generate-fail-red.txt`](docs/logs/14-ai-generate-fail-red.txt) → [`14-ai-generate-fail-green.txt`](docs/logs/14-ai-generate-fail-green.txt)
+- Engine → facts adapter — [`19-ai-facts-red.txt`](docs/logs/19-ai-facts-red.txt) → [`19-ai-facts-green.txt`](docs/logs/19-ai-facts-green.txt)
+
+**Pending:** the full suite + coverage run at sprint end.
 
 ### TDD cycle screenshots (colored Red → Green)
 
@@ -114,6 +139,38 @@ assertion errors in red; green runs render the passing suite in green. Images sh
 - East crossing leap (LA → Sydney) — `docs/screenshots/07-idl-sydney-red.png` → `docs/screenshots/07-idl-sydney-green.png`
 - Sunrise/sunset tiling — `docs/screenshots/08-arcs-red.png` → `docs/screenshots/08-arcs-green.png`
 - Segments + layover axis — `docs/screenshots/09-timeline-red.png` → `docs/screenshots/09-timeline-green.png`
+- Red-eye sleep window — `docs/screenshots/16-sleep-redeye-red.png` → `docs/screenshots/16-sleep-redeye-green.png`
+- Daytime hop / layover (green only) — `docs/screenshots/17-sleep-daytime-green.png`, `docs/screenshots/18-sleep-layover-green.png`
+- Timeline scale helper — `docs/screenshots/20-scale-red.png` → `docs/screenshots/20-scale-green.png`
+- AI prompt / parse / generate (US-F1) — `docs/screenshots/10-ai-prompt-*.png`, `11-ai-parse-ok-*.png`, `12-ai-parse-bad-*.png`, `13-ai-generate-ok-*.png`, `14-ai-generate-fail-*.png`, `15-ai-prompt-branches-green.png`
+- Engine → facts adapter — `docs/screenshots/19-ai-facts-red.png` → `docs/screenshots/19-ai-facts-green.png`
+
+### AI advice feature — what is mocked-and-tested vs live-and-demo-only
+
+> The engine and the AI glue (prompt assembly, response parsing, orchestration)
+> are unit-tested deterministically with a **mocked** model client; the suite runs
+> with no API key. The **live model call** is exercised in the demo with a real
+> key. Model output is non-deterministic by nature, so it is never snapshot-asserted.
+
+`lib/ai/` is server-only (CLAUDE.md §13). `facts.ts`, `prompt.ts`, `parse.ts`, and
+`advice.ts` are pure and held at 100% coverage — including the malformed-response and
+client-error branches. `lib/ai/client.ts` is the single module that touches the network
+(the Anthropic SDK); it is excluded from coverage with an explicit `/* v8 ignore file */`
+pragma and is exercised only in the demo. The API key lives in `.env.local` (gitignored);
+`.env.example` documents the variable name with no value. Tests and coverage pass with no
+key present.
+
+### Data layer
+
+Three tables — `User 1→* Trip 1→* FlightSegment` — defined in
+[`prisma/schema.prisma`](prisma/schema.prisma) and migrated into PostgreSQL
+(`prisma/migrations/`). Every timestamp is stored in UTC with the original IANA timezone
+string kept alongside it, so all offset/DST reasoning stays delegated to Luxon. Layovers
+are **derived** (gaps between consecutive segments), not stored. The query that feeds the
+whole engine pipeline is `getTripWithSegments` in [`lib/db/trips.ts`](lib/db/trips.ts): an
+ownership-scoped `findFirst` with an ordered `include` on segments. Schema, migrations, and
+the thin query layer are configuration/integration, not TDD'd — the engine remains the TDD
+showcase.
 
 ### End-to-end verification (Playwright)
 
@@ -133,14 +190,19 @@ npm install
 # 2. Configure environment (DATABASE_URL etc.) — .env is gitignored
 cp .env.example .env
 
-# 3. Run migrations
+# 3. Run migrations + seed one demo trip
 npx prisma migrate dev
+npm run seed
 
-# 4. Run the test suite (TDD loop)
+# 4. Run the test suite (TDD loop) — no API key required
 npm run test            # watch mode
 npm run test:run        # single run
 npm run test:coverage   # with coverage report
 
-# 5. Start the dev server
+# 5. (Optional) enable the live AI advice call for the demo
+#    Add ANTHROPIC_API_KEY to .env.local (gitignored). The timeline renders
+#    without it; only the "Get my jetlag plan" button needs a key.
+
+# 6. Start the dev server
 npm run dev
 ```
