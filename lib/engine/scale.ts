@@ -11,11 +11,8 @@ export interface Axis {
 
 /** Fraction [0, 1] of an instant along the axis span. */
 export function fractionAt(instant: Date, axis: Axis): number {
-  // Red stub: a placeholder so the test fails on assertion, not on a missing
-  // import. Replaced in Green.
-  void instant;
-  void axis;
-  return -1;
+  const span = axis.end.getTime() - axis.start.getTime();
+  return (instant.getTime() - axis.start.getTime()) / span;
 }
 
 /** Map a UTC interval to a positioned rect on a pixel axis of the given width. */
@@ -25,9 +22,6 @@ export function intervalToRect(
   axis: Axis,
   width: number,
 ): { x: number; width: number } {
-  void start;
-  void end;
-  void axis;
-  void width;
-  return { x: -1, width: -1 };
+  const x = fractionAt(start, axis) * width;
+  return { x, width: (fractionAt(end, axis) - fractionAt(start, axis)) * width };
 }
