@@ -172,12 +172,20 @@ ownership-scoped `findFirst` with an ordered `include` on segments. Schema, migr
 the thin query layer are configuration/integration, not TDD'd — the engine remains the TDD
 showcase.
 
-### End-to-end verification (Playwright)
+### End-to-end verification
 
-Planned for after deploy: the deployed app will be driven to a known itinerary and
-screenshotted, and the same script will assert the headline numbers (arrival time,
-offset, sleep-window label) as a regression check. Screenshots will be embedded here
-once the run exists — not linked while the files are absent.
+The running app rendering the seeded demo trip (real DB → engine → SVG pipeline,
+captured from `http://localhost:3000/` via a headless browser):
+
+![Timeline demo](docs/screenshots/timeline-demo.png)
+
+The fetched page was asserted against the engine's headline numbers from the seeded trip:
+the trip name (`New York → Tokyo (via London)`), the computed clock shift (`+13.0h`), the
+destination axis labels (`Asia/Tokyo`), and the in-air sleep window highlighted over the
+LHR → HND leg during Tokyo night. The **"AI-generated" panel is present**; its live model
+call is demo-only (it needs `ANTHROPIC_API_KEY` in `.env.local`) and is never
+snapshot-asserted. A full Playwright regression spec that re-asserts these numbers in CI is
+the remaining polish item.
 
 ---
 
