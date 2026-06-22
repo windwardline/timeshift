@@ -9,18 +9,17 @@ interface AdvicePlan {
   postArrival: string[];
 }
 
-const SECTIONS: { key: keyof Omit<AdvicePlan, 'summary'>; label: string }[] = [
-  { key: 'preFlight', label: 'Before the flight' },
-  { key: 'inFlight', label: 'In the air' },
-  { key: 'postArrival', label: 'After you land' },
+const PHASES: { key: keyof Omit<AdvicePlan, 'summary'>; label: string; icon: string }[] = [
+  { key: 'preFlight', label: 'Before you fly', icon: '☀' },
+  { key: 'inFlight', label: 'In the air', icon: '☾' },
+  { key: 'postArrival', label: 'After you land', icon: '✦' },
 ];
 
 /**
  * The live AI beat (CLAUDE.md §13 / docs/AI_ADVICE.md). Posts to the server
- * route, which makes the real model call behind the env key. A visible
- * "generating…" state shows the live call happening; the panel is clearly
- * labelled "AI-generated" to mark the seam between the deterministic timeline
- * and the model's narrative. Output is never hardcoded — it's unique per trip.
+ * route, which makes the real per-trip model call behind the env key. A visible
+ * "consulting" state shows the live call in flight; the panel is clearly marked
+ * "AI-generated". Output is unique to the on-screen trip — it can't be canned.
  */
 export function AdvicePanel({ tripId }: { tripId: string }) {
   const [plan, setPlan] = useState<AdvicePlan | null>(null);
@@ -47,66 +46,51 @@ export function AdvicePanel({ tripId }: { tripId: string }) {
   }
 
   return (
-    <section
-      style={{
-        marginTop: 24,
-        border: '1px solid #e2e8f0',
-        borderRadius: 12,
-        padding: 20,
-        background: '#fafaf9',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 18 }}>Your jetlag plan</h2>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#6d28d9',
-            background: '#ede9fe',
-            border: '1px solid #ddd6fe',
-            borderRadius: 999,
-            padding: '2px 8px',
-          }}
-        >
-          AI-generated
-        </span>
+    <section className="card advice">
+      <div className="advice-head">
+        <h2>Your jetlag plan</h2>
+        <span className="badge-ai">AI-generated</span>
       </div>
+      <p className="advice-sub">
+        A plan written for this exact itinerary — when to shift your clock, sleep, and chase
+        light.
+      </p>
 
-      <button
-        onClick={getAdvice}
-        disabled={loading}
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: '#fff',
-          background: loading ? '#94a3b8' : '#4f46e5',
-          border: 'none',
-          borderRadius: 8,
-          padding: '8px 16px',
-          cursor: loading ? 'default' : 'pointer',
-        }}
-      >
-        {loading ? 'Generating…' : 'Get my jetlag plan'}
+      <button className="btn" onClick={getAdvice} disabled={loading}>
+        {loading ? 'Consulting…' : plan ? 'Regenerate plan' : 'Get my jetlag plan'}
       </button>
 
-      {error && (
-        <p style={{ color: '#b91c1c', fontSize: 13, marginTop: 12 }}>{error}</p>
+      {loading && (
+        <div className="thinking">
+          <span className="orbits">
+            <i />
+            <i />
+            <i />
+          </span>
+          Reading your timeline and writing a plan…
+        </div>
       )}
 
+      {error && <p className="err">{error}</p>}
+
       {plan && (
-        <div style={{ marginTop: 16 }}>
-          <p style={{ fontWeight: 600, marginTop: 0 }}>{plan.summary}</p>
-          {SECTIONS.map(({ key, label }) => (
-            <div key={key} style={{ marginTop: 12 }}>
-              <h3 style={{ fontSize: 14, margin: '0 0 4px' }}>{label}</h3>
-              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: '#334155' }}>
-                {plan[key].map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div>
+          <p className="advice-summary reveal">{plan.summary}</p>
+          <div className="phases">
+            {PHASES.map(({ key, label, icon }, idx) => (
+              <div key={key} className={`phase reveal${idx ? `-${idx + 1}` : ''}`}>
+                <h3>
+                  <span aria-hidden>{icon}</span>
+                  {label}
+                </h3>
+                <ul>
+                  {plan[key].map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>
