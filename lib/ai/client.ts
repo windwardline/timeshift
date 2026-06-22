@@ -3,40 +3,38 @@
 // never unit-tested and is explicitly excluded from coverage — model output is
 // non-deterministic, so it is exercised live only in the demo with a real key.
 // Everything else in lib/ai/ is pure and TDD'd against this interface's mock.
-import Anthropic from '@anthropic-ai/sdk';
+//
+// Provider: OpenAI. (docs/AI_ADVICE.md anticipates this swap — only this file
+// and the env var change; the prompt/parse/orchestrate units are unchanged.)
+import OpenAI from 'openai';
 import type { LlmClient } from './advice';
 
-// Default to the latest, most capable Claude model (per the claude-api guidance).
-const MODEL = 'claude-opus-4-8';
+// Fast, inexpensive default; override with OPENAI_MODEL if your account differs.
+const MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
 
 /**
  * Build the real provider-backed LlmClient. The API key is read server-side
  * only (the API route passes it in from process.env) and never reaches the
- * browser.
+ * browser. JSON mode is requested so parseAdviceResponse receives clean JSON.
  */
-export function createAnthropicClient(apiKey: string): LlmClient {
-  const anthropic = new Anthropic({ apiKey });
+export function createOpenAiClient(apiKey: string): LlmClient {
+  const openai = new OpenAI({ apiKey });
 
   return {
     async complete(prompt: string): Promise<string> {
-      const message = await anthropic.messages.create({
+      const completion = await openai.chat.completions.create({
         model: MODEL,
-        max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
       });
-
-      // The prompt asks for a single JSON object; concatenate any text blocks.
-      const text = message.content
-        .map((block) => (block.type === 'text' ? block.text : ''))
-        .join('');
 
       // Redacted server-side request log for demo evidence (no key, no content).
       console.info(
-        `[ai] advice request id=${message.id} model=${MODEL} ` +
-          `in=${message.usage.input_tokens} out=${message.usage.output_tokens}`,
+        `[ai] advice request id=${completion.id} model=${MODEL} ` +
+          `tokens=${completion.usage?.total_tokens ?? '?'}`,
       );
 
-      return text;
+      return completion.choices[0]?.message?.content ?? '';
     },
   };
 }
