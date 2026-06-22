@@ -122,9 +122,17 @@ alongside the code that produced them.
 
 - Validate + UTC-normalize builder input — [`23-normalize-red.txt`](docs/logs/23-normalize-red.txt) → [`23-normalize-green.txt`](docs/logs/23-normalize-green.txt)
 
+**Accounts (US-A1)**
+
+- Validate credentials (email + 8-char password) — [`24-credentials-red.txt`](docs/logs/24-credentials-red.txt) → [`24-credentials-green.txt`](docs/logs/24-credentials-green.txt)
+
+The auth/ownership wiring is integration, exercised by route tests (not unit-gated): register
+hashes with **real bcrypt** and rejects duplicates; login is generic on failure; and the
+**ownership-isolation** test proves a non-owner gets a bare 404 on another user's trip (US-B4).
+
 **Sprint-end full run.** The complete passing suite and the 100%-coverage report are
 captured from real runs: [`21-full-suite-green.txt`](docs/logs/21-full-suite-green.txt)
-(34/34 passing) and [`22-coverage-green.txt`](docs/logs/22-coverage-green.txt)
+(48/48 passing) and [`22-coverage-green.txt`](docs/logs/22-coverage-green.txt)
 (statements/branches/functions/lines all 100% across `lib/engine/` + `lib/ai/`, with
 `lib/ai/client.ts` excluded as the live-network module).
 
@@ -170,9 +178,11 @@ key present.
 
 ### Data layer
 
-Three tables — `User 1→* Trip 1→* FlightSegment` — defined in
-[`prisma/schema.prisma`](prisma/schema.prisma) and migrated into PostgreSQL
-(`prisma/migrations/`). Every timestamp is stored in UTC with the original IANA timezone
+Four tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for
+auth) — defined in [`prisma/schema.prisma`](prisma/schema.prisma) and migrated into
+PostgreSQL (`prisma/migrations/`). Accounts use bcrypt-hashed passwords and opaque
+DB-backed session tokens in an httpOnly cookie; every trip query is scoped to its owner,
+so a non-owner can't read or act on someone else's trip (US-B4). Every timestamp is stored in UTC with the original IANA timezone
 string kept alongside it, so all offset/DST reasoning stays delegated to Luxon. Layovers
 are **derived** (gaps between consecutive segments), not stored. The query that feeds the
 whole engine pipeline is `getTripWithSegments` in [`lib/db/trips.ts`](lib/db/trips.ts): an

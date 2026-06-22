@@ -7,20 +7,20 @@
       Coverage enabled with v8
 
 
- Test Files  13 passed (13)
-      Tests  34 passed (34)
-   Start at  02:17:35
-   Duration  597ms (transform 261ms, setup 0ms, import 737ms, tests 260ms, environment 1ms)
+ Test Files  15 passed (15)
+      Tests  48 passed (48)
+   Start at  17:53:17
+   Duration  859ms (transform 288ms, setup 0ms, import 933ms, tests 671ms, environment 1ms)
 
  % Coverage report from v8
----------------|---------|----------|---------|---------|-------------------
-File           | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
----------------|---------|----------|---------|---------|-------------------
----------------|---------|----------|---------|---------|-------------------
+-----------------|---------|----------|---------|---------|-------------------
+File             | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-----------------|---------|----------|---------|---------|-------------------
+-----------------|---------|----------|---------|---------|-------------------
 
 =============================== Coverage summary ===============================
-Statements   : 100% ( 114/114 )
-Branches     : 100% ( 32/32 )
-Functions    : 100% ( 25/25 )
-Lines        : 100% ( 109/109 )
+Statements   : 100% ( 120/120 )
+Branches     : 100% ( 36/36 )
+Functions    : 100% ( 27/27 )
+Lines        : 100% ( 115/115 )
 ================================================================================
