@@ -149,36 +149,42 @@ export function Timeline({
         })}
       </g>
 
-      {/* Sleep windows — glowing, behind the bar labels */}
-      <g className="reveal-2" filter="url(#glow)">
-        {sleep.map((w, i) => {
-          const { x, width } = place(w.start, w.end);
-          return <rect key={`sleep-${i}`} x={x} y={BAR_TOP} width={width} height={BAR_H} fill="url(#g-sleep)" rx={10} />;
-        })}
-      </g>
-
-      {/* Flight legs */}
+      {/* Flight bars */}
       <g className="reveal-3">
         {flights.map((f, i) => {
           const { x, width } = place(f.departureTime, f.arrivalTime);
+          return <rect key={`bar-${i}`} x={x} y={BAR_TOP} width={width} height={BAR_H} fill="url(#g-flight)" rx={10} filter="url(#glow)" opacity={0.96} />;
+        })}
+      </g>
+
+      {/* Sleep windows — highlighted ON TOP of the in-air bars so they read clearly */}
+      <g className="reveal-3">
+        {sleep.map((w, i) => {
+          const { x, width } = place(w.start, w.end);
           return (
-            <g key={`flight-${i}`}>
-              <rect x={x} y={BAR_TOP} width={width} height={BAR_H} fill="url(#g-flight)" rx={10} filter="url(#glow)" opacity={0.96} />
-              <text x={x + 14} y={BAR_TOP + 26} fill="#fff" fontSize="14" fontWeight={700}>
-                {f.departureAirport} → {f.arrivalAirport}
-              </text>
-              <text x={x + 14} y={BAR_TOP + 46} fill="rgba(255,255,255,0.82)" fontSize="11.5" style={{ fontFamily: MONO }}>
-                {clock(f.departureTime, destTz)}–{clock(f.arrivalTime, destTz)} · {hours(f.departureTime, f.arrivalTime)}
+            <g key={`sleep-${i}`} filter="url(#glow)">
+              <rect x={x} y={BAR_TOP} width={width} height={BAR_H} fill="url(#g-sleep)" rx={10} opacity={0.82} stroke="#9bf7ea" strokeOpacity={0.7} />
+              <text x={x + width / 2} y={BAR_TOP + BAR_H - 11} fill="#04263a" fontSize="11" fontWeight={700} textAnchor="middle" style={{ fontFamily: MONO }}>
+                ☾ sleep
               </text>
             </g>
           );
         })}
-        {sleep.map((w, i) => {
-          const { x, width } = place(w.start, w.end);
+      </g>
+
+      {/* Flight labels last, so airport + time readouts stay crisp over any sleep highlight */}
+      <g className="reveal-3">
+        {flights.map((f, i) => {
+          const { x } = place(f.departureTime, f.arrivalTime);
           return (
-            <text key={`sl-${i}`} x={x + width / 2} y={BAR_TOP + BAR_H - 12} fill="#04263a" fontSize="11" fontWeight={700} textAnchor="middle" style={{ fontFamily: MONO }}>
-              ☾ sleep
-            </text>
+            <g key={`label-${i}`}>
+              <text x={x + 14} y={BAR_TOP + 26} fill="#fff" fontSize="14" fontWeight={700} style={{ paintOrder: 'stroke' }} stroke="rgba(8,11,26,0.55)" strokeWidth={3}>
+                {f.departureAirport} → {f.arrivalAirport}
+              </text>
+              <text x={x + 14} y={BAR_TOP + 46} fill="#f3f5ff" fontSize="11.5" style={{ fontFamily: MONO, paintOrder: 'stroke' }} stroke="rgba(8,11,26,0.55)" strokeWidth={3}>
+                {clock(f.departureTime, destTz)}–{clock(f.arrivalTime, destTz)} · {hours(f.departureTime, f.arrivalTime)}
+              </text>
+            </g>
           );
         })}
       </g>
