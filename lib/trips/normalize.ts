@@ -49,10 +49,44 @@ export type NormalizeResult =
   | { ok: false; error: string };
 
 export function normalizeTripInput(raw: unknown): NormalizeResult {
-  // Red stub: always fails so the happy-path test fails on assertion, not on a
-  // missing import. Replaced with real validation + normalization in Green.
-  void raw;
-  void tripSchema;
-  void toUtc;
-  return { ok: false, error: 'not implemented' };
+  const parsed = tripSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: 'Please give the trip a name and at least one flight leg.' };
+  }
+
+  const segments: NormalizedSegment[] = [];
+  parsed.data.segments.forEach((s, i) => segments.push({
+    sequence: i,
+    departureAirport: s.departureAirport,
+    arrivalAirport: s.arrivalAirport,
+    departureTime: toUtc(s.departureLocal, s.departureTz),
+    arrivalTime: toUtc(s.arrivalLocal, s.arrivalTz),
+    departureTz: s.departureTz,
+    arrivalTz: s.arrivalTz,
+    departureLat: s.departureLat,
+    departureLng: s.departureLng,
+    arrivalLat: s.arrivalLat,
+    arrivalLng: s.arrivalLng,
+  }));
+
+  for (const seg of segments) {
+    if (Number.isNaN(seg.departureTime.getTime()) || Number.isNaN(seg.arrivalTime.getTime())) {
+      return { ok: false, error: 'That date or time zone wasn’t valid — please re-check the leg.' };
+    }
+    if (seg.arrivalTime.getTime() <= seg.departureTime.getTime()) {
+      return {
+        ok: false,
+        error: `Leg ${seg.sequence + 1} arrives before it departs — check the times and zones.`,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    data: {
+      name: parsed.data.name,
+      destination: segments[segments.length - 1].arrivalTz,
+      segments,
+    },
+  };
 }

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/trips/normalize.test.ts (4 tests) 19ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  02:07:46
+   Duration  202ms (transform 23ms, setup 0ms, import 61ms, tests 19ms, environment 0ms)
