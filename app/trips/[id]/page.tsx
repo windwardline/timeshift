@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/db/prisma';
+import { redirect, notFound } from 'next/navigation';
 import { getTripWithSegments } from '@/lib/db/trips';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { TripView } from '@/components/TripView';
 
 export const dynamic = 'force-dynamic';
@@ -9,9 +9,13 @@ export const dynamic = 'force-dynamic';
 export default async function TripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // No auth yet (Phase 7): scope to the demo user, the owner of created trips.
-  const user = await prisma.user.findFirst({ where: { email: 'demo@timeshift.app' } });
-  const trip = user ? await getTripWithSegments(id, user.id) : null;
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect('/login');
+  }
+
+  // Ownership-scoped: a trip that isn't yours simply isn't found (US-B4).
+  const trip = await getTripWithSegments(id, user.id);
   if (!trip || trip.segments.length === 0) {
     notFound();
   }

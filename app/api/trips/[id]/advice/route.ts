@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { getTripWithSegments } from '@/lib/db/trips';
+import { getTripWithOwner } from '@/lib/db/trips';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { assembleTimeline } from '@/lib/engine/timeline';
 import { recommendSleepWindows } from '@/lib/engine/sleep';
 import { assembleTripFacts } from '@/lib/ai/facts';
@@ -8,31 +8,30 @@ import { generateAdvice, AdviceGenerationError } from '@/lib/ai/advice';
 import { AdviceParseError } from '@/lib/ai/parse';
 import { createAnthropicClient } from '@/lib/ai/client';
 
-// Server-only AI advice endpoint (CLAUDE.md §13). It loads the trip with the
-// ownership-scoped query, runs the engine to derive the facts, then asks the
-// model — via the real client behind the env key — to narrate them. The key is
-// read here, server-side, and never reaches the browser.
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+// The public showcase trip is open to everyone; every other trip is owner-only.
+const SHOWCASE_EMAIL = 'demo@timeshift.app';
+
+// Server-only AI advice endpoint (CLAUDE.md §13). Loads the trip, enforces
+// access, runs the engine to derive the facts, then asks the model — via the
+// real client behind the env key — to narrate them.
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // No auth yet (US-A* is Phase 7); the demo acts as the seeded demo user so the
-  // ownership-scoped query is still exercised with a real, server-derived userId.
-  const user = await prisma.user.findFirst({ where: { email: 'demo@timeshift.app' } });
-  if (!user) {
-    return NextResponse.json({ error: 'No user' }, { status: 404 });
+  const trip = await getTripWithOwner(id);
+  if (!trip || trip.segments.length === 0) {
+    return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
   }
 
-  const trip = await getTripWithSegments(id, user.id);
-  if (!trip || trip.segments.length === 0) {
+  // Access control (US-B4): non-owners of a private trip get a bare 404 — no
+  // data, no hint the trip exists.
+  const viewer = await getCurrentUser();
+  const isShowcase = trip.user.email === SHOWCASE_EMAIL;
+  if (!isShowcase && trip.userId !== viewer?.id) {
     return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    // Keyless environments (grading/CI/local without a key) degrade cleanly.
     return NextResponse.json(
       { error: 'AI advice is not configured (set ANTHROPIC_API_KEY).' },
       { status: 503 },
@@ -40,8 +39,7 @@ export async function POST(
   }
 
   const timeline = assembleTimeline(trip);
-  // "Home" is the journey's origin zone (the first departure).
-  const homeTz = trip.segments[0].departureTz;
+  const homeTz = trip.segments[0].departureTz; // "home" is the journey's origin
   const sleepWindows = recommendSleepWindows(timeline, homeTz, trip.destination);
   const facts = assembleTripFacts(trip.segments, sleepWindows);
 

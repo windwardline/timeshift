@@ -55,3 +55,21 @@ export function getTripWithSegments(id: string, userId: string) {
     include: orderedSegments,
   });
 }
+
+// Unscoped load including the owner, for access decisions (the public showcase
+// trip vs. an owned trip). Callers MUST enforce access before returning data.
+export function getTripWithOwner(id: string) {
+  return prisma.trip.findUnique({
+    where: { id },
+    include: { ...orderedSegments, user: true },
+  });
+}
+
+// List a user's trips, most recent first (US-B2).
+export function listTrips(userId: string) {
+  return prisma.trip.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    include: orderedSegments,
+  });
+}
