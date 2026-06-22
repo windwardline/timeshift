@@ -124,7 +124,7 @@ alongside the code that produced them.
 
 **Sprint-end full run.** The complete passing suite and the 100%-coverage report are
 captured from real runs: [`21-full-suite-green.txt`](docs/logs/21-full-suite-green.txt)
-(28/28 passing) and [`22-coverage-green.txt`](docs/logs/22-coverage-green.txt)
+(34/34 passing) and [`22-coverage-green.txt`](docs/logs/22-coverage-green.txt)
 (statements/branches/functions/lines all 100% across `lib/engine/` + `lib/ai/`, with
 `lib/ai/client.ts` excluded as the live-network module).
 
