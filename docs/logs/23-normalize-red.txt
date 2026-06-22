@@ -1,0 +1,54 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/trips/normalize.test.ts (4 tests | 2 failed) 5ms
+     × normalizes a valid trip: UTC times, sequence, derived destination 4ms
+     × rejects a leg that arrives before it departs in UTC 0ms
+     ✓ rejects an invalid time zone 0ms
+     ✓ rejects missing required fields 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/trips/normalize.test.ts > normalizeTripInput > normalizes a valid trip: UTC times, sequence, derived destination
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ lib/trips/normalize.test.ts:25:23
+     23|     const result = normalizeTripInput({ name: 'NYC → London', segments…
+     24|
+     25|     expect(result.ok).toBe(true);
+       |                       ^
+     26|     if (!result.ok) return;
+     27|     expect(result.data.name).toBe('NYC → London');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/trips/normalize.test.ts > normalizeTripInput > rejects a leg that arrives before it departs in UTC
+AssertionError: expected 'not implemented' to match /before it departs/i
+
+- Expected:
+/before it departs/i
+
++ Received:
+"not implemented"
+
+ ❯ lib/trips/normalize.test.ts:45:26
+     43|     expect(result.ok).toBe(false);
+     44|     if (result.ok) return;
+     45|     expect(result.error).toMatch(/before it departs/i);
+       |                          ^
+     46|   });
+     47|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  02:05:05
+   Duration  189ms (transform 21ms, setup 0ms, import 57ms, tests 5ms, environment 0ms)
