@@ -20,4 +20,8 @@ describe('validateCredentials', () => {
   it('rejects a malformed email', () => {
     expect(validateCredentials({ email: 'not-an-email', password: 'supersecret' }).ok).toBe(false);
   });
+
+  it('rejects a non-string email', () => {
+    expect(validateCredentials({ email: 42, password: 'supersecret' }).ok).toBe(false);
+  });
 });

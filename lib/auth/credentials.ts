@@ -22,7 +22,8 @@ export type ValidateResult = { ok: true; data: Credentials } | { ok: false; erro
 export function validateCredentials(raw: unknown): ValidateResult {
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Enter a valid email and password.' };
+    // safeParse always reports at least one issue on failure.
+    return { ok: false, error: parsed.error.issues[0].message };
   }
   return { ok: true, data: parsed.data };
 }
