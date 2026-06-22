@@ -25,8 +25,10 @@ interface ViewTrip {
 
 // Runs the real DB → engine pipeline for one trip and renders it: the header,
 // the luminous timeline, and the live AI panel. Server component — the engine
-// runs on the server; only the AI panel is interactive.
-export function TripView({ trip, homeTimeZone }: { trip: ViewTrip; homeTimeZone: string }) {
+// runs on the server; only the AI panel is interactive. "Home" is the journey's
+// origin zone (the first departure), which is the traveler's baseline clock.
+export function TripView({ trip }: { trip: ViewTrip }) {
+  const homeTimeZone = trip.segments[0].departureTz;
   const timeline = assembleTimeline(trip);
   const layovers = timeline.items.filter((i) => i.kind === 'layover');
   const last = trip.segments[trip.segments.length - 1];

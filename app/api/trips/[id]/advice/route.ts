@@ -40,7 +40,9 @@ export async function POST(
   }
 
   const timeline = assembleTimeline(trip);
-  const sleepWindows = recommendSleepWindows(timeline, user.homeTimeZone, trip.destination);
+  // "Home" is the journey's origin zone (the first departure).
+  const homeTz = trip.segments[0].departureTz;
+  const sleepWindows = recommendSleepWindows(timeline, homeTz, trip.destination);
   const facts = assembleTripFacts(trip.segments, sleepWindows);
 
   try {
