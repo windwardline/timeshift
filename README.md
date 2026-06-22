@@ -118,6 +118,10 @@ alongside the code that produced them.
 - Orchestration degrades on client failure — [`14-ai-generate-fail-red.txt`](docs/logs/14-ai-generate-fail-red.txt) → [`14-ai-generate-fail-green.txt`](docs/logs/14-ai-generate-fail-green.txt)
 - Engine → facts adapter — [`19-ai-facts-red.txt`](docs/logs/19-ai-facts-red.txt) → [`19-ai-facts-green.txt`](docs/logs/19-ai-facts-green.txt)
 
+**Trip input (US-B1/C1)**
+
+- Validate + UTC-normalize builder input — [`23-normalize-red.txt`](docs/logs/23-normalize-red.txt) → [`23-normalize-green.txt`](docs/logs/23-normalize-green.txt)
+
 **Sprint-end full run.** The complete passing suite and the 100%-coverage report are
 captured from real runs: [`21-full-suite-green.txt`](docs/logs/21-full-suite-green.txt)
 (28/28 passing) and [`22-coverage-green.txt`](docs/logs/22-coverage-green.txt)
@@ -178,18 +182,23 @@ showcase.
 
 ### End-to-end verification
 
-The running app rendering the seeded demo trip (real DB → engine → SVG pipeline,
-captured from `http://localhost:3000/` via a headless browser):
+The running app, captured from `http://localhost:3000/` via a headless browser. The
+landing pairs a trip builder with a fully-worked example:
 
-![Timeline demo](docs/screenshots/timeline-demo.png)
+![TimeShift home](docs/screenshots/app-home.png)
 
-The fetched page was asserted against the engine's headline numbers from the seeded trip:
-the trip name (`New York → Tokyo (via London)`), the computed clock shift (`+13.0h`), the
-destination axis labels (`Asia/Tokyo`), and the in-air sleep window highlighted over the
-LHR → HND leg during Tokyo night. The **"AI-generated" panel is present**; its live model
-call is demo-only (it needs `ANTHROPIC_API_KEY` in `.env.local`) and is never
-snapshot-asserted. A full Playwright regression spec that re-asserts these numbers in CI is
-the remaining polish item.
+Any itinerary works — there is no seeded-data limitation. Entering airports + local times
+in the builder and submitting drives the real path (validate → UTC-normalize → persist →
+ownership-scoped fetch → engine → render) and lands on a per-trip page:
+
+![A user-built trip](docs/screenshots/app-custom-trip.png)
+
+The pages were asserted against the engine's headline numbers — trip name, computed clock
+shift (`+13.0h`), destination axis labels, and the in-air sleep window over the
+destination's night. The **"AI-generated" panel is present** and degrades cleanly without a
+key; its live model call is demo-only (it needs `ANTHROPIC_API_KEY` in `.env.local`) and is
+never snapshot-asserted. A committed Playwright regression spec that re-asserts these numbers
+in CI is the remaining polish item.
 
 ---
 
