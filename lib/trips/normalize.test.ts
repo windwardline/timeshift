@@ -33,6 +33,11 @@ describe('normalizeTripInput', () => {
     expect(seg.departureTime.toISOString()).toBe('2025-06-01T22:00:00.000Z');
     // 06:00 BST (+1) → 05:00Z
     expect(seg.arrivalTime.toISOString()).toBe('2025-06-02T05:00:00.000Z');
+    // US-C4: geo-coords ride through to the persisted segment so the arcs resolve.
+    expect(seg.departureLat).toBe(40.6413);
+    expect(seg.departureLng).toBe(-73.7781);
+    expect(seg.arrivalLat).toBe(51.47);
+    expect(seg.arrivalLng).toBe(-0.4543);
   });
 
   it('rejects a leg that arrives before it departs in UTC', () => {

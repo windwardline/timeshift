@@ -22,6 +22,10 @@ const validLeg = {
   arrivalLocal: '2025-07-03T07:30',
   departureTz: 'Europe/London',
   arrivalTz: 'Asia/Singapore',
+  departureLat: 51.47,
+  departureLng: -0.4543,
+  arrivalLat: 1.3644,
+  arrivalLng: 103.9915,
 };
 
 const params = Promise.resolve({ id: 'trip1', segId: 'seg2' });
@@ -46,6 +50,7 @@ describe('PATCH /api/trips/[id]/segments/[segId] (edit)', () => {
     const [tripId, userId, segId, leg] = mocks.updateSegment.mock.calls[0];
     expect([tripId, userId, segId]).toEqual(['trip1', 'u1', 'seg2']);
     expect(leg.departureTime.toISOString()).toBe('2025-07-02T10:40:00.000Z');
+    expect(leg.arrivalLat).toBe(1.3644); // US-C4: coords preserved on edit
   });
 
   it('rejects an impossible edit with 400 and never writes', async () => {

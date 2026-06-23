@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/trips/normalize.test.ts app/api/trips/[id]/segments/[segId]/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  19:16:27
+   Duration  225ms (transform 47ms, setup 0ms, import 141ms, tests 40ms, environment 0ms)
+
