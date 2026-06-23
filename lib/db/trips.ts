@@ -83,6 +83,42 @@ export function deleteTrip(id: string, userId: string) {
   return prisma.trip.deleteMany({ where: { id, userId } });
 }
 
+// Edit one leg of an owned trip (US-C3). The relation filter on `trip.userId`
+// enforces ownership in the write itself, so a non-owner affects 0 rows. The leg
+// keeps its sequence; only the normalized flight fields change.
+export function updateSegment(
+  tripId: string,
+  userId: string,
+  segId: string,
+  leg: Omit<NewSegmentInput, 'sequence'>,
+) {
+  return prisma.flightSegment.updateMany({
+    where: { id: segId, tripId, trip: { userId } },
+    data: { ...leg },
+  });
+}
+
+// Delete one leg of an owned trip (US-C3), then compact the remaining legs to a
+// contiguous 0-based sequence so the engine still receives a clean order. The
+// delete is ownership-scoped via the trip relation; resequencing runs only when
+// a row was actually removed.
+export async function deleteSegment(tripId: string, userId: string, segId: string) {
+  const removed = await prisma.flightSegment.deleteMany({
+    where: { id: segId, tripId, trip: { userId } },
+  });
+  if (removed.count === 0) return removed;
+
+  const remaining = await prisma.flightSegment.findMany({
+    where: { tripId },
+    orderBy: { sequence: 'asc' },
+    select: { id: true },
+  });
+  await prisma.$transaction(
+    remaining.map((s, i) => prisma.flightSegment.update({ where: { id: s.id }, data: { sequence: i } })),
+  );
+  return removed;
+}
+
 // List a user's trips, most recent first (US-B2).
 export function listTrips(userId: string) {
   return prisma.trip.findMany({
