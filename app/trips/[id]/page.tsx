@@ -27,7 +27,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           <Link href="/">← TimeShift</Link>
         </p>
       </header>
-      <TripView trip={trip} />
+      <TripView trip={trip} homeTimeZone={user.homeTimeZone} />
     </main>
   );
 }
