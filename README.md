@@ -214,11 +214,16 @@ ownership-scoped fetch → engine → render) and lands on a per-trip page:
 ![A user-built trip](docs/screenshots/app-custom-trip.png)
 
 The pages were asserted against the engine's headline numbers — trip name, computed clock
-shift (`+13.0h`), destination axis labels, and the in-air sleep window over the
-destination's night. The **"AI-generated" panel is present** and degrades cleanly without a
-key; its live model call is demo-only (it needs `GEMINI_API_KEY` in `.env.local`) and is
-never snapshot-asserted. A committed Playwright regression spec that re-asserts these numbers
-in CI is the remaining polish item.
+shift (`+12.0h` for the NY → Singapore showcase), destination axis labels, and the in-air
+sleep window over the destination's night. The **"AI-generated" panel is present** and
+degrades cleanly without a key; its live model call is demo-only (it needs `GEMINI_API_KEY`
+in `.env.local`) and is never snapshot-asserted.
+
+These numbers are now locked in by a committed Playwright regression spec
+(`e2e/regression.spec.ts`, run with `npm run test:e2e`): it seeds the showcase trip, opens
+the running app, and re-asserts the trip name, the `+12.0h` clock shift, the home/destination
+zones, the flight legs, and the recommended sleep window — so a temporal-engine regression
+fails the check rather than slipping through. It is a test, not just a screenshotter (§8.B).
 
 ---
 
