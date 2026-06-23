@@ -1,5 +1,8 @@
 # TimeShift — Jetlag & Layover Visualizer
 
+**▶ Live demo: [timeshift.windwardline.com](https://timeshift.windwardline.com)** — passwordless
+magic-link sign-in (Resend), Postgres on Supabase, hosted on Vercel behind Cloudflare DNS.
+
 A high-performance itinerary visualization tool that helps international travelers
 mitigate jetlag by mapping their biological clock against their destination's time
 zone. Instead of a standard itinerary list, TimeShift renders a dynamic horizontal
