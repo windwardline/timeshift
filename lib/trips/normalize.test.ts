@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeTripInput } from './normalize';
+import { normalizeTripInput, normalizeSegmentInput } from './normalize';
 
 // US-C1: trip-builder input is validated and normalized — local wall-times
 // become UTC instants, legs are sequenced, the destination is derived from the
@@ -55,6 +55,39 @@ describe('normalizeTripInput', () => {
 
   it('rejects missing required fields', () => {
     const result = normalizeTripInput({ name: '', segments: [] });
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe('normalizeSegmentInput', () => {
+  it('normalizes one leg to UTC and preserves coordinates (no sequence assigned)', () => {
+    const result = normalizeSegmentInput(validLeg);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.departureTime.toISOString()).toBe('2025-06-01T22:00:00.000Z');
+    expect(result.data.arrivalTime.toISOString()).toBe('2025-06-02T05:00:00.000Z');
+    expect(result.data.departureTz).toBe('America/New_York');
+    expect(result.data.arrivalTz).toBe('Europe/London');
+    expect(result.data.departureLat).toBe(40.6413);
+    expect(result.data.arrivalLng).toBe(-0.4543);
+    expect('sequence' in result.data).toBe(false);
+  });
+
+  it('rejects a leg that arrives before it departs in UTC', () => {
+    const result = normalizeSegmentInput({ ...validLeg, arrivalLocal: '2025-06-01T17:00' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/before it departs/i);
+  });
+
+  it('rejects an invalid time zone', () => {
+    const result = normalizeSegmentInput({ ...validLeg, arrivalTz: 'Not/AZone' });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a structurally invalid leg', () => {
+    const result = normalizeSegmentInput({ departureAirport: 'JF' });
     expect(result.ok).toBe(false);
   });
 });
