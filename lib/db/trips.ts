@@ -44,6 +44,12 @@ export function createTrip(input: NewTripInput) {
   });
 }
 
+// Append one already-normalized leg to a trip (P7.4). The caller supplies the
+// sequence (next position); the leg is persisted as a child of the trip.
+export function appendSegment(tripId: string, leg: NewSegmentInput) {
+  return prisma.flightSegment.create({ data: { tripId, ...leg } });
+}
+
 // The pipeline's input query: fetch one trip with all its segments ordered by
 // sequence, scoped to its owner so the database itself enforces access control
 // (US-B4) — callers pass a session-derived userId, never a client-supplied one.
