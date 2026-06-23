@@ -1,0 +1,29 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/trips/[id]/segments/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ app/api/trips/[id]/segments/route.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/api/trips/[id]/segments/route.test.ts [ app/api/trips/[id]/segments/route.test.ts ]
+Error: Cannot find module '/app/api/trips/[id]/segments/route' imported from /Users/peacock/Projects/timeshift/app/api/trips/[id]/segments/route.test.ts
+ ❯ app/api/trips/[id]/segments/route.test.ts:19:1
+     17| }));
+     18|
+     19| import { POST } from './route';
+       | ^
+     20|
+     21| const validLeg = {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  19:06:08
+   Duration  147ms (transform 18ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
