@@ -1,0 +1,29 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/trips/[id]/timeline/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ app/api/trips/[id]/timeline/route.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/api/trips/[id]/timeline/route.test.ts [ app/api/trips/[id]/timeline/route.test.ts ]
+Error: Cannot find module '/app/api/trips/[id]/timeline/route' imported from /Users/peacock/Projects/timeshift/app/api/trips/[id]/timeline/route.test.ts
+ ❯ app/api/trips/[id]/timeline/route.test.ts:14:1
+     12| vi.mock('@/lib/db/trips', () => ({ getTripWithSegments: mocks.getTripW…
+     13|
+     14| import { GET } from './route';
+       | ^
+     15|
+     16| // Two-leg trip with a layover (LHR ground time) so the timeline has s…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  19:07:47
+   Duration  138ms (transform 15ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
