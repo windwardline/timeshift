@@ -177,8 +177,9 @@ pragma and is exercised only in the demo. The API key lives in `.env.local` (git
 key present.
 
 **Verified live.** With a real `GEMINI_API_KEY` set, the panel makes a genuine per-trip
-`gemini-2.5-flash` call that narrates the engine's computed facts (the screenshot below
-quotes the 13-hour shift and the exact in-flight sleep window):
+Gemini call (`gemini-3.1-flash-lite`, with a fastest-first fallback chain that drops to
+lighter models on a rate limit) that narrates the engine's computed facts — the screenshot
+below quotes the 13-hour shift and the exact in-flight sleep window:
 
 ![Live AI-generated plan](docs/screenshots/app-ai-live.png)
 
