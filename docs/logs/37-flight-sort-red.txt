@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/flights/sort.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/flights/sort.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/flights/sort.test.ts [ lib/flights/sort.test.ts ]
+Error: Cannot find module './sort' imported from /Users/peacock/Projects/timeshift/lib/flights/sort.test.ts
+ ❯ lib/flights/sort.test.ts:2:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { sortFlights } from './sort';
+       | ^
+      3| import type { FlightOption } from './types';
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  19:20:50
+   Duration  132ms (transform 11ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
