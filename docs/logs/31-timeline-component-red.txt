@@ -1,0 +1,255 @@
+
+> timeshift@0.1.0 test:run
+> vitest run components/Timeline.test.tsx
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ components/Timeline.test.tsx (4 tests | 1 failed) 48ms
+     × renders a layover block for the ground gap 11ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/Timeline.test.tsx > Timeline > renders a layover block for the ground gap
+TestingLibraryElementError: Found multiple elements with the text: /layover/
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<text[39m
+  [33mfill[39m=[32m"#c3c9ee"[39m
+  [33mfont-size[39m=[32m"11.5"[39m
+  [33mstyle[39m=[32m"font-family: \"JetBrains Mono\", ui-monospace, monospace;"[39m
+  [33mtext-anchor[39m=[32m"middle"[39m
+  [33mx[39m=[32m"364"[39m
+  [33my[39m=[32m"160"[39m
+[36m>[39m
+  [0m2h 20m[0m
+  [0m layover[0m
+[36m</text>[39m
+
+Ignored nodes: comments, script, style
+[36m<text[39m
+  [33mfill[39m=[32m"#c3c9ee"[39m
+  [33mfont-size[39m=[32m"11.5"[39m
+  [33mstyle[39m=[32m"font-family: \"JetBrains Mono\", ui-monospace, monospace;"[39m
+  [33mtext-anchor[39m=[32m"middle"[39m
+  [33mx[39m=[32m"364"[39m
+  [33my[39m=[32m"160"[39m
+[36m>[39m
+  [0m2h 20m[0m
+  [0m layover[0m
+[36m</text>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<svg[39m
+      [33maria-label[39m=[32m"Journey timeline with destination day and night, sunrise and sunset times, flights, layovers, and recommended sleep windows"[39m
+      [33mrole[39m=[32m"img"[39m
+      [33mviewBox[39m=[32m"0 0 980 300"[39m
+    [36m>[39m
+      [36m<defs>[39m
+        [36m<lineargradient[39m
+          [33mid[39m=[32m"g-day"[39m
+          [33mx1[39m=[32m"0"[39m
+          [33mx2[39m=[32m"0"[39m
+          [33my1[39m=[32m"0"[39m
+          [33my2[39m=[32m"1"[39m
+        [36m>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"0%"[39m
+            [33mstop-color[39m=[32m"#ffd166"[39m
+            [33mstop-opacity[39m=[32m"0.55"[39m
+          [36m/>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"100%"[39m
+            [33mstop-color[39m=[32m"#ffb23e"[39m
+            [33mstop-opacity[39m=[32m"0.3"[39m
+          [36m/>[39m
+        [36m</lineargradient>[39m
+        [36m<lineargradient[39m
+          [33mid[39m=[32m"g-night"[39m
+          [33mx1[39m=[32m"0"[39m
+          [33mx2[39m=[32m"0"[39m
+          [33my1[39m=[32m"0"[39m
+          [33my2[39m=[32m"1"[39m
+        [36m>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"0%"[39m
+            [33mstop-color[39m=[32m"#1d2550"[39m
+            [33mstop-opacity[39m=[32m"0.92"[39m
+          [36m/>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"100%"[39m
+            [33mstop-color[39m=[32m"#0a0f24"[39m
+            [33mstop-opacity[39m=[32m"0.96"[39m
+          [36m/>[39m
+        [36m</lineargradient>[39m
+        [36m<lineargradient[39m
+          [33mid[39m=[32m"g-flight"[39m
+          [33mx1[39m=[32m"0"[39m
+          [33mx2[39m=[32m"1"[39m
+          [33my1[39m=[32m"0"[39m
+          [33my2[39m=[32m"0"[39m
+        [36m>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"0%"[39m
+            [33mstop-color[39m=[32m"#7c5cff"[39m
+          [36m/>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"100%"[39m
+            [33mstop-color[39m=[32m"#9d7cff"[39m
+          [36m/>[39m
+        [36m</lineargradient>[39m
+        [36m<lineargradient[39m
+          [33mid[39m=[32m"g-sleep"[39m
+          [33mx1[39m=[32m"0"[39m
+          [33mx2[39m=[32m"0"[39m
+          [33my1[39m=[32m"0"[39m
+          [33my2[39m=[32m"1"[39m
+        [36m>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"0%"[39m
+            [33mstop-color[39m=[32m"#3ee6d0"[39m
+            [33mstop-opacity[39m=[32m"0.9"[39m
+          [36m/>[39m
+          [36m<stop[39m
+            [33moffset[39m=[32m"100%"[39m
+            [33mstop-color[39m=[32m"#2bb6d6"[39m
+            [33mstop-opacity[39m=[32m"0.62"[39m
+          [36m/>[39m
+        [36m</lineargradient>[39m
+        [36m<filter[39m
+          [33mheight[39m=[32m"220%"[39m
+          [33mid[39m=[32m"glow"[39m
+          [33mwidth[39m=[32m"160%"[39m
+          [33mx[39m=[32m"-30%"[39m
+          [33my[39m=[32m"-60%"[39m
+        [36m>[39m
+          [36m<fegaussianblur[39m
+            [33mresult[39m=[32m"b"[39m
+            [33mstdDeviation[39m=[32m"6"[39m
+          [36m/>[39m
+          [36m<femerge>[39m
+            [36m<femergenode[39m
+              [33min[39m=[32m"b"[39m
+            [36m/>[39m
+            [36m<femergenode[39m
+              [33min[39m=[32m"SourceGraphic"[39m
+            [36m/>[39m
+          [36m</femerge>[39m
+        [36m</filter>[39m
+        [36m<pattern[39m
+          [33mheight[39m=[32m"9"[39m
+          [33mid[39m=[32m"hatch"[39m
+          [33mpatternTransform[39m=[32m"rotate(45)"[39m
+          [33mpatternUnits[39m=[32m"userSpaceOnUse"[39m
+          [33mwidth[39m=[32m"9"[39m
+        [36m>[39m
+          [36m<rect[39m
+            [33mfill[39m=[32m"rgba(152,163,214,0.12)"[39m
+            [33mheight[39m=[32m"9"[39m
+            [33mwidth[39m=[32m"9"[39m
+          [36m/>[39m
+          [36m<line[39m
+            [33mstroke[39m=[32m"rgba(157,124,255,0.5)"[39m
+            [33mstroke-width[39m=[32m"2.5"[39m
+            [33mx1[39m=[32m"0"[39m
+            [33mx2[39m=[32m"0"[39m
+            [33my1[39m=[32m"0"[39m
+            [33my2[39m=[32m"9"[39m
+          [36m/>[39m
+        [36m</pattern>[39m
+      [36m</defs>[39m
+      [36m<g[39m
+        [33mclass[39m=[32m"reveal"[39m
+      [36m>[39m
+        [36m<rect[39m
+          [33mfill[39m=[32m"url(#g-day)"[39m
+          [33mheight[39m=[32m"150"[39m
+          [33mrx[39m=[32m"2"[39m
+          [33mwidth[39m=[32m"287"[39m
+          [33mx[39m=[32m"28"[39m
+          [33my[39m=[32m"96"[39m
+        [36m/>[39m
+        [36m<rect[39m
+          [33mfill[39m=[32m"url(#g-night)"[39m
+          [33mheight[39m=[32m"150"[39m
+          [33mrx[39m=[32m"2"[39m
+          [33mwidth[39m=[32m"637"[39m
+          [33mx[39m=[32m"315"[39m
+          [33my[39m=[32m"96"[39m
+        [36m/>[39m
+        [36m<circle[39m
+          [33mcx[39m=[32m"506.1"[39m
+          [33mcy[39m=[32m"156"[39m
+          [33mfill[39m=[32m"#cdd3ff"[39m
+          [33mopacity[39m=[32m"0.5"[39m
+          [33mr[39m=[32m"1.1"[39m
+        [36m/>[39m
+        [36m<circle[39m
+          [33mcx[39m=[32m"697.2"[39m
+          [33mcy[39m=[32m"226"[39m
+          [33mfill[39m=[32m"#cdd3ff"[39m
+          [33mopacity[39m=[32m"0.5"[39m
+          [33mr[39m=[32m"1.1"[39m
+        [36m/>[39m
+        [36m<circle[39m
+          [33mcx[39m=[32m"856.4499999999999"[39m
+          [33mcy[39m=[32m"156"[39m
+          [33mfill[39m=[32m"#cdd3ff"[39m
+          [33mopacity[39m=[32m"0.5"[39m
+          [33mr[39m=[32m"1.1"[39m
+        [36m/>[39m
+      [36m</g>[39m
+      [36m<g[39m
+        [33mclass[39m=[32m"reveal"[39m
+      [36m>[39m
+        [36m<g>[39m
+          [36m<line[39m
+            [33mstroke[39m=[32m"rgba(255,255,255,0.28)"[39m
+            [33mstroke-dasharray[39m=[32m"2 3"[39m
+            [33mx1[39m=[32m"315"[39m
+            [33mx2[39m=[32m"315"[39m
+            [33my1[39m=[32m"100"[39m
+            [33my2[39m=[32m"122"[39m
+          [36m/>[39m
+          [36m<text[39m
+            [33mfill[39m=[32m"#b9c2ee"[39m
+            [33mfont-size[39m=[32m"11"[39m
+            [33mstroke[39m=[32m"rgba(8,11,26,0.6)"[39m
+            [33mstroke-width[39m=[32m"3"[39m
+            [33mstyle[39m=[32m"font-family: \"JetBrains Mono\", ui-monospace, monospace;"[39m
+            [33mtext-anchor[39m=[32m"middle"[39m
+            [33mx[39m=[32m"315"[39m
+            [33my[39m=[32m"114"[39m
+          [36m>[39m
+            [0m☾[0m
+            [0m [0m
+            [0m16:20[0m
+          [36m</text>[39m
+        [36m</g>...
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ components/Timeline.test.tsx:47:12
+     45|   it('renders a layover block for the ground gap', () => {
+     46|     const { getByText } = renderTimeline();
+     47|     expect(getByText(/layover/)).toBeTruthy();
+       |            ^
+     48|   });
+     49|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  19:09:32
+   Duration  514ms (transform 31ms, setup 0ms, import 105ms, tests 48ms, environment 237ms)
+
