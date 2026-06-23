@@ -9,6 +9,9 @@
 .env*.local
 # vitest / coverage
 /coverage
+# playwright (e2e artifacts; the spec + committed screenshots are evidence)
+/test-results
+/playwright-report
 # typescript
 *.tsbuildinfo
 # misc

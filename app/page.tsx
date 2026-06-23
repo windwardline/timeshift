@@ -25,7 +25,14 @@ export default async function Home() {
 
   return (
     <main>
-      {user && <LogoutButton email={user.email} />}
+      {user && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+          <Link className="btn btn-ghost" href="/profile" style={{ padding: '7px 14px', fontSize: 13 }}>
+            Profile
+          </Link>
+          <LogoutButton email={user.email} />
+        </div>
+      )}
 
       <header className="reveal">
         <p className="eyebrow">Jetlag planning for long-haul trips</p>

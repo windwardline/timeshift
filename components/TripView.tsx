@@ -2,6 +2,7 @@ import { assembleTimeline } from '@/lib/engine/timeline';
 import { dayNightArcs } from '@/lib/engine/arcs';
 import { recommendSleepWindows } from '@/lib/engine/sleep';
 import { offsetMinutes } from '@/lib/engine/time';
+import { resolveHomeBaseline } from '@/lib/profile/homeZone';
 import { Timeline } from '@/components/Timeline';
 import { AdvicePanel } from '@/components/AdvicePanel';
 
@@ -26,10 +27,11 @@ interface ViewTrip {
 
 // Runs the real DB → engine pipeline for one trip and renders it: the header,
 // the luminous timeline, and the live AI panel. Server component — the engine
-// runs on the server; only the AI panel is interactive. "Home" is the journey's
-// origin zone (the first departure), which is the traveler's baseline clock.
-export function TripView({ trip }: { trip: ViewTrip }) {
-  const homeTimeZone = trip.segments[0].departureTz;
+// runs on the server; only the AI panel is interactive. "Home" is the traveler's
+// profile home zone when set (US-A3), falling back to the journey's origin zone
+// (the first departure) for the public showcase and accounts without one.
+export function TripView({ trip, homeTimeZone: profileHomeZone }: { trip: ViewTrip; homeTimeZone?: string | null }) {
+  const homeTimeZone = resolveHomeBaseline(profileHomeZone, trip.segments[0].departureTz);
   const timeline = assembleTimeline(trip);
   const layovers = timeline.items.filter((i) => i.kind === 'layover');
   const last = trip.segments[trip.segments.length - 1];
@@ -41,7 +43,7 @@ export function TripView({ trip }: { trip: ViewTrip }) {
 
   const deltaMinutes =
     offsetMinutes(last.arrivalTime, trip.destination) -
-    offsetMinutes(trip.segments[0].departureTime, trip.segments[0].departureTz);
+    offsetMinutes(trip.segments[0].departureTime, homeTimeZone);
   const shift = `${deltaMinutes >= 0 ? '+' : ''}${(deltaMinutes / 60).toFixed(1)}h`;
 
   return (
