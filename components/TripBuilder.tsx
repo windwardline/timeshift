@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { DateTime } from 'luxon';
 import { AIRPORTS, findAirport } from '@/lib/airports';
 
 interface LegDraft {
@@ -25,6 +26,18 @@ export function TripBuilder() {
 
   function update(i: number, patch: Partial<LegDraft>) {
     setLegs((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+
+  // A connecting flight starts where the last one landed — same airport, ~90 min
+  // later — so the layover is created for you. You just pick the next destination.
+  function addLeg() {
+    setLegs((prev) => {
+      const last = prev[prev.length - 1];
+      const depLocal = last.arrLocal
+        ? DateTime.fromISO(last.arrLocal).plus({ minutes: 90 }).toFormat("yyyy-MM-dd'T'HH:mm")
+        : '';
+      return [...prev, { ...blankLeg, dep: last.arr, depLocal }];
+    });
   }
 
   async function submit() {
@@ -148,13 +161,14 @@ export function TripBuilder() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => setLegs((prev) => [...prev, { ...blankLeg }])}
-        >
-          + Add a layover leg
+      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '14px 0 0' }}>
+        Flying somewhere with a stop? Add another flight — it starts where your last one lands, and
+        the layover in between is filled in for you.
+      </p>
+
+      <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+        <button type="button" className="btn btn-ghost" onClick={addLeg}>
+          + Add a connecting flight
         </button>
         <button type="button" className="btn" onClick={submit} disabled={busy}>
           {busy ? 'Building your timeline…' : 'Visualize my trip →'}

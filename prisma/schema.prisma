@@ -50,6 +50,7 @@ model FlightSegment {
   tripId           String
   trip             Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   sequence         Int // order within the trip (0-based)
+  flightNumber     String? // e.g. "BA 178" (optional — shown on the timeline)
   departureAirport String // IATA code, e.g. "JFK"
   arrivalAirport   String // IATA code, e.g. "LHR"
   departureTime    DateTime // stored in UTC

@@ -12,7 +12,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const DEMO_EMAIL = 'demo@timeshift.app';
-const DEMO_TRIP_NAME = 'New York → Tokyo (via London)';
+const DEMO_TRIP_NAME = 'New York → Singapore (BA, via London)';
 
 async function main() {
   // Upsert the demo user so re-seeding never duplicates the account.
@@ -21,30 +21,28 @@ async function main() {
     update: {},
     create: {
       email: DEMO_EMAIL,
-      // Auth (US-A1) is not built yet; this is a clearly-labeled placeholder,
-      // never a real credential.
-      passwordHash: 'placeholder-not-a-real-hash',
       homeTimeZone: 'America/New_York',
     },
   });
 
-  // Clear any prior copy of the demo trip (cascades to its segments) so the
-  // seed is idempotent across runs.
-  await prisma.trip.deleteMany({ where: { userId: user.id, name: DEMO_TRIP_NAME } });
+  // The demo account holds only the showcase trip; clear any prior trips
+  // (cascades to segments) so re-seeding is idempotent even if the name changes.
+  await prisma.trip.deleteMany({ where: { userId: user.id } });
 
   const trip = await prisma.trip.create({
     data: {
       name: DEMO_TRIP_NAME,
-      destination: 'Asia/Tokyo',
+      destination: 'Asia/Singapore',
       userId: user.id,
       segments: {
         create: [
           {
             sequence: 0,
+            flightNumber: 'BA 178',
             departureAirport: 'JFK',
             arrivalAirport: 'LHR',
-            departureTime: new Date('2025-06-01T22:00:00Z'), // 18:00 EDT
-            arrivalTime: new Date('2025-06-02T05:00:00Z'), // 06:00 BST, 7h flight
+            departureTime: new Date('2025-07-02T01:30:00Z'), // 21:30 EDT Jul 1
+            arrivalTime: new Date('2025-07-02T08:20:00Z'), // 09:20 BST, ~6h50
             departureTz: 'America/New_York',
             arrivalTz: 'Europe/London',
             departureLat: 40.6413,
@@ -54,16 +52,17 @@ async function main() {
           },
           {
             sequence: 1,
+            flightNumber: 'BA 11',
             departureAirport: 'LHR',
-            arrivalAirport: 'HND',
-            departureTime: new Date('2025-06-02T08:00:00Z'), // 09:00 BST, after a 3h layover
-            arrivalTime: new Date('2025-06-02T19:30:00Z'), // 04:30 JST next day, 11.5h flight
+            arrivalAirport: 'SIN',
+            departureTime: new Date('2025-07-02T10:40:00Z'), // 11:40 BST, after a ~2h20 layover
+            arrivalTime: new Date('2025-07-02T23:30:00Z'), // 07:30 SGT next day, ~12h50
             departureTz: 'Europe/London',
-            arrivalTz: 'Asia/Tokyo',
+            arrivalTz: 'Asia/Singapore',
             departureLat: 51.47,
             departureLng: -0.4543,
-            arrivalLat: 35.5494,
-            arrivalLng: 139.7798,
+            arrivalLat: 1.3644,
+            arrivalLng: 103.9915,
           },
         ],
       },

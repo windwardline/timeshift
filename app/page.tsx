@@ -28,12 +28,13 @@ export default async function Home() {
       {user && <LogoutButton email={user.email} />}
 
       <header className="reveal">
-        <p className="eyebrow">Jetlag, solved before takeoff</p>
+        <p className="eyebrow">Jetlag planning for long-haul trips</p>
         <h1 className="wordmark">TimeShift</h1>
         <p className="lede">
-          Crossing time zones wrecks your sleep — and it&rsquo;s genuinely hard to know <em>when</em>{' '}
-          to rest. Enter any itinerary and TimeShift maps it against your destination&rsquo;s day and
-          night, then tells you exactly when to sleep on the plane.
+          Long flights leave your body clock hours behind your destination. TimeShift takes your
+          itinerary and lays the whole journey over daylight and dark where you&rsquo;re landing —
+          your flights, your layovers, and the hours that are actually worth sleeping in the air —
+          so you arrive closer to local time and spend less of the trip recovering.
         </p>
       </header>
 

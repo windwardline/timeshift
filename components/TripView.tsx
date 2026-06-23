@@ -6,6 +6,7 @@ import { Timeline } from '@/components/Timeline';
 import { AdvicePanel } from '@/components/AdvicePanel';
 
 interface ViewSegment {
+  flightNumber: string | null;
   departureAirport: string;
   arrivalAirport: string;
   departureTime: Date;
@@ -73,17 +74,18 @@ export function TripView({ trip }: { trip: ViewTrip }) {
 
       <div className="legend reveal-2">
         <span>
-          <i className="swatch" style={{ background: 'linear-gradient(180deg,#ffd166,#ffb23e)' }} /> daylight
+          <i className="swatch" style={{ background: 'linear-gradient(180deg, rgba(255,209,102,0.78), rgba(255,178,62,0.48))' }} /> daylight
         </span>
         <span>
-          <i className="swatch" style={{ background: '#1d2550' }} /> night
+          <i className="swatch" style={{ background: 'linear-gradient(180deg, #1d2550, #0b1024)' }} /> night
         </span>
         <span>
-          <i className="swatch" style={{ background: 'linear-gradient(90deg,#7c5cff,#9d7cff)' }} /> flight
+          <i className="swatch" style={{ background: 'linear-gradient(90deg, #7c5cff, #9d7cff)' }} /> flight
         </span>
         <span>
-          <i className="swatch" style={{ background: 'linear-gradient(180deg,#3ee6d0,#2bb6d6)' }} /> sleep window
+          <i className="swatch" style={{ background: 'linear-gradient(180deg, rgba(62,230,208,0.9), rgba(43,182,214,0.62))' }} /> sleep window
         </span>
+        <span style={{ color: 'var(--muted)' }}>☀ / ☾ mark sunrise &amp; sunset</span>
       </div>
 
       <AdvicePanel tripId={trip.id} />
