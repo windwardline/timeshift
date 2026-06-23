@@ -12,8 +12,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: valid.error }, { status: 400 });
   }
 
+  // The emailed link's host MUST come from trusted server config, never the
+  // request — a spoofed Host header would otherwise send victims a link to an
+  // attacker's domain and hijack the token (host-header injection).
+  const base = process.env.APP_URL;
+  if (!base) {
+    console.error('[auth] APP_URL is not configured — refusing to send a magic link.');
+    return NextResponse.json({ error: 'Server misconfigured.' }, { status: 500 });
+  }
+
   const token = await createLoginToken(valid.email);
-  const base = process.env.APP_URL ?? new URL(request.url).origin;
   const link = `${base}/api/auth/verify?token=${token}`;
 
   try {

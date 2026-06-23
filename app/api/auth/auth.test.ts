@@ -28,6 +28,7 @@ import { GET as verify } from './verify/route';
 describe('POST /api/auth/request-link', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.APP_URL = 'http://localhost';
     mocks.createLoginToken.mockResolvedValue('tok123');
     mocks.sendMagicLink.mockResolvedValue(undefined);
   });
