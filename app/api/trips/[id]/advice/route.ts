@@ -48,6 +48,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(plan);
   } catch (error) {
     if (error instanceof AdviceGenerationError || error instanceof AdviceParseError) {
+      // Server-side visibility for the failure (no key, no client exposure).
+      console.error('[ai] advice failed:', error.message, '| cause:', error.cause);
       return NextResponse.json({ error: 'Could not generate advice' }, { status: 502 });
     }
     throw error;
