@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import { getTripWithSegments } from '@/lib/db/trips';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { TripView } from '@/components/TripView';
+import { TripActions } from '@/components/TripActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           <Link href="/">← TimeShift</Link>
         </p>
       </header>
+      <TripActions tripId={trip.id} name={trip.name} />
       <TripView trip={trip} homeTimeZone={user.homeTimeZone} />
     </main>
   );

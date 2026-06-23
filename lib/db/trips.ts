@@ -71,6 +71,18 @@ export function getTripWithOwner(id: string) {
   });
 }
 
+// Rename a trip the caller owns (US-B3). Scoped write — `count` is 0 when the
+// trip isn't the caller's, so the route can answer 404 without leaking existence.
+export function renameTrip(id: string, userId: string, name: string) {
+  return prisma.trip.updateMany({ where: { id, userId }, data: { name } });
+}
+
+// Delete a trip the caller owns (US-B3); cascades to its segments. Scoped like
+// renameTrip so a non-owner's delete affects 0 rows.
+export function deleteTrip(id: string, userId: string) {
+  return prisma.trip.deleteMany({ where: { id, userId } });
+}
+
 // List a user's trips, most recent first (US-B2).
 export function listTrips(userId: string) {
   return prisma.trip.findMany({
