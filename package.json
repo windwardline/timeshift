@@ -10,6 +10,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "capture": "sh scripts/capture-tdd.sh",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
