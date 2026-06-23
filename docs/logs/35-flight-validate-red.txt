@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/flights/validate.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/flights/validate.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/flights/validate.test.ts [ lib/flights/validate.test.ts ]
+Error: Cannot find module './validate' imported from /Users/peacock/Projects/timeshift/lib/flights/validate.test.ts
+ ❯ lib/flights/validate.test.ts:2:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { validateSearchParams } from './validate';
+       | ^
+      3|
+      4| // Pure validation of flight-search params before any upstream call (s…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  19:18:33
+   Duration  139ms (transform 13ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
