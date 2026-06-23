@@ -171,10 +171,16 @@ assertion errors in red; green runs render the passing suite in green. Images sh
 `lib/ai/` is server-only (CLAUDE.md §13). `facts.ts`, `prompt.ts`, `parse.ts`, and
 `advice.ts` are pure and held at 100% coverage — including the malformed-response and
 client-error branches. `lib/ai/client.ts` is the single module that touches the network
-(the OpenAI SDK); it is excluded from coverage with an explicit `/* v8 ignore file */`
+(the Google Gen AI SDK); it is excluded from coverage with an explicit `/* v8 ignore file */`
 pragma and is exercised only in the demo. The API key lives in `.env.local` (gitignored);
 `.env.example` documents the variable name with no value. Tests and coverage pass with no
 key present.
+
+**Verified live.** With a real `GEMINI_API_KEY` set, the panel makes a genuine per-trip
+`gemini-2.5-flash` call that narrates the engine's computed facts (the screenshot below
+quotes the 13-hour shift and the exact in-flight sleep window):
+
+![Live AI-generated plan](docs/screenshots/app-ai-live.png)
 
 ### Data layer
 
@@ -206,7 +212,7 @@ ownership-scoped fetch → engine → render) and lands on a per-trip page:
 The pages were asserted against the engine's headline numbers — trip name, computed clock
 shift (`+13.0h`), destination axis labels, and the in-air sleep window over the
 destination's night. The **"AI-generated" panel is present** and degrades cleanly without a
-key; its live model call is demo-only (it needs `OPENAI_API_KEY` in `.env.local`) and is
+key; its live model call is demo-only (it needs `GEMINI_API_KEY` in `.env.local`) and is
 never snapshot-asserted. A committed Playwright regression spec that re-asserts these numbers
 in CI is the remaining polish item.
 
@@ -231,7 +237,7 @@ npm run test:run        # single run
 npm run test:coverage   # with coverage report
 
 # 5. (Optional) enable the live AI advice call for the demo
-#    Add OPENAI_API_KEY to .env.local (gitignored). The timeline renders
+#    Add GEMINI_API_KEY to .env.local (gitignored). The timeline renders
 #    without it; only the "Get my jetlag plan" button needs a key.
 
 # 6. Start the dev server

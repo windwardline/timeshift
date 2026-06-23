@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/db/trips', () => ({ getTripWithOwner: mocks.getTripWithOwner }));
 vi.mock('@/lib/auth/current-user', () => ({ getCurrentUser: mocks.getCurrentUser }));
-vi.mock('@/lib/ai/client', () => ({ createOpenAiClient: () => ({ complete: mocks.complete }) }));
+vi.mock('@/lib/ai/client', () => ({ createGeminiClient: () => ({ complete: mocks.complete }) }));
 
 import { POST } from './route';
 
@@ -48,7 +48,7 @@ function post() {
 describe('POST /api/trips/[id]/advice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.GEMINI_API_KEY = 'test-key';
     mocks.complete.mockResolvedValue(JSON.stringify(plan));
   });
 
@@ -83,7 +83,7 @@ describe('POST /api/trips/[id]/advice', () => {
   });
 
   it('degrades to 503 when no API key is configured', async () => {
-    delete process.env.OPENAI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
     mocks.getTripWithOwner.mockResolvedValue(tripOwnedBy('u1', 'owner@example.com'));
     mocks.getCurrentUser.mockResolvedValue({ id: 'u1' });
 

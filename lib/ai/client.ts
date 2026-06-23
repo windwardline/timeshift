@@ -4,37 +4,38 @@
 // non-deterministic, so it is exercised live only in the demo with a real key.
 // Everything else in lib/ai/ is pure and TDD'd against this interface's mock.
 //
-// Provider: OpenAI. (docs/AI_ADVICE.md anticipates this swap — only this file
-// and the env var change; the prompt/parse/orchestrate units are unchanged.)
-import OpenAI from 'openai';
+// Provider: Google AI Studio (Gemini). (docs/AI_ADVICE.md anticipates this
+// swap — only this file and the env var change; the prompt/parse/orchestrate
+// units are unchanged.)
+import { GoogleGenAI } from '@google/genai';
 import type { LlmClient } from './advice';
 
-// Fast, inexpensive default; override with OPENAI_MODEL if your account differs.
-const MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+// Fast, inexpensive default; override with GEMINI_MODEL if your account differs.
+const MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 
 /**
  * Build the real provider-backed LlmClient. The API key is read server-side
  * only (the API route passes it in from process.env) and never reaches the
- * browser. JSON mode is requested so parseAdviceResponse receives clean JSON.
+ * browser. JSON output is requested so parseAdviceResponse receives clean JSON.
  */
-export function createOpenAiClient(apiKey: string): LlmClient {
-  const openai = new OpenAI({ apiKey });
+export function createGeminiClient(apiKey: string): LlmClient {
+  const ai = new GoogleGenAI({ apiKey });
 
   return {
     async complete(prompt: string): Promise<string> {
-      const completion = await openai.chat.completions.create({
+      const response = await ai.models.generateContent({
         model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
+        contents: prompt,
+        config: { responseMimeType: 'application/json' },
       });
 
       // Redacted server-side request log for demo evidence (no key, no content).
       console.info(
-        `[ai] advice request id=${completion.id} model=${MODEL} ` +
-          `tokens=${completion.usage?.total_tokens ?? '?'}`,
+        `[ai] advice request model=${MODEL} ` +
+          `tokens=${response.usageMetadata?.totalTokenCount ?? '?'}`,
       );
 
-      return completion.choices[0]?.message?.content ?? '';
+      return response.text ?? '';
     },
   };
 }
