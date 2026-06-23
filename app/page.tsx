@@ -45,15 +45,12 @@ export default async function Home() {
             Build your own journey
           </p>
           <p style={{ margin: '0 0 16px', color: '#d6daf6' }}>
-            Create a free account to enter your own flights, save them, and get a personalized AI
-            jetlag plan for each trip.
+            Sign in with just your email — no password — to enter your own flights, save them, and
+            get a personalized AI jetlag plan for each trip.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link className="btn" href="/register">
-              Create account
-            </Link>
-            <Link className="btn btn-ghost" href="/login">
-              Sign in
+            <Link className="btn" href="/login">
+              Sign in with email
             </Link>
           </div>
         </section>

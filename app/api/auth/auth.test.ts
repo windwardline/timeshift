@@ -1,95 +1,91 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { hashPassword } from '@/lib/auth/password';
 
-// US-A1/A2 route wiring: register hashes the password and rejects duplicates;
-// login verifies credentials and is generic about failures. Real bcrypt is used
-// (proving passwords are stored only as a hash); the DB, session, and cookie are
-// the only mocked boundaries.
+// US-A2 (passwordless): request-link validates the email, mints a token, and
+// emails a link; verify consumes a valid token, signs the user in (creating the
+// account on first use), and redirects. The DB, token store, email, session,
+// and cookie are the mocked boundaries.
 const mocks = vi.hoisted(() => ({
-  findUnique: vi.fn(),
-  create: vi.fn(),
+  createLoginToken: vi.fn(),
+  consumeLoginToken: vi.fn(),
+  sendMagicLink: vi.fn(),
+  upsert: vi.fn(),
   createSession: vi.fn(),
   setCookie: vi.fn(),
 }));
 
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { user: { findUnique: mocks.findUnique, create: mocks.create } },
+vi.mock('@/lib/auth/magic', () => ({
+  createLoginToken: mocks.createLoginToken,
+  consumeLoginToken: mocks.consumeLoginToken,
 }));
+vi.mock('@/lib/auth/email', () => ({ sendMagicLink: mocks.sendMagicLink }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { upsert: mocks.upsert } } }));
 vi.mock('@/lib/auth/session', () => ({ createSession: mocks.createSession }));
 vi.mock('@/lib/auth/current-user', () => ({ setSessionCookie: mocks.setCookie }));
 
-import { POST as register } from './register/route';
-import { POST as login } from './login/route';
+import { POST as requestLink } from './request-link/route';
+import { GET as verify } from './verify/route';
 
-function call(route: (r: Request) => Promise<Response>, body: unknown) {
-  return route(new Request('http://localhost/api/auth', { method: 'POST', body: JSON.stringify(body) }));
-}
-
-describe('POST /api/auth/register', () => {
+describe('POST /api/auth/request-link', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.createSession.mockResolvedValue('tok');
+    mocks.createLoginToken.mockResolvedValue('tok123');
+    mocks.sendMagicLink.mockResolvedValue(undefined);
   });
 
-  it('creates a user with a hashed password and starts a session', async () => {
-    mocks.findUnique.mockResolvedValue(null);
-    mocks.create.mockResolvedValue({ id: 'u1' });
+  it('mints a token and emails a link for a valid email', async () => {
+    const res = await requestLink(
+      new Request('http://localhost/api/auth/request-link', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'Traveler@Example.com' }),
+      }),
+    );
 
-    const res = await call(register, { email: 'new@example.com', password: 'supersecret' });
-
-    expect(res.status).toBe(201);
-    const data = mocks.create.mock.calls[0][0].data;
-    expect(data.passwordHash).not.toBe('supersecret');
-    expect(data.passwordHash.startsWith('$2')).toBe(true);
-    expect(mocks.createSession).toHaveBeenCalledWith('u1');
-    expect(mocks.setCookie).toHaveBeenCalledWith('tok');
+    expect(res.status).toBe(200);
+    expect(mocks.createLoginToken).toHaveBeenCalledWith('traveler@example.com');
+    expect(mocks.sendMagicLink).toHaveBeenCalledWith(
+      'traveler@example.com',
+      'http://localhost/api/auth/verify?token=tok123',
+    );
   });
 
-  it('rejects a duplicate email with 409 and never creates', async () => {
-    mocks.findUnique.mockResolvedValue({ id: 'existing' });
-
-    const res = await call(register, { email: 'taken@example.com', password: 'supersecret' });
-
-    expect(res.status).toBe(409);
-    expect(mocks.create).not.toHaveBeenCalled();
-  });
-
-  it('rejects a too-short password with 400', async () => {
-    const res = await call(register, { email: 'a@b.com', password: 'short' });
+  it('rejects a malformed email with 400 and never sends', async () => {
+    const res = await requestLink(
+      new Request('http://localhost/api/auth/request-link', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'nope' }),
+      }),
+    );
     expect(res.status).toBe(400);
+    expect(mocks.sendMagicLink).not.toHaveBeenCalled();
   });
 });
 
-describe('POST /api/auth/login', () => {
+describe('GET /api/auth/verify', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.createSession.mockResolvedValue('tok');
+    mocks.createSession.mockResolvedValue('sess');
+    mocks.upsert.mockResolvedValue({ id: 'u1' });
   });
 
-  it('logs in with correct credentials', async () => {
-    const passwordHash = await hashPassword('supersecret');
-    mocks.findUnique.mockResolvedValue({ id: 'u1', passwordHash });
+  it('signs in and redirects home on a valid token', async () => {
+    mocks.consumeLoginToken.mockResolvedValue('traveler@example.com');
 
-    const res = await call(login, { email: 'me@example.com', password: 'supersecret' });
+    const res = await verify(new Request('http://localhost/api/auth/verify?token=tok123'));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('http://localhost/');
+    expect(mocks.upsert).toHaveBeenCalled();
     expect(mocks.createSession).toHaveBeenCalledWith('u1');
+    expect(mocks.setCookie).toHaveBeenCalledWith('sess');
   });
 
-  it('rejects a wrong password with a generic 401', async () => {
-    const passwordHash = await hashPassword('supersecret');
-    mocks.findUnique.mockResolvedValue({ id: 'u1', passwordHash });
+  it('bounces to login on an invalid/expired token', async () => {
+    mocks.consumeLoginToken.mockResolvedValue(null);
 
-    const res = await call(login, { email: 'me@example.com', password: 'wrongpassword' });
+    const res = await verify(new Request('http://localhost/api/auth/verify?token=bad'));
 
-    expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({ error: 'Invalid email or password.' });
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/login?error=');
     expect(mocks.createSession).not.toHaveBeenCalled();
-  });
-
-  it('rejects an unknown email with the same generic 401', async () => {
-    mocks.findUnique.mockResolvedValue(null);
-    const res = await call(login, { email: 'nobody@example.com', password: 'supersecret' });
-    expect(res.status).toBe(401);
   });
 });

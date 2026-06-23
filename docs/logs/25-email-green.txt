@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ✓ lib/auth/credentials.test.ts (7 tests) 3ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  03:49:58
+   Duration  169ms (transform 18ms, setup 0ms, import 49ms, tests 3ms, environment 0ms)

@@ -1,0 +1,38 @@
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/auth/credentials.test.ts (7 tests | 1 failed) 6ms
+     × accepts and normalizes a valid email 4ms
+     ✓ rejects a malformed email 0ms
+     ✓ rejects a non-string email 0ms
+     ✓ accepts a valid email + 8+ char password and normalizes the email 1ms
+     ✓ rejects a password shorter than 8 characters 0ms
+     ✓ rejects a malformed email 0ms
+     ✓ rejects a non-string email 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/auth/credentials.test.ts > validateEmail > accepts and normalizes a valid email
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ lib/auth/credentials.test.ts:9:18
+      7|   it('accepts and normalizes a valid email', () => {
+      8|     const r = validateEmail({ email: '  Traveler@Example.com ' });
+      9|     expect(r.ok).toBe(true);
+       |                  ^
+     10|     if (!r.ok) return;
+     11|     expect(r.email).toBe('traveler@example.com');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  03:48:33
+   Duration  215ms (transform 21ms, setup 0ms, import 81ms, tests 6ms, environment 0ms)

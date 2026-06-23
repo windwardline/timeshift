@@ -10,11 +10,20 @@ datasource db {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
-  passwordHash String
+  passwordHash String? // unused since the move to passwordless magic-link login
   homeTimeZone String // IANA tz, e.g. "America/New_York"
   createdAt    DateTime  @default(now())
   trips        Trip[]
   sessions     Session[]
+}
+
+model LoginToken {
+  id        String    @id @default(cuid())
+  token     String    @unique // opaque random token emailed as a magic link
+  email     String // the address the link was sent to (account created on first verify)
+  expiresAt DateTime
+  usedAt    DateTime? // set when consumed; single-use
+  createdAt DateTime  @default(now())
 }
 
 model Session {
