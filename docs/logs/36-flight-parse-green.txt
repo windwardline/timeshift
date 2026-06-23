@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/flights/parse.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  19:20:15
+   Duration  148ms (transform 16ms, setup 0ms, import 24ms, tests 18ms, environment 0ms)
+
