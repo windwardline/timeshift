@@ -186,11 +186,38 @@ below quotes the 13-hour shift and the exact in-flight sleep window:
 
 ![Live AI-generated plan](docs/screenshots/app-ai-live.png)
 
+### Real flight selection — what is mocked-and-tested vs live-and-demo-only
+
+> Rather than hand-typing airports and times, a traveler searches **real flights** by
+> route + date, gets a sortable list, and picks one — the leg is filled with accurate
+> scheduled times, IANA zones, terminals, and coordinates, so layovers compute from real
+> gaps and input errors disappear. The manual builder remains as a fallback.
+
+`lib/flights/` mirrors the AI boundary (CLAUDE.md §13): `validate.ts`, `parse.ts`,
+`sort.ts`, `status.ts`, `coords.ts`, and `cache.ts` are pure/deterministic and held at
+**100% coverage** — including malformed-response, missing-field, IDL, and TTL branches.
+`lib/flights/client.ts` is the single module that touches the network (AviationStack); it
+is excluded from coverage with a `/* v8 ignore file */` pragma and exercised only in the
+demo. The search route is session-gated, validates params before any upstream call, and
+serves a **6-hour DB cache** (`FlightQueryCache`) to protect the free tier's ~100 req/month.
+The key lives in `.env.local` (gitignored); `.env.example` documents the name only. **The
+suite and coverage pass with no key** — keyless, the route returns a friendly error and the
+UI falls back to manual entry.
+
+![Flight search in the builder](docs/screenshots/flight-search-builder.png)
+
+A leg whose departure is within ~48h additionally shows a **live status badge**
+(on-schedule / delayed / cancelled) from the same client — a trip planned weeks out has no
+delay data yet, so future legs show scheduled-only by design. **Live-and-demo-only:** the
+free tier is HTTP-only (a paid HTTPS plan is recommended for production), the live call
+needs a real `AVIATIONSTACK_API_KEY`, and AviationStack output is never snapshot-asserted.
+
 ### Data layer
 
-Four tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for
-auth) — defined in [`prisma/schema.prisma`](prisma/schema.prisma) and migrated into
-PostgreSQL (`prisma/migrations/`). Accounts use bcrypt-hashed passwords and opaque
+Five tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for auth) and a
+standalone `FlightQueryCache` (the flight-search TTL cache) — defined in
+[`prisma/schema.prisma`](prisma/schema.prisma) and migrated into PostgreSQL
+(`prisma/migrations/`). Accounts use bcrypt-hashed passwords and opaque
 DB-backed session tokens in an httpOnly cookie; every trip query is scoped to its owner,
 so a non-owner can't read or act on someone else's trip (US-B4). Every timestamp is stored in UTC with the original IANA timezone
 string kept alongside it, so all offset/DST reasoning stays delegated to Luxon. Layovers

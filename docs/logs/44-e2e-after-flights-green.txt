@@ -1,0 +1,15 @@
+
+> timeshift@0.1.0 test:e2e
+> playwright test
+
+
+> timeshift@0.1.0 seed
+> node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON prisma/seed.ts
+
+Seeded trip cmqrlz9cb00028osv3nzciw4k "New York → Singapore (BA, via London)" (dest Asia/Singapore) with 2 segments for demo@timeshift.app.
+
+Running 1 test using 1 worker
+
+  ✓  1 [chromium] › e2e/regression.spec.ts:13:5 › home showcase renders the engine headline numbers (850ms)
+
+  1 passed (4.2s)
