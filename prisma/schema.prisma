@@ -45,6 +45,16 @@ model Trip {
   createdAt   DateTime        @default(now())
 }
 
+// Cache for AviationStack route+date searches, so the free-tier quota (~100
+// req/mo) isn't burned on repeat searches. Keyed by "DEP:ARR:DATE"; served while
+// `fetchedAt` is within the TTL (lib/flights/cache.ts).
+model FlightQueryCache {
+  id        String   @id @default(cuid())
+  queryKey  String   @unique // "JFK:LHR:2026-07-02"
+  payload   Json // FlightOption[] as returned to the client
+  fetchedAt DateTime @default(now())
+}
+
 model FlightSegment {
   id               String   @id @default(cuid())
   tripId           String
