@@ -1,0 +1,46 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/flights/cache.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/flights/cache.test.ts (6 tests | 2 failed) 5ms
+     × treats a DB error as a cache miss instead of throwing 2ms
+     × swallows a write failure so a successful search is never broken by the cache 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/flights/cache.test.ts > readCache > treats a DB error as a cache miss instead of throwing
+Error: relation "FlightQueryCache" does not exist
+ ❯ lib/flights/cache.test.ts:40:40
+     38|     // still work by falling through to a live fetch, never 500.
+     39|     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {}…
+     40|     mocks.findUnique.mockRejectedValue(new Error('relation "FlightQuer…
+       |                                        ^
+     41|     expect(await readCache('JFK:LHR:2026-07-02', NOW)).toBeNull();
+     42|     warn.mockRestore();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/flights/cache.test.ts > writeCache > swallows a write failure so a successful search is never broken by the cache
+AssertionError: promise rejected "Error: relation "FlightQueryCache" does n…" instead of resolving
+ ❯ lib/flights/cache.test.ts:62:59
+     60|     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {}…
+     61|     mocks.upsert.mockRejectedValue(new Error('relation "FlightQueryCac…
+     62|     await expect(writeCache('JFK:LHR:2026-07-02', payload)).resolves.t…
+       |                                                           ^
+     63|     warn.mockRestore();
+     64|   });
+
+Caused by: Error: relation "FlightQueryCache" does not exist
+ ❯ lib/flights/cache.test.ts:61:36
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 4 passed (6)
+   Start at  04:42:59
+   Duration  156ms (transform 21ms, setup 0ms, import 30ms, tests 5ms, environment 0ms)
+

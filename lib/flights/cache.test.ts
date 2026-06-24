@@ -32,6 +32,15 @@ describe('readCache', () => {
     mocks.findUnique.mockResolvedValue({ payload, fetchedAt: new Date('2026-07-01T05:00:00Z') }); // 7h old
     expect(await readCache('JFK:LHR:2026-07-02', NOW)).toBeNull();
   });
+
+  it('treats a DB error as a cache miss instead of throwing', async () => {
+    // e.g. the cache table isn't migrated yet in an environment — search must
+    // still work by falling through to a live fetch, never 500.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.findUnique.mockRejectedValue(new Error('relation "FlightQueryCache" does not exist'));
+    expect(await readCache('JFK:LHR:2026-07-02', NOW)).toBeNull();
+    warn.mockRestore();
+  });
 });
 
 describe('writeCache', () => {
@@ -45,5 +54,12 @@ describe('writeCache', () => {
     expect(arg.create.queryKey).toBe('JFK:LHR:2026-07-02');
     expect(arg.create.payload).toBe(payload);
     expect(arg.update.payload).toBe(payload);
+  });
+
+  it('swallows a write failure so a successful search is never broken by the cache', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.upsert.mockRejectedValue(new Error('relation "FlightQueryCache" does not exist'));
+    await expect(writeCache('JFK:LHR:2026-07-02', payload)).resolves.toBeUndefined();
+    warn.mockRestore();
   });
 });
