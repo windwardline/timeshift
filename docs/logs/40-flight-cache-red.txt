@@ -1,0 +1,29 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/flights/cache.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/flights/cache.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/flights/cache.test.ts [ lib/flights/cache.test.ts ]
+Error: Cannot find module '/lib/flights/cache' imported from /Users/peacock/Projects/timeshift/lib/flights/cache.test.ts
+ ❯ lib/flights/cache.test.ts:11:1
+      9| }));
+     10|
+     11| import { readCache, writeCache } from './cache';
+       | ^
+     12| import type { FlightOption } from './types';
+     13|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  00:19:37
+   Duration  133ms (transform 14ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

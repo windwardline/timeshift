@@ -1,0 +1,69 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/trips/normalize.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/trips/normalize.test.ts (8 tests | 4 failed) 24ms
+     × normalizes one leg to UTC and preserves coordinates (no sequence assigned) 2ms
+     × rejects a leg that arrives before it departs in UTC 0ms
+     × rejects an invalid time zone 0ms
+     × rejects a structurally invalid leg 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/trips/normalize.test.ts > normalizeSegmentInput > normalizes one leg to UTC and preserves coordinates (no sequence assigned)
+TypeError: normalizeSegmentInput is not a function
+ ❯ lib/trips/normalize.test.ts:64:20
+     62| describe('normalizeSegmentInput', () => {
+     63|   it('normalizes one leg to UTC and preserves coordinates (no sequence…
+     64|     const result = normalizeSegmentInput(validLeg);
+       |                    ^
+     65|
+     66|     expect(result.ok).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  lib/trips/normalize.test.ts > normalizeSegmentInput > rejects a leg that arrives before it departs in UTC
+TypeError: normalizeSegmentInput is not a function
+ ❯ lib/trips/normalize.test.ts:78:20
+     76|
+     77|   it('rejects a leg that arrives before it departs in UTC', () => {
+     78|     const result = normalizeSegmentInput({ ...validLeg, arrivalLocal: …
+       |                    ^
+     79|     expect(result.ok).toBe(false);
+     80|     if (result.ok) return;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  lib/trips/normalize.test.ts > normalizeSegmentInput > rejects an invalid time zone
+TypeError: normalizeSegmentInput is not a function
+ ❯ lib/trips/normalize.test.ts:85:20
+     83|
+     84|   it('rejects an invalid time zone', () => {
+     85|     const result = normalizeSegmentInput({ ...validLeg, arrivalTz: 'No…
+       |                    ^
+     86|     expect(result.ok).toBe(false);
+     87|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  lib/trips/normalize.test.ts > normalizeSegmentInput > rejects a structurally invalid leg
+TypeError: normalizeSegmentInput is not a function
+ ❯ lib/trips/normalize.test.ts:90:20
+     88|
+     89|   it('rejects a structurally invalid leg', () => {
+     90|     const result = normalizeSegmentInput({ departureAirport: 'JF' });
+       |                    ^
+     91|     expect(result.ok).toBe(false);
+     92|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 4 passed (8)
+   Start at  19:04:42
+   Duration  260ms (transform 42ms, setup 0ms, import 101ms, tests 24ms, environment 0ms)
+

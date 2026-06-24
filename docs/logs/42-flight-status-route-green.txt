@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/flights/status/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  00:46:21
+   Duration  201ms (transform 23ms, setup 0ms, import 74ms, tests 7ms, environment 0ms)
+

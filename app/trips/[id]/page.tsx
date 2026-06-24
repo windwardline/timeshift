@@ -3,6 +3,8 @@ import { redirect, notFound } from 'next/navigation';
 import { getTripWithSegments } from '@/lib/db/trips';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { TripView } from '@/components/TripView';
+import { TripActions } from '@/components/TripActions';
+import { SegmentEditor } from '@/components/SegmentEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +29,21 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           <Link href="/">← TimeShift</Link>
         </p>
       </header>
+      <TripActions tripId={trip.id} name={trip.name} />
       <TripView trip={trip} homeTimeZone={user.homeTimeZone} />
+      <SegmentEditor
+        tripId={trip.id}
+        segments={trip.segments.map((s) => ({
+          id: s.id,
+          flightNumber: s.flightNumber,
+          departureAirport: s.departureAirport,
+          arrivalAirport: s.arrivalAirport,
+          departureTime: s.departureTime.toISOString(),
+          arrivalTime: s.arrivalTime.toISOString(),
+          departureTz: s.departureTz,
+          arrivalTz: s.arrivalTz,
+        }))}
+      />
     </main>
   );
 }

@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run components/Timeline.test.tsx
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  19:10:16
+   Duration  401ms (transform 26ms, setup 0ms, import 72ms, tests 42ms, environment 175ms)
+
