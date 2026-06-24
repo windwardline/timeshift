@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/trips/normalize.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  00:49:50
+   Duration  249ms (transform 31ms, setup 0ms, import 73ms, tests 21ms, environment 0ms)
+

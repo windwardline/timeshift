@@ -79,6 +79,13 @@ describe('normalizeSegmentInput', () => {
     expect('sequence' in result.data).toBe(false);
   });
 
+  it('carries an optional flight number through (for the timeline label + live status)', () => {
+    const result = normalizeSegmentInput({ ...validLeg, flightNumber: 'BA 178' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.flightNumber).toBe('BA 178');
+  });
+
   it('rejects a leg that arrives before it departs in UTC', () => {
     const result = normalizeSegmentInput({ ...validLeg, arrivalLocal: '2025-06-01T17:00' });
     expect(result.ok).toBe(false);
