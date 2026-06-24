@@ -1,0 +1,29 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/flights/status/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ app/api/flights/status/route.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/api/flights/status/route.test.ts [ app/api/flights/status/route.test.ts ]
+Error: Cannot find module '/app/api/flights/status/route' imported from /Users/peacock/Projects/timeshift/app/api/flights/status/route.test.ts
+ ❯ app/api/flights/status/route.test.ts:14:1
+     12| vi.mock('@/lib/flights/client', () => ({ createFlightClient: () => ({ …
+     13|
+     14| import { GET } from './route';
+       | ^
+     15|
+     16| function get(qs = 'flight=BA178&date=2026-07-02') {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  00:43:43
+   Duration  152ms (transform 21ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
