@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/flights/status.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/flights/status.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/flights/status.test.ts [ lib/flights/status.test.ts ]
+Error: Cannot find module './status' imported from /Users/peacock/Projects/timeshift/lib/flights/status.test.ts
+ ❯ lib/flights/status.test.ts:2:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { parseFlightStatus } from './status';
+       | ^
+      3|
+      4| // Maps AviationStack `/flights` JSON into a FlightStatus for the near…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  19:21:55
+   Duration  152ms (transform 13ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
