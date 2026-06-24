@@ -19,6 +19,10 @@ function opt(over: Partial<FlightOption>): FlightOption {
     departureTerminal: null,
     arrivalTerminal: null,
     durationMinutes: 420,
+    departureLat: null,
+    departureLng: null,
+    arrivalLat: null,
+    arrivalLng: null,
     ...over,
   };
 }

@@ -16,6 +16,12 @@ export interface FlightOption {
   departureTerminal: string | null;
   arrivalTerminal: string | null;
   durationMinutes: number; // true elapsed minutes (from the UTC instants)
+  // Coordinates for the day/night arcs, resolved from the curated airport list;
+  // null when the airport isn't one we carry (arcs degrade cleanly). US-C4.
+  departureLat: number | null;
+  departureLng: number | null;
+  arrivalLat: number | null;
+  arrivalLng: number | null;
 }
 
 export type SortKey = 'departure' | 'arrival' | 'duration';

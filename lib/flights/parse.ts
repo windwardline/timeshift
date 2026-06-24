@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { resolveCoords } from './coords';
 import type { FlightOption } from './types';
 
 // Map AviationStack `/flights` JSON into FlightOption[]. PURE and defensive: any
@@ -51,6 +52,9 @@ function toOption(raw: RawFlight): FlightOption | null {
   // "BA 178" when we have the airline + numeric; else the raw IATA code ("BA178").
   const flightNumber = airlineIata && numberPart ? `${airlineIata} ${numberPart}` : (iataCode ?? numberPart!);
 
+  const depCoords = resolveCoords(depIata!);
+  const arrCoords = resolveCoords(arrIata!);
+
   return {
     flightNumber,
     airlineName: str(raw.airline?.name),
@@ -63,6 +67,10 @@ function toOption(raw: RawFlight): FlightOption | null {
     departureTerminal: str(dep.terminal),
     arrivalTerminal: str(arr.terminal),
     durationMinutes: Math.round(arrInstant.diff(depInstant, 'minutes').minutes),
+    departureLat: depCoords?.lat ?? null,
+    departureLng: depCoords?.lng ?? null,
+    arrivalLat: arrCoords?.lat ?? null,
+    arrivalLng: arrCoords?.lng ?? null,
   };
 }
 

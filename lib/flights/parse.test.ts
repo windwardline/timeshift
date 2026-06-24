@@ -43,6 +43,25 @@ describe('parseFlights', () => {
     expect(ba178.arrivalTerminal).toBe('5');
     // 01:30Z → 08:20Z = 6h50m
     expect(ba178.durationMinutes).toBe(410);
+    // Coordinates resolved from the curated list (US-C4) for the day/night arcs.
+    expect(ba178.departureLat).toBe(40.6413); // JFK
+    expect(ba178.arrivalLat).toBe(51.47); // LHR
+  });
+
+  it('leaves coordinates null for an airport not in the curated list', () => {
+    const exotic = {
+      data: [
+        {
+          departure: { timezone: 'Pacific/Tongatapu', iata: 'TBU', scheduled: '2026-07-02T08:00:00+13:00' },
+          arrival: { timezone: 'Pacific/Rarotonga', iata: 'RAR', scheduled: '2026-07-02T14:00:00-10:00' },
+          airline: { name: 'Air NZ', iata: 'NZ' },
+          flight: { number: '5' },
+        },
+      ],
+    };
+    const [opt] = parseFlights(exotic);
+    expect(opt.departureLat).toBeNull();
+    expect(opt.arrivalLat).toBeNull();
   });
 
   it('keeps duration positive across the date line', () => {
