@@ -5,6 +5,7 @@ import { offsetMinutes } from '@/lib/engine/time';
 import { resolveHomeBaseline } from '@/lib/profile/homeZone';
 import { Timeline } from '@/components/Timeline';
 import { AdvicePanel } from '@/components/AdvicePanel';
+import { LiveStatusBadge } from '@/components/LiveStatusBadge';
 
 interface ViewSegment {
   flightNumber: string | null;
@@ -61,6 +62,17 @@ export function TripView({ trip, homeTimeZone: profileHomeZone }: { trip: ViewTr
           </div>
         </div>
       </section>
+
+      <div className="reveal-2" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+        {trip.segments.map((s, i) => (
+          <LiveStatusBadge
+            key={i}
+            flightNumber={s.flightNumber}
+            departureTime={s.departureTime.toISOString()}
+            departureTz={s.departureTz}
+          />
+        ))}
+      </div>
 
       <div className="stage reveal-2">
         <Timeline
