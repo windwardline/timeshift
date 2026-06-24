@@ -26,11 +26,14 @@ export default async function Home() {
   return (
     <main>
       {user && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <span className="mono" style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+            {user.email}
+          </span>
           <Link className="btn btn-ghost" href="/profile" style={{ padding: '7px 14px', fontSize: 13 }}>
             Profile
           </Link>
-          <LogoutButton email={user.email} />
+          <LogoutButton />
         </div>
       )}
 
