@@ -25,20 +25,25 @@ async function getJson(url: URL): Promise<unknown> {
 }
 
 export function createFlightClient(apiKey: string): FlightClient {
+  // NOTE: the `flight_date` parameter (historical/future schedule lookup) is a
+  // PAID AviationStack function — the free plan returns `function_access_restricted`
+  // (403) when it's present. We therefore query the free real-time feed (current
+  // day's live schedule for the route), which carries the same fields we need
+  // (scheduled times, IANA zones, terminals). `date` is still used upstream for
+  // validation, the cache key, and the leg the builder fills. To enable true
+  // future-dated search, add `flight_date` back on a paid plan.
   return {
-    searchFlights({ from, to, date }) {
+    searchFlights({ from, to }) {
       const url = new URL(BASE);
       url.searchParams.set('access_key', apiKey);
       url.searchParams.set('dep_iata', from);
       url.searchParams.set('arr_iata', to);
-      url.searchParams.set('flight_date', date);
       return getJson(url);
     },
-    flightStatus({ flight, date }) {
+    flightStatus({ flight }) {
       const url = new URL(BASE);
       url.searchParams.set('access_key', apiKey);
       url.searchParams.set('flight_iata', flight.replace(/\s+/g, ''));
-      url.searchParams.set('flight_date', date);
       return getJson(url);
     },
   };
