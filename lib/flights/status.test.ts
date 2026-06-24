@@ -26,5 +26,7 @@ describe('parseFlightStatus', () => {
     expect(parseFlightStatus(null)).toEqual({ state: 'unknown', delayMinutes: null });
     expect(parseFlightStatus({})).toEqual({ state: 'unknown', delayMinutes: null });
     expect(parseFlightStatus({ data: [] })).toEqual({ state: 'unknown', delayMinutes: null });
+    // present entry, but no (string) status and no delay → unknown
+    expect(parseFlightStatus({ data: [{ departure: {} }] })).toEqual({ state: 'unknown', delayMinutes: null });
   });
 });

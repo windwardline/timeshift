@@ -71,6 +71,52 @@ describe('parseFlights', () => {
     expect(parseFlights(partial)).toEqual([]);
   });
 
+  it('falls back to the raw IATA code when the airline code is absent', () => {
+    const noAirline = {
+      data: [
+        {
+          departure: { timezone: 'Europe/London', iata: 'LHR', scheduled: '2025-07-02T11:40:00+01:00' },
+          arrival: { timezone: 'Asia/Singapore', iata: 'SIN', scheduled: '2025-07-03T07:30:00+08:00' },
+          flight: { iata: 'BA11' }, // no airline.iata, no flight.number
+        },
+      ],
+    };
+    expect(parseFlights(noAirline)[0].flightNumber).toBe('BA11');
+  });
+
+  it('uses the bare flight number when there is no airline or IATA code', () => {
+    const numberOnly = {
+      data: [
+        {
+          departure: { timezone: 'Asia/Tokyo', iata: 'HND', scheduled: '2025-07-02T17:00:00+09:00' },
+          arrival: { timezone: 'America/Los_Angeles', iata: 'LAX', scheduled: '2025-07-02T10:00:00-07:00' },
+          flight: { number: '62' }, // no airline.iata, no flight.iata
+        },
+      ],
+    };
+    expect(parseFlights(numberOnly)[0].flightNumber).toBe('62');
+  });
+
+  it('drops entries with no departure or no arrival object at all', () => {
+    const arr = { timezone: 'Europe/London', iata: 'LHR', scheduled: '2025-07-02T09:20:00+01:00' };
+    const dep = { timezone: 'America/New_York', iata: 'JFK', scheduled: '2025-07-01T21:30:00-04:00' };
+    expect(parseFlights({ data: [{ arrival: arr, flight: { number: '1' } }] })).toEqual([]); // no departure
+    expect(parseFlights({ data: [{ departure: dep, flight: { number: '1' } }] })).toEqual([]); // no arrival
+  });
+
+  it('drops an entry whose scheduled time is not a valid instant', () => {
+    const badTime = {
+      data: [
+        {
+          departure: { timezone: 'Europe/London', iata: 'LHR', scheduled: 'not-a-time' },
+          arrival: { timezone: 'Asia/Singapore', iata: 'SIN', scheduled: '2025-07-03T07:30:00+08:00' },
+          flight: { number: '11' },
+        },
+      ],
+    };
+    expect(parseFlights(badTime)).toEqual([]);
+  });
+
   it('returns [] for malformed roots instead of throwing', () => {
     expect(parseFlights(null)).toEqual([]);
     expect(parseFlights({})).toEqual([]);

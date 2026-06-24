@@ -34,28 +34,32 @@ function toOption(raw: RawFlight): FlightOption | null {
   const arrIata = str(arr.iata);
   const depSched = str(dep.scheduled);
   const arrSched = str(arr.scheduled);
-  const number = str(raw.flight?.number) ?? str(raw.flight?.iata);
+  const numberPart = str(raw.flight?.number);
+  const iataCode = str(raw.flight?.iata);
 
-  if (!depTz || !arrTz || !depIata || !arrIata || !depSched || !arrSched || !number) {
+  // A leg is usable only with both zones, both airports, both times, and a flight
+  // identifier. Any missing field drops the entry (one guard, not a chain).
+  if ([depTz, arrTz, depIata, arrIata, depSched, arrSched, numberPart ?? iataCode].some((v) => !v)) {
     return null;
   }
 
-  const depInstant = DateTime.fromISO(depSched, { setZone: true });
-  const arrInstant = DateTime.fromISO(arrSched, { setZone: true });
+  const depInstant = DateTime.fromISO(depSched!, { setZone: true });
+  const arrInstant = DateTime.fromISO(arrSched!, { setZone: true });
   if (!depInstant.isValid || !arrInstant.isValid) return null;
 
   const airlineIata = str(raw.airline?.iata);
-  const flightNumber = airlineIata ? `${airlineIata} ${str(raw.flight?.number) ?? number}` : (str(raw.flight?.iata) ?? number);
+  // "BA 178" when we have the airline + numeric; else the raw IATA code ("BA178").
+  const flightNumber = airlineIata && numberPart ? `${airlineIata} ${numberPart}` : (iataCode ?? numberPart!);
 
   return {
     flightNumber,
     airlineName: str(raw.airline?.name),
-    departureIata: depIata.toUpperCase(),
-    arrivalIata: arrIata.toUpperCase(),
-    departureLocal: wallTime(depSched, depTz),
-    arrivalLocal: wallTime(arrSched, arrTz),
-    departureTz: depTz,
-    arrivalTz: arrTz,
+    departureIata: depIata!.toUpperCase(),
+    arrivalIata: arrIata!.toUpperCase(),
+    departureLocal: wallTime(depSched!, depTz!),
+    arrivalLocal: wallTime(arrSched!, arrTz!),
+    departureTz: depTz!,
+    arrivalTz: arrTz!,
     departureTerminal: str(dep.terminal),
     arrivalTerminal: str(arr.terminal),
     durationMinutes: Math.round(arrInstant.diff(depInstant, 'minutes').minutes),

@@ -11,7 +11,7 @@ export default defineConfig({
       // The temporal engine and the deterministic AI surface are the TDD core,
       // held at 100% coverage. lib/ai/client.ts (the only real-network module)
       // excludes itself with a /* v8 ignore file */ pragma per docs/AI_ADVICE.md §6.
-      include: ['lib/engine/**', 'lib/ai/**', 'lib/trips/**', 'lib/auth/credentials.ts'],
+      include: ['lib/engine/**', 'lib/ai/**', 'lib/trips/**', 'lib/flights/**', 'lib/auth/credentials.ts'],
     },
   },
   resolve: {
