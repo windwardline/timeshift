@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 
-export function LogoutButton({ email }: { email: string }) {
+// Just the log-out action. The email + profile link live next to it in the page
+// header so the whole account row reads: email · Profile · Log out.
+export function LogoutButton() {
   const router = useRouter();
 
   async function logout() {
@@ -12,13 +14,8 @@ export function LogoutButton({ email }: { email: string }) {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', marginBottom: 8 }}>
-      <span className="mono" style={{ color: 'var(--muted)', fontSize: 12.5 }}>
-        {email}
-      </span>
-      <button type="button" className="btn btn-ghost" style={{ padding: '7px 14px', fontSize: 13 }} onClick={logout}>
-        Log out
-      </button>
-    </div>
+    <button type="button" className="btn btn-ghost" style={{ padding: '7px 14px', fontSize: 13 }} onClick={logout}>
+      Log out
+    </button>
   );
 }
