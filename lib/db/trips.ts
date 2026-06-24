@@ -8,6 +8,7 @@ import { prisma } from './prisma';
 
 export interface NewSegmentInput {
   sequence: number; // 0-based order within the trip; the ordering source of truth
+  flightNumber?: string; // e.g. "BA 178" — shown on the timeline; enables live status
   departureAirport: string; // IATA, e.g. "JFK"
   arrivalAirport: string; // IATA, e.g. "LHR"
   departureTime: Date; // UTC instant

@@ -7,6 +7,7 @@ import { toUtc } from '../engine/time';
 // PURE — no DB, no network.
 
 const segmentSchema = z.object({
+  flightNumber: z.string().trim().min(1).optional(), // e.g. "BA 178" (from real-flight selection)
   departureAirport: z.string().trim().min(3).max(4),
   arrivalAirport: z.string().trim().min(3).max(4),
   departureLocal: z.string().min(1), // 'YYYY-MM-DDTHH:mm' wall time at the airport
@@ -26,6 +27,7 @@ const tripSchema = z.object({
 
 export interface NormalizedSegment {
   sequence: number;
+  flightNumber?: string;
   departureAirport: string;
   arrivalAirport: string;
   departureTime: Date;
@@ -66,6 +68,7 @@ export function normalizeSegmentInput(raw: unknown): NormalizeSegmentResult {
 
   const s = parsed.data;
   const leg: NormalizedLeg = {
+    flightNumber: s.flightNumber,
     departureAirport: s.departureAirport,
     arrivalAirport: s.arrivalAirport,
     departureTime: toUtc(s.departureLocal, s.departureTz),
