@@ -4,12 +4,23 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { AIRPORTS, findAirport } from '@/lib/airports';
+import { FlightSearch } from '@/components/FlightSearch';
+import type { FlightOption } from '@/lib/flights/types';
 
 interface LegDraft {
   dep: string;
   arr: string;
   depLocal: string;
   arrLocal: string;
+  // Set when the leg came from a real-flight selection — these win over the
+  // curated airport list at submit, so flights to airports we don't carry work.
+  flightNumber?: string;
+  depTz?: string;
+  arrTz?: string;
+  depLat?: number;
+  depLng?: number;
+  arrLat?: number;
+  arrLng?: number;
 }
 
 const blankLeg: LegDraft = { dep: '', arr: '', depLocal: '', arrLocal: '' };
@@ -26,6 +37,24 @@ export function TripBuilder() {
 
   function update(i: number, patch: Partial<LegDraft>) {
     setLegs((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+
+  // Selecting a real flight fills the leg with the API's accurate airports,
+  // local times, zones, and coordinates (and the flight number) — no typing.
+  function selectFlight(i: number, f: FlightOption) {
+    update(i, {
+      dep: f.departureIata,
+      arr: f.arrivalIata,
+      depLocal: f.departureLocal,
+      arrLocal: f.arrivalLocal,
+      flightNumber: f.flightNumber,
+      depTz: f.departureTz,
+      arrTz: f.arrivalTz,
+      depLat: f.departureLat ?? undefined,
+      depLng: f.departureLng ?? undefined,
+      arrLat: f.arrivalLat ?? undefined,
+      arrLng: f.arrivalLng ?? undefined,
+    });
   }
 
   // A connecting flight starts where the last one landed — same airport, ~90 min
@@ -50,19 +79,22 @@ export function TripBuilder() {
     }
 
     const segments = legs.map((l) => {
-      const dep = findAirport(l.dep)!;
-      const arr = findAirport(l.arr)!;
+      // Real-flight selections carry their own zone/coords; manual legs fall back
+      // to the curated airport list.
+      const dep = findAirport(l.dep);
+      const arr = findAirport(l.arr);
       return {
+        flightNumber: l.flightNumber,
         departureAirport: l.dep,
         arrivalAirport: l.arr,
         departureLocal: l.depLocal,
         arrivalLocal: l.arrLocal,
-        departureTz: dep.tz,
-        arrivalTz: arr.tz,
-        departureLat: dep.lat,
-        departureLng: dep.lng,
-        arrivalLat: arr.lat,
-        arrivalLng: arr.lng,
+        departureTz: l.depTz ?? dep?.tz,
+        arrivalTz: l.arrTz ?? arr?.tz,
+        departureLat: l.depLat ?? dep?.lat,
+        departureLng: l.depLng ?? dep?.lng,
+        arrivalLat: l.arrLat ?? arr?.lat,
+        arrivalLng: l.arrLng ?? arr?.lng,
       };
     });
 
@@ -117,6 +149,14 @@ export function TripBuilder() {
                 </button>
               )}
             </div>
+
+            <FlightSearch defaultFrom={leg.dep} defaultTo={leg.arr} onSelect={(f) => selectFlight(i, f)} />
+            {leg.flightNumber && (
+              <p className="mono" style={{ fontSize: 12, color: '#3ee6d0', margin: '0 0 10px' }}>
+                ✓ {leg.flightNumber} selected — times below are the real schedule. Edit if needed, or fill manually.
+              </p>
+            )}
+
             <div className="grid-2">
               <div className="field">
                 <label>From</label>
