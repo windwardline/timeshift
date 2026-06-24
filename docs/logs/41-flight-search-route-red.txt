@@ -1,0 +1,29 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/flights/search/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ app/api/flights/search/route.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/api/flights/search/route.test.ts [ app/api/flights/search/route.test.ts ]
+Error: Cannot find module '/app/api/flights/search/route' imported from /Users/peacock/Projects/timeshift/app/api/flights/search/route.test.ts
+ ❯ app/api/flights/search/route.test.ts:18:1
+     16| vi.mock('@/lib/flights/cache', () => ({ readCache: mocks.readCache, wr…
+     17|
+     18| import { GET } from './route';
+       | ^
+     19|
+     20| const RAW = {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  00:22:43
+   Duration  158ms (transform 18ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
