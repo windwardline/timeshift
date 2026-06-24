@@ -28,6 +28,7 @@ export function FlightSearch({ defaultFrom, defaultTo, onSelect }: { defaultFrom
   const [results, setResults] = useState<FlightOption[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   async function search(nextSort: SortKey = sort) {
     if (!from || !to || !date) return setError('Choose both airports and a date.');
@@ -41,6 +42,7 @@ export function FlightSearch({ defaultFrom, defaultTo, onSelect }: { defaultFrom
         setResults(null);
         return;
       }
+      setSelectedKey(null); // clear any prior highlight when new results load
       setResults(body.flights as FlightOption[]);
     } catch {
       setError('Network error — enter the flight manually below.');
@@ -104,19 +106,39 @@ export function FlightSearch({ defaultFrom, defaultTo, onSelect }: { defaultFrom
             </p>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {results.map((f, i) => (
-                <li key={`${f.flightNumber}-${i}`}>
-                  <button
-                    type="button"
-                    className="flight-row mono"
-                    onClick={() => onSelect(f)}
-                    style={{ width: '100%', textAlign: 'left', padding: '8px 10px', cursor: 'pointer', border: '1px solid rgba(157,124,255,0.25)', borderRadius: 8, background: 'transparent', color: 'inherit', fontSize: 12.5 }}
-                  >
-                    <strong>{f.flightNumber}</strong> · {f.departureIata} {f.departureLocal.slice(11)} → {f.arrivalIata} {f.arrivalLocal.slice(11)}{dayOffset(f.departureLocal, f.arrivalLocal)} · {hhmm(f.durationMinutes)}
-                    {f.departureTerminal || f.arrivalTerminal ? ` · T${f.departureTerminal ?? '?'}→T${f.arrivalTerminal ?? '?'}` : ''}
-                  </button>
-                </li>
-              ))}
+              {results.map((f, i) => {
+                const key = `${f.flightNumber}-${i}`;
+                const isSelected = key === selectedKey;
+                return (
+                  <li key={key}>
+                    <button
+                      type="button"
+                      className="flight-row mono"
+                      aria-pressed={isSelected}
+                      onClick={() => { setSelectedKey(key); onSelect(f); }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 10px',
+                        cursor: 'pointer',
+                        borderRadius: 8,
+                        fontSize: 12.5,
+                        // The selected flight gets a teal ring + tint and a check,
+                        // so it's obvious which option is feeding the leg.
+                        border: isSelected ? '1.5px solid #3ee6d0' : '1px solid rgba(157,124,255,0.25)',
+                        background: isSelected ? 'rgba(62,230,208,0.14)' : 'transparent',
+                        color: isSelected ? '#eafffb' : 'inherit',
+                        boxShadow: isSelected ? '0 0 0 3px rgba(62,230,208,0.15)' : 'none',
+                        transition: 'background 120ms, border-color 120ms',
+                      }}
+                    >
+                      <span style={{ color: '#3ee6d0', fontWeight: 700 }}>{isSelected ? '✓ ' : ''}</span>
+                      <strong>{f.flightNumber}</strong> · {f.departureIata} {f.departureLocal.slice(11)} → {f.arrivalIata} {f.arrivalLocal.slice(11)}{dayOffset(f.departureLocal, f.arrivalLocal)} · {hhmm(f.durationMinutes)}
+                      {f.departureTerminal || f.arrivalTerminal ? ` · T${f.departureTerminal ?? '?'}→T${f.arrivalTerminal ?? '?'}` : ''}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
