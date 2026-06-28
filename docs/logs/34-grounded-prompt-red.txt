@@ -1,0 +1,56 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/prompt.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/prompt.test.ts (5 tests | 3 failed) 4ms
+     × embeds every chunk text and a labelled source id 2ms
+     × includes the grounding instruction to answer only from the context 0ms
+     × includes the user question verbatim 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/prompt.test.ts > buildGroundedPrompt > embeds every chunk text and a labelled source id
+TypeError: buildGroundedPrompt is not a function
+ ❯ lib/ai/prompt.test.ts:79:20
+     77|
+     78|   it('embeds every chunk text and a labelled source id', () => {
+     79|     const prompt = buildGroundedPrompt('Why is flying east worse?', ch…
+       |                    ^
+     80|
+     81|     expect(prompt).toContain('Flying east forces your clock to move ea…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  lib/ai/prompt.test.ts > buildGroundedPrompt > includes the grounding instruction to answer only from the context
+TypeError: buildGroundedPrompt is not a function
+ ❯ lib/ai/prompt.test.ts:88:20
+     86|
+     87|   it('includes the grounding instruction to answer only from the conte…
+     88|     const prompt = buildGroundedPrompt('Why is flying east worse?', ch…
+       |                    ^
+     89|
+     90|     expect(prompt.toLowerCase()).toContain('only');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  lib/ai/prompt.test.ts > buildGroundedPrompt > includes the user question verbatim
+TypeError: buildGroundedPrompt is not a function
+ ❯ lib/ai/prompt.test.ts:95:20
+     93|
+     94|   it('includes the user question verbatim', () => {
+     95|     const prompt = buildGroundedPrompt('Why is flying east worse?', ch…
+       |                    ^
+     96|
+     97|     expect(prompt).toContain('Why is flying east worse?');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 2 passed (5)
+   Start at  10:33:35
+   Duration  138ms (transform 15ms, setup 0ms, import 20ms, tests 4ms, environment 0ms)
+

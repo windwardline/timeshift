@@ -121,6 +121,17 @@ alongside the code that produced them.
 - Orchestration degrades on client failure — [`14-ai-generate-fail-red.txt`](docs/logs/14-ai-generate-fail-red.txt) → [`14-ai-generate-fail-green.txt`](docs/logs/14-ai-generate-fail-green.txt)
 - Engine → facts adapter — [`19-ai-facts-red.txt`](docs/logs/19-ai-facts-red.txt) → [`19-ai-facts-green.txt`](docs/logs/19-ai-facts-green.txt)
 
+**Jetlag Coach — grounded RAG (US-R)** — pure retrieval/grounding + AI glue, driven Red → Green, keyless:
+
+- Chunk markdown by heading — [`30-chunk-red.txt`](docs/logs/30-chunk-red.txt) → [`30-chunk-green.txt`](docs/logs/30-chunk-green.txt)
+- Cosine vector search (top-k) — [`31-search-red.txt`](docs/logs/31-search-red.txt) → [`31-search-green.txt`](docs/logs/31-search-green.txt)
+- Lexical fallback (TF-IDF cosine) — [`32-lexical-red.txt`](docs/logs/32-lexical-red.txt) → [`32-lexical-green.txt`](docs/logs/32-lexical-green.txt); bounded-score refactor [`32b-lexical-tfidf-red.txt`](docs/logs/32b-lexical-tfidf-red.txt) → [`32b-lexical-tfidf-green.txt`](docs/logs/32b-lexical-tfidf-green.txt)
+- Refusal gate — [`33-ground-red.txt`](docs/logs/33-ground-red.txt) → [`33-ground-green.txt`](docs/logs/33-ground-green.txt)
+- Grounded prompt assembly — [`34-grounded-prompt-red.txt`](docs/logs/34-grounded-prompt-red.txt) → [`34-grounded-prompt-green.txt`](docs/logs/34-grounded-prompt-green.txt)
+- Grounded response parse (incl. malformed) — [`35-grounded-parse-red.txt`](docs/logs/35-grounded-parse-red.txt) → [`35-grounded-parse-green.txt`](docs/logs/35-grounded-parse-green.txt)
+- Orchestrator (both paths + refusal + failure) — [`36-coach-red.txt`](docs/logs/36-coach-red.txt) → [`36-coach-green.txt`](docs/logs/36-coach-green.txt); no-vectors fallback [`36b-coach-novectors-red.txt`](docs/logs/36b-coach-novectors-red.txt) → [`36b-coach-novectors-green.txt`](docs/logs/36b-coach-novectors-green.txt)
+- POST /api/coach route — [`37-coach-route-red.txt`](docs/logs/37-coach-route-red.txt) → [`37-coach-route-green.txt`](docs/logs/37-coach-route-green.txt)
+
 **Trip input (US-B1/C1)**
 
 - Validate + UTC-normalize builder input — [`23-normalize-red.txt`](docs/logs/23-normalize-red.txt) → [`23-normalize-green.txt`](docs/logs/23-normalize-green.txt)
@@ -185,6 +196,45 @@ lighter models on a rate limit) that narrates the engine's computed facts — th
 below quotes the 13-hour shift and the exact in-flight sleep window:
 
 ![Live AI-generated plan](docs/screenshots/app-ai-live.png)
+
+### Jetlag Coach (grounded RAG) — what is mocked-and-tested vs live-and-demo-only
+
+> A standalone `/coach` page answers a free-form jetlag question **only** from
+> TimeShift's curated knowledge base: it retrieves the most relevant passages,
+> grounds the answer in them, **shows the sources it used**, and **refuses
+> honestly** when the question falls outside the KB.
+
+**Retrieval is grounded and the sources are real (AC-R1/R3).** The knowledge base
+is ten hand-authored markdown docs under [`docs/kb/`](docs/kb/), chunked by `##`
+heading. Retrieval is **semantic** — Google embeddings + cosine over precomputed
+chunk vectors (`docs/kb/kb-embeddings.json`) — when a key and those vectors are
+present, and falls back to a **lexical TF-IDF-cosine** search when not, so the
+feature works **keyless**. A refusal gate (`decideAnswerable`) drops any question
+whose best passage doesn't clear the threshold *before* any model call (AC-R2).
+
+**Mocked-and-unit-tested (no key, 100% coverage).** `lib/rag/` (chunking, vector
+search, lexical fallback, refusal gate) and the `lib/ai/` coach glue
+(`buildGroundedPrompt`, `parseGroundedResponse`, `answerQuestion`) are pure and
+held at **100%** — including the malformed-response and generation-failure
+branches. The two I/O shells, `lib/rag/embed.ts` (the query-embedding network
+call) and `lib/rag/corpus.ts` (filesystem KB load), are the only modules excluded
+from coverage, each with an explicit `/* v8 ignore file */` pragma (CLAUDE.md
+§13). The whole suite and coverage pass with **no API key** (AC-R4/R5).
+
+**Live-and-demo-only.** Two things spend a real key: regenerating the KB vectors
+(`npm run embed:kb`, model `gemini-embedding-001` at 768 dims) and the answer
+**generation** (the same `GEMINI_API_KEY` and Gemini client as the advice
+feature). Keyless, the coach still answers and cites sources, composing the
+answer **extractively** from the retrieved passages; with a key it upgrades to an
+LLM-written answer — the **Sources are identical either way**, since they come
+from retrieval, not the model. The refusal gate is **path-aware**: embedding
+cosine and TF-IDF cosine sit on different scales, so each path has its own
+threshold (`COACH_THRESHOLD_SEMANTIC` ≈ 0.62, `COACH_THRESHOLD_LEXICAL` ≈ 0.16),
+both env-overridable. Model output is non-deterministic, so it is never
+snapshot-asserted; the E2E (below) runs keyless for a deterministic grounded
+answer + refusal.
+
+![Grounded coach answer with sources](docs/screenshots/e2e-coach-grounded.png)
 
 ### Real flight selection — what is mocked-and-tested vs live-and-demo-only
 

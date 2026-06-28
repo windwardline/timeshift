@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/rag/ground.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/rag/ground.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/rag/ground.test.ts [ lib/rag/ground.test.ts ]
+Error: Cannot find module './ground' imported from /Users/peacock/Projects/timeshift/lib/rag/ground.test.ts
+ ❯ lib/rag/ground.test.ts:2:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { decideAnswerable } from './ground';
+       | ^
+      3| import type { ScoredChunk } from './types';
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  10:32:38
+   Duration  133ms (transform 12ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

@@ -1,4 +1,5 @@
 import type { TripFacts } from './facts';
+import type { ScoredChunk } from '@/lib/rag/types';
 
 // AI-1 (US-F1 / AC-F1.1): assemble the advice prompt from engine facts. PURE —
 // it only formats the already-computed facts into the instruction the model
@@ -24,5 +25,30 @@ export function buildAdvicePrompt(facts: TripFacts): string {
     sleepLines,
     '',
     'Respond as JSON: { "summary": string, "preFlight": string[], "inFlight": string[], "postArrival": string[] }.',
+  ].join('\n');
+}
+
+// US-R (AC-R1/R2/R3): assemble the grounded coach prompt from retrieved KB
+// chunks. PURE — it only formats the already-retrieved context and the question.
+// Each chunk is labelled with its source doc so the model's answer cites real
+// docs, and the grounding instruction forces a refusal when the context does not
+// cover the question (no fabrication beyond the supplied context).
+export function buildGroundedPrompt(query: string, chunks: ScoredChunk[]): string {
+  const context = chunks
+    .map((c) => `[Source: ${c.docId} — ${c.heading}]\n${c.text}`)
+    .join('\n\n');
+
+  return [
+    'You are TimeShift’s jetlag coach. Answer the traveler’s question using ONLY',
+    'the context below. If the context does not cover the question, say you don’t',
+    'have that in your knowledge base rather than guessing. Do not use outside',
+    'knowledge and do not invent sources.',
+    '',
+    'Context:',
+    context,
+    '',
+    `Question: ${query}`,
+    '',
+    'Respond as JSON: { "answer": string }.',
   ].join('\n');
 }

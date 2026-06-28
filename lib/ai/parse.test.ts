@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parseAdviceResponse, AdviceParseError } from './parse';
+import {
+  parseAdviceResponse,
+  parseGroundedResponse,
+  AdviceParseError,
+} from './parse';
 
 // AI-2 / AC-F1.2: a well-formed structured model response (JSON) parses into a
 // fully populated AdvicePlan with every required field present.
@@ -35,5 +39,25 @@ describe('parseAdviceResponse (malformed)', () => {
   it('throws a typed AdviceParseError when required fields are missing', () => {
     const incomplete = JSON.stringify({ summary: 'only a summary' });
     expect(() => parseAdviceResponse(incomplete)).toThrow(AdviceParseError);
+  });
+});
+
+// US-R / AC-R1: the grounded coach response carries a single `answer` string.
+// It mirrors parseAdviceResponse's contract — a clean parse on well-formed JSON,
+// a typed AdviceParseError on malformed input (covered per CLAUDE.md §13).
+describe('parseGroundedResponse', () => {
+  it('parses a well-formed response into a trimmed answer', () => {
+    const raw = JSON.stringify({ answer: '  Flying east is harder.  ' });
+
+    expect(parseGroundedResponse(raw)).toEqual({ answer: 'Flying east is harder.' });
+  });
+
+  it('throws a typed AdviceParseError on non-JSON input', () => {
+    expect(() => parseGroundedResponse('not json at all')).toThrow(AdviceParseError);
+  });
+
+  it('throws a typed AdviceParseError when the answer field is missing', () => {
+    const incomplete = JSON.stringify({ notAnswer: 'oops' });
+    expect(() => parseGroundedResponse(incomplete)).toThrow(AdviceParseError);
   });
 });

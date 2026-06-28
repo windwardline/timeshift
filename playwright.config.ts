@@ -22,5 +22,9 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Run the E2E harness keyless so AI surfaces are deterministic: the coach
+    // serves its extractive, grounded fallback (US-R, CLAUDE.md §8.B/§13) rather
+    // than a non-deterministic live model response.
+    env: { ...process.env, GEMINI_API_KEY: '' },
   },
 });

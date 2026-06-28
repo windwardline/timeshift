@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/coach.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/coach.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/coach.test.ts [ lib/ai/coach.test.ts ]
+Error: Cannot find module './coach' imported from /Users/peacock/Projects/timeshift/lib/ai/coach.test.ts
+ ❯ lib/ai/coach.test.ts:2:1
+      1| import { describe, it, expect, vi } from 'vitest';
+      2| import { answerQuestion, REFUSAL, type CoachDeps } from './coach';
+       | ^
+      3| import { AdviceGenerationError } from './advice';
+      4| import type { Chunk, KbVector } from '@/lib/rag/types';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  10:39:37
+   Duration  142ms (transform 14ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

@@ -1,0 +1,123 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/coach.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/coach.test.ts (6 tests | 5 failed) 8ms
+     × uses the semantic path when an embedding is available and returns deduped sources 5ms
+     × falls back to the lexical path when the embedder returns null 1ms
+     × uses the lexical path when the corpus has no precomputed vectors, even with an embedder 1ms
+     × refuses below the lexical threshold and never calls generate 1ms
+     × gates the semantic path with the semantic threshold 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > uses the semantic path when an embedding is available and returns deduped sources
+AssertionError: expected [] to deeply equal [ 'east.md' ]
+
+- Expected
++ Received
+
+- [
+-   "east.md",
+- ]
++ []
+
+ ❯ lib/ai/coach.test.ts:39:28
+     37|     expect(result.answer).toBe('Because the clock must advance.');
+     38|     // east.md#0 and east.md#1 both pass threshold → a single deduped …
+     39|     expect(result.sources).toEqual(['east.md']);
+       |                            ^
+     40|     expect(deps.embedQuery).toHaveBeenCalledWith('Why is flying east w…
+     41|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > falls back to the lexical path when the embedder returns null
+AssertionError: expected [] to deeply equal [ 'east.md' ]
+
+- Expected
++ Received
+
+- [
+-   "east.md",
+- ]
++ []
+
+ ❯ lib/ai/coach.test.ts:53:28
+     51|     expect(result.grounded).toBe(true);
+     52|     expect(result.answer).toBe('East travel advances the clock.');
+     53|     expect(result.sources).toEqual(['east.md']);
+       |                            ^
+     54|     expect(generate).toHaveBeenCalledOnce();
+     55|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > uses the lexical path when the corpus has no precomputed vectors, even with an embedder
+AssertionError: expected [] to deeply equal [ 'east.md' ]
+
+- Expected
++ Received
+
+- [
+-   "east.md",
+- ]
++ []
+
+ ❯ lib/ai/coach.test.ts:69:28
+     67|     expect(embedQuery).not.toHaveBeenCalled();
+     68|     expect(result.grounded).toBe(true);
+     69|     expect(result.sources).toEqual(['east.md']);
+       |                            ^
+     70|   });
+     71|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > refuses below the lexical threshold and never calls generate
+AdviceParseError: Grounded response was not valid JSON
+ ❯ parseGroundedResponse lib/ai/parse.ts:53:11
+     51|     json = JSON.parse(raw);
+     52|   } catch (cause) {
+     53|     throw new AdviceParseError('Grounded response was not valid JSON',…
+       |           ^
+     54|   }
+     55|
+ ❯ answerQuestion lib/ai/coach.ts:59:22
+ ❯ lib/ai/coach.test.ts:76:20
+
+Caused by: SyntaxError: "undefined" is not valid JSON
+ ❯ parseGroundedResponse lib/ai/parse.ts:51:17
+ ❯ answerQuestion lib/ai/coach.ts:59:22
+ ❯ lib/ai/coach.test.ts:76:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > gates the semantic path with the semantic threshold
+AdviceParseError: Grounded response was not valid JSON
+ ❯ parseGroundedResponse lib/ai/parse.ts:53:11
+     51|     json = JSON.parse(raw);
+     52|   } catch (cause) {
+     53|     throw new AdviceParseError('Grounded response was not valid JSON',…
+       |           ^
+     54|   }
+     55|
+ ❯ answerQuestion lib/ai/coach.ts:59:22
+ ❯ lib/ai/coach.test.ts:91:20
+
+Caused by: SyntaxError: "undefined" is not valid JSON
+ ❯ parseGroundedResponse lib/ai/parse.ts:51:17
+ ❯ answerQuestion lib/ai/coach.ts:59:22
+ ❯ lib/ai/coach.test.ts:91:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 1 passed (6)
+   Start at  15:44:06
+   Duration  196ms (transform 33ms, setup 0ms, import 70ms, tests 8ms, environment 0ms)
+

@@ -83,6 +83,14 @@ so that my body clock is closer to destination time on arrival.
 
 ---
 
+## Epic R — Grounded Jetlag Coach (RAG)
+
+**US-R · (S)** As a traveler, I can ask a jetlag/sleep question and get an answer
+grounded only in TimeShift's curated knowledge base, with its sources shown, and an
+honest refusal when my question is outside that knowledge.
+
+---
+
 ## Out of scope for this sprint (logged, not built)
 
 - Real-time flight data / airline API integration

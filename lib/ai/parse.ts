@@ -37,3 +37,27 @@ export function parseAdviceResponse(raw: string): AdvicePlan {
   }
   return result.data;
 }
+
+// US-R (AC-R1): the grounded coach answer. Mirrors parseAdviceResponse — same
+// typed AdviceParseError on malformed input, so a bad model response never leaks
+// a raw SyntaxError/ZodError. The answer is trimmed of surrounding whitespace.
+const groundedAnswerSchema = z.object({ answer: z.string() });
+
+export type GroundedAnswer = z.infer<typeof groundedAnswerSchema>;
+
+export function parseGroundedResponse(raw: string): GroundedAnswer {
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch (cause) {
+    throw new AdviceParseError('Grounded response was not valid JSON', { cause });
+  }
+
+  const result = groundedAnswerSchema.safeParse(json);
+  if (!result.success) {
+    throw new AdviceParseError('Grounded response did not match the expected shape', {
+      cause: result.error,
+    });
+  }
+  return { answer: result.data.answer.trim() };
+}

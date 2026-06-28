@@ -1,0 +1,42 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/coach.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/coach.test.ts (5 tests | 1 failed) 7ms
+     × uses the lexical path when the corpus has no precomputed vectors, even with an embedder 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > uses the lexical path when the corpus has no precomputed vectors, even with an embedder
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      "flying east",
+    ]
+
+
+Number of calls: 1
+
+ ❯ lib/ai/coach.test.ts:65:28
+     63|
+     64|     // No vectors to match against → skip embedding entirely and retri…
+     65|     expect(embedQuery).not.toHaveBeenCalled();
+       |                            ^
+     66|     expect(result.grounded).toBe(true);
+     67|     expect(result.sources).toEqual(['east.md']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  10:50:50
+   Duration  170ms (transform 29ms, setup 0ms, import 52ms, tests 7ms, environment 0ms)
+

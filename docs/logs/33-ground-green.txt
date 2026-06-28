@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/rag/ground.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  10:32:53
+   Duration  126ms (transform 13ms, setup 0ms, import 18ms, tests 2ms, environment 0ms)
+
