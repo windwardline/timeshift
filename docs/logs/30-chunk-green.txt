@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/rag/chunk.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  10:30:12
+   Duration  143ms (transform 16ms, setup 0ms, import 22ms, tests 3ms, environment 0ms)
+
