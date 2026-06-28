@@ -133,7 +133,12 @@ export default function CoachPage() {
               <p className="eyebrow" style={{ marginBottom: 8 }}>
                 Answer
               </p>
-              <p style={{ margin: '0 0 18px', color: '#e7eaff', lineHeight: 1.6 }}>{result.answer}</p>
+              <p
+                data-testid="coach-answer"
+                style={{ margin: '0 0 18px', color: '#e7eaff', lineHeight: 1.6 }}
+              >
+                {result.answer}
+              </p>
               <p className="eyebrow" style={{ marginBottom: 8 }}>
                 Sources
               </p>

@@ -11,7 +11,12 @@ import { createGeminiClient } from '@/lib/ai/client';
 // here, server-side, and never reaches the browser. Retrieval is semantic when a
 // key is configured (embedQuery returns a vector) and falls back to lexical when
 // not — so this route works keyless, returning extractive grounded answers.
-const COACH_THRESHOLD = Number(process.env.COACH_THRESHOLD ?? 0.5);
+// Refusal gate threshold (AC-R2), tuned against the KB on the keyless lexical
+// (TF-IDF cosine) path: on-topic questions score ~0.18–0.28, off-topic ~0–0.14,
+// so 0.16 separates them. The denser embedding-cosine semantic path rarely dips
+// this low, so when a key is present the LLM's grounding instruction does the
+// fine-grained refusal; raise COACH_THRESHOLD to harden the semantic pre-gate.
+const COACH_THRESHOLD = Number(process.env.COACH_THRESHOLD ?? 0.16);
 
 const bodySchema = z.object({ question: z.string().trim().min(1) });
 
