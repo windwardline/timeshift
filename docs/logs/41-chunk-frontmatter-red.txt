@@ -1,0 +1,37 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/rag/chunk.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/rag/chunk.test.ts (6 tests | 1 failed) 8ms
+     × ignores leading YAML frontmatter, chunking only the body 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/rag/chunk.test.ts > chunkMarkdown > ignores leading YAML frontmatter, chunking only the body
+AssertionError: expected [ { id: 'doc.md#0', …(3) }, …(1) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ lib/rag/chunk.test.ts:75:20
+     73|     const chunks = chunkMarkdown(raw, 'doc.md');
+     74|
+     75|     expect(chunks).toHaveLength(1);
+       |                    ^
+     76|     expect(chunks[0].heading).toBe('First');
+     77|     // The frontmatter keys/values must not leak into any chunk text.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  16:21:30
+   Duration  234ms (transform 22ms, setup 0ms, import 31ms, tests 8ms, environment 0ms)
+

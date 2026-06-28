@@ -1,11 +1,14 @@
 import type { Chunk } from './types';
+import { stripFrontmatter } from './frontmatter';
 
 // Split a KB markdown doc into one chunk per `##` section (US-R). PURE string
-// parsing — no I/O. The preamble before the first `##` (minus the `# Title`
-// line) becomes an `intro` chunk only when it carries real prose. Ids are
-// `${docId}#${index}` in document order so precomputed embeddings stay stable.
+// parsing — no I/O. Leading YAML frontmatter (the doc's source citation) is
+// stripped first so it is never chunked. The preamble before the first `##`
+// (minus the `# Title` line) becomes an `intro` chunk only when it carries real
+// prose. Ids are `${docId}#${index}` in document order so precomputed embeddings
+// stay stable.
 export function chunkMarkdown(raw: string, docId: string): Chunk[] {
-  const lines = raw.split('\n');
+  const lines = stripFrontmatter(raw).body.split('\n');
   const chunks: Chunk[] = [];
 
   let heading: string | null = null; // null until the first `##`; preamble is `intro`
