@@ -1,7 +1,7 @@
 import { searchByVector } from '@/lib/rag/search';
 import { searchLexical } from '@/lib/rag/lexical';
 import { decideAnswerable } from '@/lib/rag/ground';
-import type { Chunk, KbVector } from '@/lib/rag/types';
+import type { Chunk, KbVector, SourceRef } from '@/lib/rag/types';
 import { buildGroundedPrompt } from './prompt';
 import { parseGroundedResponse } from './parse';
 import { AdviceGenerationError } from './advice';
@@ -21,7 +21,8 @@ export const REFUSAL =
 export interface CoachDeps {
   embedQuery: (text: string) => Promise<number[] | null>;
   generate: (prompt: string) => Promise<string>; // the client wrapper; mocked in tests
-  corpus: { chunks: Chunk[]; vectors: KbVector[] };
+  // `sources` maps a docId to its verifiable external citation (US-R, AC-R3).
+  corpus: { chunks: Chunk[]; vectors: KbVector[]; sources: Record<string, SourceRef> };
   // Embedding-cosine and TF-IDF-cosine scores sit on different scales, so each
   // retrieval path is gated by its own refusal threshold (AC-R2).
   thresholds: { semantic: number; lexical: number };
@@ -30,7 +31,8 @@ export interface CoachDeps {
 export interface CoachResult {
   grounded: boolean;
   answer: string; // refusal message when grounded === false
-  sources: string[]; // distinct docIds of the chunks passed to the model; [] when refused
+  followUp: string; // the next-step nudge; '' when refused or absent
+  sources: SourceRef[]; // verifiable external citations of the chunks used; [] when refused
 }
 
 export async function answerQuestion(query: string, deps: CoachDeps): Promise<CoachResult> {
@@ -49,7 +51,7 @@ export async function answerQuestion(query: string, deps: CoachDeps): Promise<Co
   const threshold = queryVec ? thresholds.semantic : thresholds.lexical;
   const decision = decideAnswerable(scored, threshold);
   if (!decision.answerable) {
-    return { grounded: false, answer: REFUSAL, sources: [] };
+    return { grounded: false, answer: REFUSAL, followUp: '', sources: [] };
   }
 
   const prompt = buildGroundedPrompt(query, decision.chunks);
@@ -60,8 +62,12 @@ export async function answerQuestion(query: string, deps: CoachDeps): Promise<Co
     throw new AdviceGenerationError('The coach provider call failed', { cause });
   }
 
-  const { answer } = parseGroundedResponse(raw);
-  // Sources are exactly the docs of the chunks the model saw, deduped (AC-R3).
-  const sources = [...new Set(decision.chunks.map((c) => c.docId))];
-  return { grounded: true, answer, sources };
+  const { answer, followUp } = parseGroundedResponse(raw);
+  // Citations are the verifiable external sources of exactly the docs the model
+  // saw, deduped — never the internal filename, never anything the model invented
+  // (AC-R3). A doc without a registered source is simply omitted.
+  const sources = [...new Set(decision.chunks.map((c) => c.docId))]
+    .map((docId) => corpus.sources[docId])
+    .filter((s): s is SourceRef => Boolean(s));
+  return { grounded: true, answer, followUp, sources };
 }

@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { answerQuestion, REFUSAL, type CoachDeps } from './coach';
 import { AdviceGenerationError } from './advice';
-import type { Chunk, KbVector } from '@/lib/rag/types';
+import type { Chunk, KbVector, SourceRef } from '@/lib/rag/types';
+
+const sources: Record<string, SourceRef> = {
+  'east.md': { title: 'Eastward (CDC)', url: 'https://cdc.gov/east' },
+  'water.md': { title: 'Hydration (NHS)', url: 'https://nhs.uk/water' },
+};
 
 // US-R: answerQuestion ties the pure RAG units together. Every dependency is
 // injected and mocked, so these tests are fully keyless (AC-R5) and exercise both
@@ -19,8 +24,12 @@ const vectors: KbVector[] = [
 
 const baseDeps = (over: Partial<CoachDeps> = {}): CoachDeps => ({
   embedQuery: vi.fn().mockResolvedValue([1, 0]),
-  generate: vi.fn().mockResolvedValue(JSON.stringify({ answer: 'Because the clock must advance.' })),
-  corpus: { chunks, vectors },
+  generate: vi
+    .fn()
+    .mockResolvedValue(
+      JSON.stringify({ answer: 'Because the clock must advance.', followUp: 'Plan your light next.' }),
+    ),
+  corpus: { chunks, vectors, sources },
   // Path-aware thresholds: semantic (embedding-cosine) and lexical (TF-IDF cosine)
   // sit on different scales, so each path is gated by its own value.
   thresholds: { semantic: 0.5, lexical: 0.5 },
@@ -35,8 +44,9 @@ describe('answerQuestion', () => {
 
     expect(result.grounded).toBe(true);
     expect(result.answer).toBe('Because the clock must advance.');
-    // east.md#0 and east.md#1 both pass threshold → a single deduped source.
-    expect(result.sources).toEqual(['east.md']);
+    expect(result.followUp).toBe('Plan your light next.');
+    // east.md#0 and east.md#1 both pass threshold → a single deduped, verifiable source.
+    expect(result.sources).toEqual([{ title: 'Eastward (CDC)', url: 'https://cdc.gov/east' }]);
     expect(deps.embedQuery).toHaveBeenCalledWith('Why is flying east worse?');
   });
 
@@ -50,7 +60,7 @@ describe('answerQuestion', () => {
 
     expect(result.grounded).toBe(true);
     expect(result.answer).toBe('East travel advances the clock.');
-    expect(result.sources).toEqual(['east.md']);
+    expect(result.sources).toEqual([{ title: 'Eastward (CDC)', url: 'https://cdc.gov/east' }]);
     expect(generate).toHaveBeenCalledOnce();
   });
 
@@ -59,14 +69,14 @@ describe('answerQuestion', () => {
     const generate = vi
       .fn()
       .mockResolvedValue(JSON.stringify({ answer: 'East travel advances the clock.' }));
-    const deps = baseDeps({ embedQuery, generate, corpus: { chunks, vectors: [] } });
+    const deps = baseDeps({ embedQuery, generate, corpus: { chunks, vectors: [], sources } });
 
     const result = await answerQuestion('flying east', deps);
 
     // No vectors to match against → skip embedding entirely and retrieve lexically.
     expect(embedQuery).not.toHaveBeenCalled();
     expect(result.grounded).toBe(true);
-    expect(result.sources).toEqual(['east.md']);
+    expect(result.sources).toEqual([{ title: 'Eastward (CDC)', url: 'https://cdc.gov/east' }]);
   });
 
   it('refuses below the lexical threshold and never calls generate', async () => {
@@ -75,7 +85,7 @@ describe('answerQuestion', () => {
 
     const result = await answerQuestion('zzz nonexistent topic', deps);
 
-    expect(result).toEqual({ grounded: false, answer: REFUSAL, sources: [] });
+    expect(result).toEqual({ grounded: false, answer: REFUSAL, followUp: '', sources: [] });
     expect(generate).not.toHaveBeenCalled();
   });
 
