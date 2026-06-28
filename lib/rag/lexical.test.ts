@@ -67,4 +67,8 @@ describe('searchLexical', () => {
 
     expect(results.every((r) => r.score === 0)).toBe(true);
   });
+
+  it('returns [] for an empty corpus', () => {
+    expect(searchLexical('melatonin', [], 3)).toEqual([]);
+  });
 });
