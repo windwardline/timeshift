@@ -1,0 +1,29 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/coach/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ app/api/coach/route.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/api/coach/route.test.ts [ app/api/coach/route.test.ts ]
+Error: Cannot find module '/app/api/coach/route' imported from /Users/peacock/Projects/timeshift/app/api/coach/route.test.ts
+ ❯ app/api/coach/route.test.ts:20:1
+     18| vi.mock('@/lib/ai/client', () => ({ createGeminiClient: () => ({ compl…
+     19|
+     20| import { POST } from './route';
+       | ^
+     21|
+     22| function post(body: unknown) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  10:41:37
+   Duration  136ms (transform 15ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
