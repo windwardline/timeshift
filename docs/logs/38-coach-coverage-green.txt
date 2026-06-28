@@ -8,9 +8,9 @@
 
 
  Test Files  36 passed (36)
-      Tests  161 passed (161)
-   Start at  10:55:21
-   Duration  1.59s (transform 770ms, setup 0ms, import 2.44s, tests 639ms, environment 281ms)
+      Tests  162 passed (162)
+   Start at  15:47:57
+   Duration  1.53s (transform 662ms, setup 0ms, import 2.34s, tests 647ms, environment 287ms)
 
  % Coverage report from v8
 -----------------|---------|----------|---------|---------|-------------------
@@ -19,8 +19,8 @@ File             | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
 -----------------|---------|----------|---------|---------|-------------------
 
 =============================== Coverage summary ===============================
-Statements   : 100% ( 330/330 )
-Branches     : 100% ( 156/156 )
+Statements   : 100% ( 331/331 )
+Branches     : 100% ( 158/158 )
 Functions    : 100% ( 70/70 )
-Lines        : 100% ( 300/300 )
+Lines        : 100% ( 301/301 )
 ================================================================================
