@@ -14,7 +14,8 @@
     "capture": "sh scripts/capture-tdd.sh",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
-    "seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON prisma/seed.ts"
+    "seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON prisma/seed.ts",
+    "embed:kb": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/embed-kb.ts"
   },
   "dependencies": {
     "@google/genai": "^2.9.0",
