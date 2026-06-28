@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/coach.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  15:45:11
+   Duration  183ms (transform 30ms, setup 0ms, import 63ms, tests 5ms, environment 0ms)
+

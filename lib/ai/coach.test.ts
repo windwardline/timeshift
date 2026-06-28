@@ -21,7 +21,9 @@ const baseDeps = (over: Partial<CoachDeps> = {}): CoachDeps => ({
   embedQuery: vi.fn().mockResolvedValue([1, 0]),
   generate: vi.fn().mockResolvedValue(JSON.stringify({ answer: 'Because the clock must advance.' })),
   corpus: { chunks, vectors },
-  threshold: 0.5,
+  // Path-aware thresholds: semantic (embedding-cosine) and lexical (TF-IDF cosine)
+  // sit on different scales, so each path is gated by its own value.
+  thresholds: { semantic: 0.5, lexical: 0.5 },
   ...over,
 });
 
@@ -67,13 +69,29 @@ describe('answerQuestion', () => {
     expect(result.sources).toEqual(['east.md']);
   });
 
-  it('refuses below threshold and never calls generate', async () => {
+  it('refuses below the lexical threshold and never calls generate', async () => {
     const generate = vi.fn();
     const deps = baseDeps({ embedQuery: vi.fn().mockResolvedValue(null), generate });
 
     const result = await answerQuestion('zzz nonexistent topic', deps);
 
     expect(result).toEqual({ grounded: false, answer: REFUSAL, sources: [] });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('gates the semantic path with the semantic threshold', async () => {
+    const generate = vi.fn();
+    // Top cosine here is 1.0 (query [1,0] vs chunk [1,0]); a semantic threshold
+    // above any achievable cosine refuses it, while lexical 0 (which would accept)
+    // is irrelevant on this path — proving the semantic threshold is the one used.
+    const deps = baseDeps({
+      generate,
+      thresholds: { semantic: 1.1, lexical: 0 },
+    });
+
+    const result = await answerQuestion('Why is flying east worse?', deps);
+
+    expect(result.grounded).toBe(false);
     expect(generate).not.toHaveBeenCalled();
   });
 

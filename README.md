@@ -227,9 +227,12 @@ from coverage, each with an explicit `/* v8 ignore file */` pragma (CLAUDE.md
 feature). Keyless, the coach still answers and cites sources, composing the
 answer **extractively** from the retrieved passages; with a key it upgrades to an
 LLM-written answer — the **Sources are identical either way**, since they come
-from retrieval, not the model. The optional `COACH_THRESHOLD` env var tunes the
-refusal gate. Model output is non-deterministic, so it is never snapshot-asserted;
-the E2E (below) runs keyless for a deterministic grounded answer + refusal.
+from retrieval, not the model. The refusal gate is **path-aware**: embedding
+cosine and TF-IDF cosine sit on different scales, so each path has its own
+threshold (`COACH_THRESHOLD_SEMANTIC` ≈ 0.62, `COACH_THRESHOLD_LEXICAL` ≈ 0.16),
+both env-overridable. Model output is non-deterministic, so it is never
+snapshot-asserted; the E2E (below) runs keyless for a deterministic grounded
+answer + refusal.
 
 ![Grounded coach answer with sources](docs/screenshots/e2e-coach-grounded.png)
 

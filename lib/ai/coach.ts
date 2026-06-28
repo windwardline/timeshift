@@ -22,7 +22,9 @@ export interface CoachDeps {
   embedQuery: (text: string) => Promise<number[] | null>;
   generate: (prompt: string) => Promise<string>; // the client wrapper; mocked in tests
   corpus: { chunks: Chunk[]; vectors: KbVector[] };
-  threshold: number;
+  // Embedding-cosine and TF-IDF-cosine scores sit on different scales, so each
+  // retrieval path is gated by its own refusal threshold (AC-R2).
+  thresholds: { semantic: number; lexical: number };
 }
 
 export interface CoachResult {
@@ -32,7 +34,7 @@ export interface CoachResult {
 }
 
 export async function answerQuestion(query: string, deps: CoachDeps): Promise<CoachResult> {
-  const { embedQuery, generate, corpus, threshold } = deps;
+  const { embedQuery, generate, corpus, thresholds } = deps;
 
   // Semantic only when there are precomputed KB vectors to match against AND an
   // embedding is available; otherwise (no vectors, or no embedder) fall back to
@@ -43,6 +45,8 @@ export async function answerQuestion(query: string, deps: CoachDeps): Promise<Co
     ? searchByVector(queryVec, corpus.vectors, corpus.chunks, TOP_K)
     : searchLexical(query, corpus.chunks, TOP_K);
 
+  // Gate with the threshold for the path that actually ran.
+  const threshold = queryVec ? thresholds.semantic : thresholds.lexical;
   const decision = decideAnswerable(scored, threshold);
   if (!decision.answerable) {
     return { grounded: false, answer: REFUSAL, sources: [] };
