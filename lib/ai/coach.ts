@@ -34,8 +34,11 @@ export interface CoachResult {
 export async function answerQuestion(query: string, deps: CoachDeps): Promise<CoachResult> {
   const { embedQuery, generate, corpus, threshold } = deps;
 
-  // Semantic when an embedding is available; lexical (BM25) fallback when not.
-  const queryVec = await embedQuery(query);
+  // Semantic only when there are precomputed KB vectors to match against AND an
+  // embedding is available; otherwise (no vectors, or no embedder) fall back to
+  // lexical. Embedding with an empty KB would just waste a call and retrieve
+  // nothing, so we skip it entirely when corpus.vectors is empty.
+  const queryVec = corpus.vectors.length > 0 ? await embedQuery(query) : null;
   const scored = queryVec
     ? searchByVector(queryVec, corpus.vectors, corpus.chunks, TOP_K)
     : searchLexical(query, corpus.chunks, TOP_K);

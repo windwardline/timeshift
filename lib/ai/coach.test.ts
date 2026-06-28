@@ -52,6 +52,21 @@ describe('answerQuestion', () => {
     expect(generate).toHaveBeenCalledOnce();
   });
 
+  it('uses the lexical path when the corpus has no precomputed vectors, even with an embedder', async () => {
+    const embedQuery = vi.fn().mockResolvedValue([1, 0]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue(JSON.stringify({ answer: 'East travel advances the clock.' }));
+    const deps = baseDeps({ embedQuery, generate, corpus: { chunks, vectors: [] } });
+
+    const result = await answerQuestion('flying east', deps);
+
+    // No vectors to match against → skip embedding entirely and retrieve lexically.
+    expect(embedQuery).not.toHaveBeenCalled();
+    expect(result.grounded).toBe(true);
+    expect(result.sources).toEqual(['east.md']);
+  });
+
   it('refuses below threshold and never calls generate', async () => {
     const generate = vi.fn();
     const deps = baseDeps({ embedQuery: vi.fn().mockResolvedValue(null), generate });
