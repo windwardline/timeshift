@@ -1,0 +1,74 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/parse.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/parse.test.ts (6 tests | 3 failed) 6ms
+     × parses a well-formed response into a trimmed answer 2ms
+     × throws a typed AdviceParseError on non-JSON input 1ms
+     × throws a typed AdviceParseError when the answer field is missing 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/parse.test.ts > parseGroundedResponse > parses a well-formed response into a trimmed answer
+TypeError: parseGroundedResponse is not a function
+ ❯ lib/ai/parse.test.ts:52:12
+     50|     const raw = JSON.stringify({ answer: '  Flying east is harder.  ' …
+     51|
+     52|     expect(parseGroundedResponse(raw)).toEqual({ answer: 'Flying east …
+       |            ^
+     53|   });
+     54|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  lib/ai/parse.test.ts > parseGroundedResponse > throws a typed AdviceParseError on non-JSON input
+AssertionError: expected error to be instance of AdviceParseError
+
+- Expected:
+[Function AdviceParseError]
+
++ Received:
+TypeError {
+  "message": "(0 , __vite_ssr_import_1__.parseGroundedResponse) is not a function",
+}
+
+ ❯ lib/ai/parse.test.ts:56:60
+     54|
+     55|   it('throws a typed AdviceParseError on non-JSON input', () => {
+     56|     expect(() => parseGroundedResponse('not json at all')).toThrow(Adv…
+       |                                                            ^
+     57|   });
+     58|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  lib/ai/parse.test.ts > parseGroundedResponse > throws a typed AdviceParseError when the answer field is missing
+AssertionError: expected error to be instance of AdviceParseError
+
+- Expected:
+[Function AdviceParseError]
+
++ Received:
+TypeError {
+  "message": "(0 , __vite_ssr_import_1__.parseGroundedResponse) is not a function",
+}
+
+ ❯ lib/ai/parse.test.ts:61:53
+     59|   it('throws a typed AdviceParseError when the answer field is missing…
+     60|     const incomplete = JSON.stringify({ notAnswer: 'oops' });
+     61|     expect(() => parseGroundedResponse(incomplete)).toThrow(AdvicePars…
+       |                                                     ^
+     62|   });
+     63| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 3 passed (6)
+   Start at  10:34:35
+   Duration  180ms (transform 20ms, setup 0ms, import 54ms, tests 6ms, environment 0ms)
+
