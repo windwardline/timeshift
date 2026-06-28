@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/rag/search.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/rag/search.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/rag/search.test.ts [ lib/rag/search.test.ts ]
+Error: Cannot find module './search' imported from /Users/peacock/Projects/timeshift/lib/rag/search.test.ts
+ ❯ lib/rag/search.test.ts:2:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { searchByVector } from './search';
+       | ^
+      3| import type { Chunk, KbVector } from './types';
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  10:30:50
+   Duration  158ms (transform 15ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
