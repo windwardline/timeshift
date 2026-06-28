@@ -1,0 +1,51 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/prompt.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/prompt.test.ts (6 tests | 1 failed) 6ms
+     × asks for a follow-on next step and declares the answer+followUp JSON shape 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/prompt.test.ts > buildGroundedPrompt > asks for a follow-on next step and declares the answer+followUp JSON shape
+AssertionError: expected 'you are timeshift’s jetlag coach. ans…' to contain 'next'
+
+- Expected
++ Received
+
+- next
++ you are timeshift’s jetlag coach. answer the traveler’s question using only
++ the context below. if the context does not cover the question, say you don’t
++ have that in your knowledge base rather than guessing. do not use outside
++ knowledge and do not invent sources.
++
++ context:
++ [source: eastward-vs-westward.md — why eastward is harder]
++ flying east forces your clock to move earlier, a phase advance.
++
++ [source: light-exposure.md — light is the master cue]
++ bright morning light shifts your clock earlier.
++
++ question: why is flying east worse?
++
++ respond as json: { "answer": string }.
+
+ ❯ lib/ai/prompt.test.ts:103:34
+    101|     const prompt = buildGroundedPrompt('Why is flying east worse?', ch…
+    102|
+    103|     expect(prompt.toLowerCase()).toContain('next');
+       |                                  ^
+    104|     expect(prompt).toContain('"followUp"');
+    105|     expect(prompt).toContain('"answer"');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  16:22:08
+   Duration  153ms (transform 15ms, setup 0ms, import 21ms, tests 6ms, environment 0ms)
+

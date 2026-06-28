@@ -41,9 +41,17 @@ export function parseAdviceResponse(raw: string): AdvicePlan {
 // US-R (AC-R1): the grounded coach answer. Mirrors parseAdviceResponse — same
 // typed AdviceParseError on malformed input, so a bad model response never leaks
 // a raw SyntaxError/ZodError. The answer is trimmed of surrounding whitespace.
-const groundedAnswerSchema = z.object({ answer: z.string() });
+// `answer` is required; `followUp` (the next-step nudge) is optional and defaults
+// to '' so an absent follow-up degrades gracefully rather than failing the answer.
+const groundedAnswerSchema = z.object({
+  answer: z.string(),
+  followUp: z.string().optional(),
+});
 
-export type GroundedAnswer = z.infer<typeof groundedAnswerSchema>;
+export interface GroundedAnswer {
+  answer: string;
+  followUp: string;
+}
 
 export function parseGroundedResponse(raw: string): GroundedAnswer {
   let json: unknown;
@@ -59,5 +67,8 @@ export function parseGroundedResponse(raw: string): GroundedAnswer {
       cause: result.error,
     });
   }
-  return { answer: result.data.answer.trim() };
+  return {
+    answer: result.data.answer.trim(),
+    followUp: (result.data.followUp ?? '').trim(),
+  };
 }

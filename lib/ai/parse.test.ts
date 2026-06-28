@@ -46,10 +46,25 @@ describe('parseAdviceResponse (malformed)', () => {
 // It mirrors parseAdviceResponse's contract — a clean parse on well-formed JSON,
 // a typed AdviceParseError on malformed input (covered per CLAUDE.md §13).
 describe('parseGroundedResponse', () => {
-  it('parses a well-formed response into a trimmed answer', () => {
-    const raw = JSON.stringify({ answer: '  Flying east is harder.  ' });
+  it('parses a well-formed response into a trimmed answer and followUp', () => {
+    const raw = JSON.stringify({
+      answer: '  Flying east is harder.  ',
+      followUp: '  Next, plan your arrival-day light.  ',
+    });
 
-    expect(parseGroundedResponse(raw)).toEqual({ answer: 'Flying east is harder.' });
+    expect(parseGroundedResponse(raw)).toEqual({
+      answer: 'Flying east is harder.',
+      followUp: 'Next, plan your arrival-day light.',
+    });
+  });
+
+  it('defaults followUp to empty string when the model omits it (graceful)', () => {
+    const raw = JSON.stringify({ answer: 'Flying east is harder.' });
+
+    expect(parseGroundedResponse(raw)).toEqual({
+      answer: 'Flying east is harder.',
+      followUp: '',
+    });
   });
 
   it('throws a typed AdviceParseError on non-JSON input', () => {

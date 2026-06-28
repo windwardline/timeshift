@@ -44,11 +44,15 @@ export function buildGroundedPrompt(query: string, chunks: ScoredChunk[]): strin
     'have that in your knowledge base rather than guessing. Do not use outside',
     'knowledge and do not invent sources.',
     '',
+    'After answering, add a "followUp": one or two sentences pointing the traveler',
+    'to the single most logical next step or next question to consider — also',
+    'grounded in the context above, not invented.',
+    '',
     'Context:',
     context,
     '',
     `Question: ${query}`,
     '',
-    'Respond as JSON: { "answer": string }.',
+    'Respond as JSON: { "answer": string, "followUp": string }.',
   ].join('\n');
 }
