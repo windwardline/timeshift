@@ -1,0 +1,50 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/rag/lexical.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/rag/lexical.test.ts (6 tests | 2 failed) 5ms
+     × produces cosine-style scores bounded within [0, 1] 2ms
+     × ignores stopwords so a stopword-only query scores 0 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/rag/lexical.test.ts > searchLexical > produces cosine-style scores bounded within [0, 1]
+AssertionError: expected 1.8713020455905078 to be less than or equal to 1
+ ❯ lib/rag/lexical.test.ts:58:23
+     56|     for (const r of results) {
+     57|       expect(r.score).toBeGreaterThanOrEqual(0);
+     58|       expect(r.score).toBeLessThanOrEqual(1);
+       |                       ^
+     59|     }
+     60|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/rag/lexical.test.ts > searchLexical > ignores stopwords so a stopword-only query scores 0
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ lib/rag/lexical.test.ts:68:49
+     66|     const results = searchLexical('the on', corpus, 3);
+     67|
+     68|     expect(results.every((r) => r.score === 0)).toBe(true);
+       |                                                 ^
+     69|   });
+     70| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 4 passed (6)
+   Start at  10:47:12
+   Duration  140ms (transform 16ms, setup 0ms, import 21ms, tests 5ms, environment 0ms)
+

@@ -47,4 +47,24 @@ describe('searchLexical', () => {
 
     expect(results.every((r) => r.score === 0)).toBe(true);
   });
+
+  // Scores must be a bounded cosine similarity in [0,1] so a single threshold can
+  // gate both this fallback and the embedding-cosine semantic path (AC-R2).
+  it('produces cosine-style scores bounded within [0, 1]', () => {
+    const results = searchLexical('melatonin body clock', corpus, 3);
+
+    for (const r of results) {
+      expect(r.score).toBeGreaterThanOrEqual(0);
+      expect(r.score).toBeLessThanOrEqual(1);
+    }
+  });
+
+  // Stopword-only queries carry no content, so they must score 0 everywhere —
+  // this is what lets an off-topic question be refused rather than matched on
+  // filler words like "the" / "on".
+  it('ignores stopwords so a stopword-only query scores 0', () => {
+    const results = searchLexical('the on', corpus, 3);
+
+    expect(results.every((r) => r.score === 0)).toBe(true);
+  });
 });
