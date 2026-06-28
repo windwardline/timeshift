@@ -58,16 +58,27 @@ function buildGenerate(): (prompt: string) => Promise<string> {
     const client = createGeminiClient(apiKey);
     return (prompt) => client.complete(prompt);
   }
-  return async (prompt) => JSON.stringify({ answer: extractiveAnswer(prompt) });
+  // Keyless: compose { answer, followUp } extractively from the prompt's context.
+  return async (prompt) => JSON.stringify(extractiveResponse(prompt));
 }
 
-// Pull the retrieved passage text out of the grounded prompt's Context block,
-// dropping the `[Source: …]` labels, to form a keyless extractive answer.
-function extractiveAnswer(prompt: string): string {
+// Build a keyless { answer, followUp } from the retrieved passages embedded in the
+// grounded prompt's Context block. The answer quotes the top passages; the
+// follow-up points at the next retrieved topic — both grounded, no model call.
+function extractiveResponse(prompt: string): { answer: string; followUp: string } {
   const context = prompt.split('Context:\n')[1]?.split('\n\nQuestion:')[0] ?? '';
-  const passages = context
+  const blocks = context
     .split('\n\n')
-    .map((block) => block.replace(/^\[Source:[^\]]*\]\n?/, '').trim())
-    .filter(Boolean);
-  return `From TimeShift's jetlag knowledge base: ${passages.join(' ')}`;
+    .map((block) => ({
+      heading: /—\s*([^\]]+)\]/.exec(block)?.[1]?.trim() ?? '',
+      text: block.replace(/^\[Source:[^\]]*\]\n?/, '').trim(),
+    }))
+    .filter((b) => b.text);
+
+  const answer = blocks.length
+    ? `From TimeShift's jetlag knowledge base: ${blocks.slice(0, 2).map((b) => b.text).join(' ')}`
+    : '';
+  const next = blocks[2] ?? blocks[1];
+  const followUp = next?.heading ? `A natural next step: read up on “${next.heading}.”` : '';
+  return { answer, followUp };
 }

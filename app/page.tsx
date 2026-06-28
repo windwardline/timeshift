@@ -37,12 +37,6 @@ export default async function Home() {
         </div>
       )}
 
-      <div style={{ marginBottom: 8 }}>
-        <Link className="btn btn-ghost" href="/coach" style={{ padding: '7px 14px', fontSize: 13 }}>
-          Jetlag Coach →
-        </Link>
-      </div>
-
       <header className="reveal">
         <p className="eyebrow">Jetlag planning for long-haul trips</p>
         <h1 className="wordmark">TimeShift</h1>
@@ -53,6 +47,36 @@ export default async function Home() {
           so you arrive closer to local time and spend less of the trip recovering.
         </p>
       </header>
+
+      <section
+        className="card reveal-2"
+        style={{
+          marginTop: 24,
+          padding: '18px 22px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          background:
+            'linear-gradient(120deg, rgba(120,160,255,0.12), rgba(180,120,255,0.10))',
+          borderColor: 'rgba(140,170,255,0.35)',
+        }}
+      >
+        <div style={{ maxWidth: 460 }}>
+          <p className="eyebrow" style={{ marginBottom: 6 }}>
+            New · Jetlag Coach
+          </p>
+          <p style={{ margin: 0, color: '#d6daf6', lineHeight: 1.55 }}>
+            Ask any jetlag or sleep question and get a grounded answer drawn from a curated
+            knowledge base — with a next-step suggestion and links to authoritative sources
+            (CDC, NHS, Sleep Foundation).
+          </p>
+        </div>
+        <Link className="btn" href="/coach" style={{ fontSize: 15, whiteSpace: 'nowrap' }}>
+          Ask the Jetlag Coach →
+        </Link>
+      </section>
 
       {user ? (
         <TripBuilder />
