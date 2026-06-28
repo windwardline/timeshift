@@ -37,6 +37,12 @@ export default async function Home() {
         </div>
       )}
 
+      <div style={{ marginBottom: 8 }}>
+        <Link className="btn btn-ghost" href="/coach" style={{ padding: '7px 14px', fontSize: 13 }}>
+          Jetlag Coach →
+        </Link>
+      </div>
+
       <header className="reveal">
         <p className="eyebrow">Jetlag planning for long-haul trips</p>
         <h1 className="wordmark">TimeShift</h1>
