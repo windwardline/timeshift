@@ -163,3 +163,21 @@ Written in **Given / When / Then** form and keyed to the user stories in
   **Then** it returns one or more in-flight windows aligned to destination nighttime,
   each with a start/end in UTC and a human-readable local label, and never recommends
   sleep outside an in-air segment.
+
+## US-R — Grounded Jetlag Coach
+
+- **AC-R1** — **Given** a question covered by the knowledge base
+  **When** the coach answers
+  **Then** it returns an answer plus a non-empty **Sources** list naming the KB doc(s) used.
+- **AC-R2** — **Given** a question with no relevant KB chunk (retrieval below threshold)
+  **When** the coach is asked
+  **Then** it returns the refusal message and makes **no** generation call.
+- **AC-R3** — **Given** an answered question
+  **When** the Sources are shown
+  **Then** they are exactly the docs of the chunks passed to the model — no fabricated citations.
+- **AC-R4** — **Given** retrieval runs
+  **When** an embedder is available it is semantic, and **When** none is configured it
+  falls back to lexical (BM25) — both paths run keyless in tests.
+- **AC-R5** — **Given** no API key is present
+  **When** the unit suite and coverage run
+  **Then** they pass.
