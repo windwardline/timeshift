@@ -11,6 +11,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:prod": "playwright test --config=playwright.prod.config.ts",
     "capture": "sh scripts/capture-tdd.sh",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
