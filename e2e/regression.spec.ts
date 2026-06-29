@@ -13,25 +13,50 @@ const TRIP_NAME = 'New York → Singapore (BA, via London)';
 test('home showcase renders the engine headline numbers', async ({ page }) => {
   await page.goto('/');
 
-  // The showcase caption must name the actual destination (Singapore), not a
-  // stale city — it sits directly above the rendered Singapore trip.
-  await expect(page.getByText('A worked example — JFK → Singapore via London')).toBeVisible();
+  // Scope to the Singapore showcase's own container so the second (date-line)
+  // showcase below can't make these locators ambiguous.
+  const sg = page.getByTestId('showcase-Asia-Singapore');
+
+  // The caption names the actual destination (Singapore), not a stale city.
+  await expect(sg.getByText('A worked example — JFK → Singapore via London')).toBeVisible();
 
   // Trip header — name + destination clock + home/dest route pills.
-  await expect(page.getByRole('heading', { name: TRIP_NAME })).toBeVisible();
-  await expect(page.getByText('Destination clock · Asia/Singapore')).toBeVisible();
-  await expect(page.getByText('home America/New_York')).toBeVisible();
-  await expect(page.getByText('dest Asia/Singapore')).toBeVisible();
+  await expect(sg.getByRole('heading', { name: TRIP_NAME })).toBeVisible();
+  await expect(sg.getByText('Destination clock · Asia/Singapore')).toBeVisible();
+  await expect(sg.getByText('home America/New_York')).toBeVisible();
+  await expect(sg.getByText('dest Asia/Singapore')).toBeVisible();
 
   // The computed clock shift is the core engine output.
-  await expect(page.locator('.shift')).toHaveText('+12.0h');
+  await expect(sg.locator('.shift')).toHaveText('+12.0h');
+
+  // This everyday itinerary does not cross the date line, so no IDL pill.
+  await expect(sg.getByTestId('crosses-date-line')).toHaveCount(0);
 
   // The timeline SVG carries the flight legs and the recommended sleep window.
-  const timeline = page.getByRole('img', { name: /Journey timeline/ });
+  const timeline = sg.getByRole('img', { name: /Journey timeline/ });
   await expect(timeline).toBeVisible();
   await expect(timeline).toContainText('BA 178 · JFK → LHR');
   await expect(timeline).toContainText('BA 11 · LHR → SIN');
   await expect(timeline).toContainText('sleep');
 
   await page.screenshot({ path: 'docs/screenshots/e2e-regression-home.png', fullPage: true });
+});
+
+// §8.B regression for the date-line edge case (US-E3). LAX → Sydney eastbound
+// "gains" a day, so the engine flags the IDL crossing and computes the +17.0h
+// shift — both asserted here against the rendered showcase.
+test('home showcase flags the date-line crossing example', async ({ page }) => {
+  await page.goto('/');
+
+  const idl = page.getByTestId('showcase-Australia-Sydney');
+  await expect(idl.getByText('Crossing the date line — Los Angeles → Sydney')).toBeVisible();
+  await expect(
+    idl.getByRole('heading', { name: 'Los Angeles → Sydney (QF, across the date line)' }),
+  ).toBeVisible();
+  await expect(idl.getByText('dest Australia/Sydney')).toBeVisible();
+  await expect(idl.locator('.shift')).toHaveText('+17.0h');
+  // The engine's crossesDateLine fact is surfaced for this trip.
+  await expect(idl.getByTestId('crosses-date-line')).toBeVisible();
+
+  await page.screenshot({ path: 'docs/screenshots/e2e-regression-dateline.png', fullPage: true });
 });
