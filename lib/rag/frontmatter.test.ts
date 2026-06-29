@@ -31,6 +31,26 @@ describe('stripFrontmatter', () => {
     expect(meta).toEqual({});
     expect(body).toBe(raw);
   });
+
+  it('treats an unterminated frontmatter fence as plain body', () => {
+    const raw = '---\nsource_title: X\nno closing fence here';
+
+    const { meta, body } = stripFrontmatter(raw);
+
+    expect(meta).toEqual({});
+    expect(body).toBe(raw);
+  });
+
+  it('skips lines with no colon and lines with an empty key', () => {
+    const raw = ['---', 'a comment with no colon', ': orphan value', 'source_title: X', '---', 'Body'].join(
+      '\n',
+    );
+
+    const { meta, body } = stripFrontmatter(raw);
+
+    expect(meta).toEqual({ source_title: 'X' });
+    expect(body).toBe('Body');
+  });
 });
 
 describe('parseDocSource', () => {
