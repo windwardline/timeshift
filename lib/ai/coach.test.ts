@@ -79,6 +79,27 @@ describe('answerQuestion', () => {
     expect(result.sources).toEqual([{ title: 'Eastward (CDC)', url: 'https://cdc.gov/east' }]);
   });
 
+  it('de-duplicates sources by URL when different docs share one citation', async () => {
+    const sharedChunks: Chunk[] = [
+      { id: 'a.md#0', docId: 'a.md', heading: 'h', text: 'flying east advance' },
+      { id: 'b.md#0', docId: 'b.md', heading: 'h', text: 'flying east early' },
+    ];
+    const sharedSources: Record<string, SourceRef> = {
+      'a.md': { title: 'Same Source', url: 'https://same.example' },
+      'b.md': { title: 'Same Source', url: 'https://same.example' },
+    };
+    const deps = baseDeps({
+      embedQuery: vi.fn().mockResolvedValue(null), // lexical path
+      corpus: { chunks: sharedChunks, vectors: [], sources: sharedSources },
+      thresholds: { semantic: 0, lexical: 0 },
+    });
+
+    const result = await answerQuestion('flying east', deps);
+
+    // Two docs, one shared citation → the source appears exactly once.
+    expect(result.sources).toEqual([{ title: 'Same Source', url: 'https://same.example' }]);
+  });
+
   it('refuses below the lexical threshold and never calls generate', async () => {
     const generate = vi.fn();
     const deps = baseDeps({ embedQuery: vi.fn().mockResolvedValue(null), generate });

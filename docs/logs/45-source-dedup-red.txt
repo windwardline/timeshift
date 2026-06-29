@@ -1,0 +1,45 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/coach.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/coach.test.ts (7 tests | 1 failed) 8ms
+     × de-duplicates sources by URL when different docs share one citation 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > de-duplicates sources by URL when different docs share one citation
+AssertionError: expected [ Array(2) ] to deeply equal [ { title: 'Same Source', …(1) } ]
+
+- Expected
++ Received
+
+  [
+    {
+      "title": "Same Source",
+      "url": "https://same.example",
+    },
++   {
++     "title": "Same Source",
++     "url": "https://same.example",
++   },
+  ]
+
+ ❯ lib/ai/coach.test.ts:100:28
+     98|
+     99|     // Two docs, one shared citation → the source appears exactly once.
+    100|     expect(result.sources).toEqual([{ title: 'Same Source', url: 'http…
+       |                            ^
+    101|   });
+    102|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  23:14:25
+   Duration  187ms (transform 30ms, setup 0ms, import 56ms, tests 8ms, environment 0ms)
+

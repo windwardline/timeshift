@@ -64,10 +64,17 @@ export async function answerQuestion(query: string, deps: CoachDeps): Promise<Co
 
   const { answer, followUp } = parseGroundedResponse(raw);
   // Citations are the verifiable external sources of exactly the docs the model
-  // saw, deduped — never the internal filename, never anything the model invented
-  // (AC-R3). A doc without a registered source is simply omitted.
-  const sources = [...new Set(decision.chunks.map((c) => c.docId))]
-    .map((docId) => corpus.sources[docId])
-    .filter((s): s is SourceRef => Boolean(s));
+  // saw — never the internal filename, never anything the model invented (AC-R3).
+  // Deduped by URL, since several KB docs can share one authoritative source; a
+  // doc without a registered source is simply omitted.
+  const seen = new Set<string>();
+  const sources: SourceRef[] = [];
+  for (const chunk of decision.chunks) {
+    const source = corpus.sources[chunk.docId];
+    if (source && !seen.has(source.url)) {
+      seen.add(source.url);
+      sources.push(source);
+    }
+  }
   return { grounded: true, answer, followUp, sources };
 }
