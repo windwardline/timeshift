@@ -60,12 +60,14 @@ export default function CoachPage() {
       </div>
 
       <header className="reveal">
-        <p className="eyebrow">Grounded jetlag Q&amp;A</p>
+        <p className="eyebrow">Sourced jetlag Q&amp;A · not tied to a trip</p>
         <h1 className="wordmark">Jetlag Coach</h1>
         <p className="lede">
-          Ask a jetlag or sleep question. The coach answers only from TimeShift&rsquo;s curated
-          knowledge base and shows you the sources it used — and it will tell you honestly when a
-          question falls outside what it knows.
+          Ask <em>any</em> jetlag or sleep question. The coach answers <strong>only</strong> from a
+          curated research knowledge base, <strong>cites the authoritative sources</strong> it drew
+          on (CDC, NHS, Sleep Foundation&hellip;), and tells you honestly when a question falls
+          outside what it knows. General knowledge — for a plan tailored to a specific flight, build
+          a trip.
         </p>
       </header>
 
@@ -113,6 +115,17 @@ export default function CoachPage() {
         </form>
       </section>
 
+      <p
+        data-testid="coach-build-trip"
+        className="advice-sub"
+        style={{ marginTop: 12, marginBottom: 0, fontSize: 13, color: 'var(--muted)' }}
+      >
+        Planning a specific flight?{' '}
+        <Link href="/" style={{ color: 'var(--accent, #8fb3ff)' }}>
+          Build a trip for a computed, hour-by-hour plan →
+        </Link>
+      </p>
+
       {error && (
         <section className="card" style={{ marginTop: 20, padding: 20 }}>
           <p style={{ margin: 0, color: 'var(--muted)' }}>{error}</p>
@@ -132,6 +145,20 @@ export default function CoachPage() {
         >
           {result.grounded ? (
             <>
+              {result.sources.length > 0 && (
+                <p
+                  data-testid="coach-grounded-badge"
+                  className="mono"
+                  style={{
+                    margin: '0 0 12px',
+                    fontSize: 12.5,
+                    color: 'rgb(140,210,180)',
+                  }}
+                >
+                  ✓ Grounded in {result.sources.length} cited{' '}
+                  {result.sources.length === 1 ? 'source' : 'sources'}
+                </p>
+              )}
               <p className="eyebrow" style={{ marginBottom: 8 }}>
                 Answer
               </p>

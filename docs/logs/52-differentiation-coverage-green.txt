@@ -1,0 +1,26 @@
+
+> timeshift@0.1.0 test:coverage
+> vitest run --coverage
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+      Coverage enabled with v8
+
+
+ Test Files  38 passed (38)
+      Tests  176 passed (176)
+   Start at  01:10:24
+   Duration  1.85s (transform 763ms, setup 0ms, import 2.64s, tests 810ms, environment 373ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 370/370 )
+Branches     : 100% ( 188/188 )
+Functions    : 100% ( 72/72 )
+Lines        : 100% ( 334/334 )
+================================================================================
