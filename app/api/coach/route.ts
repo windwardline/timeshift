@@ -6,6 +6,7 @@ import { AdviceParseError } from '@/lib/ai/parse';
 import { loadCorpus } from '@/lib/rag/corpus';
 import { embedQuery } from '@/lib/rag/embed';
 import { createGeminiClient } from '@/lib/ai/client';
+import { makeCoachGenerate } from '@/lib/ai/coach-generate';
 
 // Server-only grounded coach endpoint (US-R, CLAUDE.md §13). The API key is read
 // here, server-side, and never reaches the browser. Retrieval is semantic when a
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
 
   const deps: CoachDeps = {
     embedQuery,
-    generate: buildGenerate(),
+    generate: makeCoachGenerate({ apiKey: process.env.GEMINI_API_KEY, createClient: createGeminiClient }),
     corpus: loadCorpus(),
     thresholds: THRESHOLDS,
   };
@@ -50,38 +51,3 @@ export async function POST(request: Request) {
   }
 }
 
-// With a key, the answer is LLM-generated. Without one, it is composed
-// extractively from the retrieved context already embedded in the prompt — so
-// the feature stays fully keyless (the Sources, the real grounding proof, are
-// identical either way; the key only upgrades the prose).
-function buildGenerate(): (prompt: string) => Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey) {
-    const client = createGeminiClient(apiKey);
-    return (prompt) => client.complete(prompt);
-  }
-  // Keyless: compose { answer, followUp } extractively from the prompt's context.
-  return async (prompt) => JSON.stringify(extractiveResponse(prompt));
-}
-
-// Build a keyless { answer, followUp } from the retrieved passages embedded in the
-// grounded prompt's Context block. The answer quotes the top passages; the
-// follow-up points at the next retrieved topic — both grounded, no model call.
-function extractiveResponse(prompt: string): { answer: string; followUp: string } {
-  const context = prompt.split('Context:\n')[1]?.split('\n\nQuestion:')[0] ?? '';
-  const blocks = context
-    .split('\n\n')
-    .map((block) => ({
-      heading: /—\s*([^\]]+)\]/.exec(block)?.[1]?.trim() ?? '',
-      text: block.replace(/^\[Source:[^\]]*\]\n?/, '').trim(),
-    }))
-    .filter((b) => b.text);
-
-  const answer = blocks.length
-    ? `From TimeShift's jetlag knowledge base: ${blocks.slice(0, 2).map((b) => b.text).join(' ')}`
-    : '';
-  // Point at a later retrieved topic with a meaningful heading (skip intro/empty).
-  const next = blocks.slice(1).find((b) => b.heading && b.heading.toLowerCase() !== 'intro');
-  const followUp = next ? `A natural next step: consider “${next.heading}.”` : '';
-  return { answer, followUp };
-}

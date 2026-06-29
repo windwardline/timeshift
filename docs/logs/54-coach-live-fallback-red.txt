@@ -1,0 +1,42 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/extractive.test.ts lib/ai/coach-generate.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/extractive.test.ts (0 test)
+ ❯ lib/ai/coach-generate.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/coach-generate.test.ts [ lib/ai/coach-generate.test.ts ]
+Error: Cannot find module './coach-generate' imported from /Users/peacock/Projects/timeshift/lib/ai/coach-generate.test.ts
+ ❯ lib/ai/coach-generate.test.ts:3:1
+      1| import { describe, it, expect, vi } from 'vitest';
+      2| import { buildGroundedPrompt } from './prompt';
+      3| import { makeCoachGenerate } from './coach-generate';
+       | ^
+      4| import type { LlmClient } from './advice';
+      5| import type { ScoredChunk } from '@/lib/rag/types';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/ai/extractive.test.ts [ lib/ai/extractive.test.ts ]
+Error: Cannot find module './extractive' imported from /Users/peacock/Projects/timeshift/lib/ai/extractive.test.ts
+ ❯ lib/ai/extractive.test.ts:3:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { buildGroundedPrompt } from './prompt';
+      3| import { extractiveResponse } from './extractive';
+       | ^
+      4| import type { ScoredChunk } from '@/lib/rag/types';
+      5|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  no tests
+   Start at  18:19:18
+   Duration  172ms (transform 48ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
