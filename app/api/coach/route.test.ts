@@ -32,7 +32,7 @@ function post(body: unknown) {
 describe('POST /api/coach', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.loadCorpus.mockReturnValue({ chunks: [], vectors: [] });
+    mocks.loadCorpus.mockReturnValue({ chunks: [], vectors: [], sources: {} });
     mocks.embedQuery.mockResolvedValue(null);
   });
 

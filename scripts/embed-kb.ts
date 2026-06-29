@@ -14,6 +14,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { chunkMarkdown } from '../lib/rag/chunk.ts';
+import { stripFrontmatter } from '../lib/rag/frontmatter.ts';
 import { EMBED_MODEL, EMBED_DIM } from '../lib/rag/embed.ts';
 import type { KbVector } from '../lib/rag/types.ts';
 
@@ -31,27 +32,50 @@ async function main() {
   const chunks = readdirSync(kbDir)
     .filter((f) => f.endsWith('.md'))
     .sort()
-    .flatMap((file) => chunkMarkdown(readFileSync(join(kbDir, file), 'utf8'), file));
+    .flatMap((file) => chunkMarkdown(stripFrontmatter(readFileSync(join(kbDir, file), 'utf8')).body, file));
 
   const ai = new GoogleGenAI({ apiKey });
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  // One batched embedContent call over all chunk texts (contents accepts an array).
-  const response = await ai.models.embedContent({
-    model: EMBED_MODEL,
-    contents: chunks.map((c) => c.text),
-    config: { outputDimensionality: EMBED_DIM },
-  });
+  // The embeddings API caps a batch at 100 inputs AND the free tier allows ~100
+  // requests/minute, so we send modest batches and pace between them, retrying on
+  // a 429 rate-limit. This is a one-off build step, so the wait is acceptable.
+  const BATCH = 80;
+  const vectors: KbVector[] = [];
+  const batches = Math.ceil(chunks.length / BATCH);
+  for (let b = 0; b < batches; b++) {
+    const batch = chunks.slice(b * BATCH, b * BATCH + BATCH);
 
-  const embeddings = response.embeddings ?? [];
-  if (embeddings.length !== chunks.length) {
-    throw new Error(`Expected ${chunks.length} embeddings, got ${embeddings.length}`);
+    let embeddings;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const response = await ai.models.embedContent({
+          model: EMBED_MODEL,
+          contents: batch.map((c) => c.text),
+          config: { outputDimensionality: EMBED_DIM },
+        });
+        embeddings = response.embeddings ?? [];
+        break;
+      } catch (err) {
+        const is429 = String(err).includes('429') || String(err).includes('RESOURCE_EXHAUSTED');
+        if (!is429 || attempt > 5) throw err;
+        console.info(`Rate limited on batch ${b + 1}/${batches}; waiting 60s…`);
+        await sleep(60_000);
+      }
+    }
+
+    if (embeddings.length !== batch.length) {
+      throw new Error(`Expected ${batch.length} embeddings, got ${embeddings.length}`);
+    }
+    batch.forEach((c, i) => {
+      const vector = embeddings[i].values;
+      if (!vector || vector.length === 0) throw new Error(`Empty embedding for chunk ${c.id}`);
+      vectors.push({ id: c.id, vector });
+    });
+    console.info(`Embedded batch ${b + 1}/${batches} (${vectors.length}/${chunks.length} chunks)`);
+
+    if (b < batches - 1) await sleep(62_000); // stay under ~100 requests/minute
   }
-
-  const vectors: KbVector[] = chunks.map((c, i) => {
-    const vector = embeddings[i].values;
-    if (!vector || vector.length === 0) throw new Error(`Empty embedding for chunk ${c.id}`);
-    return { id: c.id, vector };
-  });
 
   const out = join(kbDir, 'kb-embeddings.json');
   writeFileSync(out, JSON.stringify(vectors) + '\n');

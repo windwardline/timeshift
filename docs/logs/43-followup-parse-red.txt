@@ -1,0 +1,61 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/parse.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/parse.test.ts (7 tests | 2 failed) 7ms
+     × parses a well-formed response into a trimmed answer and followUp 3ms
+     × defaults followUp to empty string when the model omits it (graceful) 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/parse.test.ts > parseGroundedResponse > parses a well-formed response into a trimmed answer and followUp
+AssertionError: expected { answer: 'Flying east is harder.' } to deeply equal { …(2) }
+
+- Expected
++ Received
+
+  {
+    "answer": "Flying east is harder.",
+-   "followUp": "Next, plan your arrival-day light.",
+  }
+
+ ❯ lib/ai/parse.test.ts:55:40
+     53|     });
+     54|
+     55|     expect(parseGroundedResponse(raw)).toEqual({
+       |                                        ^
+     56|       answer: 'Flying east is harder.',
+     57|       followUp: 'Next, plan your arrival-day light.',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/ai/parse.test.ts > parseGroundedResponse > defaults followUp to empty string when the model omits it (graceful)
+AssertionError: expected { answer: 'Flying east is harder.' } to deeply equal { …(2) }
+
+- Expected
++ Received
+
+  {
+    "answer": "Flying east is harder.",
+-   "followUp": "",
+  }
+
+ ❯ lib/ai/parse.test.ts:64:40
+     62|     const raw = JSON.stringify({ answer: 'Flying east is harder.' });
+     63|
+     64|     expect(parseGroundedResponse(raw)).toEqual({
+       |                                        ^
+     65|       answer: 'Flying east is harder.',
+     66|       followUp: '',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  16:23:52
+   Duration  180ms (transform 17ms, setup 0ms, import 53ms, tests 7ms, environment 0ms)
+

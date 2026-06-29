@@ -96,4 +96,12 @@ describe('buildGroundedPrompt', () => {
 
     expect(prompt).toContain('Why is flying east worse?');
   });
+
+  it('asks for a follow-on next step and declares the answer+followUp JSON shape', () => {
+    const prompt = buildGroundedPrompt('Why is flying east worse?', chunks);
+
+    expect(prompt.toLowerCase()).toContain('next');
+    expect(prompt).toContain('"followUp"');
+    expect(prompt).toContain('"answer"');
+  });
 });

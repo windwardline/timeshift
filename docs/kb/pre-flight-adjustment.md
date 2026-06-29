@@ -1,30 +1,25 @@
+---
+source_title: Sleep Foundation — Jet Lag
+source_url: https://www.sleepfoundation.org/travel-and-sleep/jet-lag
+---
 # Pre-Flight Adjustment
 
-Shifting your schedule before you leave so you arrive partly adapted.
+Shifting your schedule before departure so you arrive partly adapted.
 
-## Shift your schedule gradually
+## Shift gradually
 
-You can start moving your body clock before the trip by shifting sleep and wake times
-about 30 to 60 minutes per day in the days before departure. Doing this gradually respects
-the clock's roughly one-hour-per-day limit and means you step onto the plane already
-partway to destination time. Even two or three days of pre-shifting can take the edge off.
+You can start moving your clock before the trip by shifting sleep and wake times about 30 to
+60 minutes per day in the days before departure. Doing it gradually respects the clock's
+roughly one-hour-a-day limit, so you board already partway to destination time.
 
 ## Which way to shift
 
-Going east, move everything earlier: go to bed earlier and wake earlier each day. Going
-west, move everything later: stay up later and sleep in. This mirrors the "east = early,
-west = late" rule and lines your pre-trip shift up with the direction you will travel.
+Going east, move everything earlier — earlier to bed, earlier to rise. Going west, move
+everything later. This mirrors "east = early, west = late" and lines your pre-trip shift up
+with the direction of travel.
 
-## Meal-timing prep
+## When it is worth it
 
-Mealtimes are a secondary clock cue, so shifting them along with sleep reinforces the
-adjustment. As you move your sleep schedule, nudge breakfast, lunch, and dinner in the same
-direction. Arriving with your hunger rhythm already closer to local time eases the
-digestive side of jetlag.
-
-## When pre-adjustment is worth it
-
-Pre-adjusting pays off most for long eastward trips and for situations where you need to
-perform soon after landing, like a morning meeting or an event. For short trips, or when
-you only cross a couple of zones, the effort often is not worth it. Weigh how disruptive
-the daily shifts are at home against how much adaptation you actually need on arrival.
+Pre-adjusting pays off most for long eastward trips and when you must perform soon after
+landing. For short trips or a couple of zones, the daily disruption often is not worth it.
+Weigh the hassle at home against how much adaptation you actually need on arrival.

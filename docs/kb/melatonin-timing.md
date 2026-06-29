@@ -1,37 +1,27 @@
+---
+source_title: NCCIH — Melatonin: What You Need To Know
+source_url: https://www.nccih.nih.gov/health/melatonin-what-you-need-to-know
+---
 # Melatonin Timing
 
-How the melatonin signal works and when it tends to help.
+When to take melatonin so it shifts your clock the way you want.
 
-## Melatonin is a signal, not a sedative
+## A signal, not a sedative
 
-Melatonin is the hormone your body releases as darkness approaches to tell the clock that
-night is coming. Taken as a supplement it works mainly as a timing signal that can nudge
-the clock, not as a knockout sleeping pill. People sometimes expect it to force sleep; its
-real strength is shifting *when* your body expects night.
+As a supplement, melatonin works mainly as a timing signal that nudges the clock, not as a
+sleeping pill that forces sleep. Its real strength is shifting when your body expects night,
+so timing it correctly matters far more than the dose.
 
-## Low-dose timing eastward
-
-For an eastward trip, a common approach is a low dose in the early evening at the
-destination, before your target local bedtime, to help pull the clock earlier. Low doses
-are typically favored over large ones because the goal is a clock signal rather than
-sedation. The exact timing is built around the new bedtime you are trying to reach.
-
-## Low-dose timing westward
-
-Westward travel often needs less melatonin help because delaying the clock is the easier
-direction. When it is used, the timing is oriented to the later destination bedtime. Some
-travelers skip it entirely going west and lean on light and sleep timing instead.
-
-## Timing relative to target bedtime
+## Anchor to target bedtime
 
 The useful anchor is your target local bedtime, not the clock you flew in on. Melatonin is
-generally taken some time before that target bedtime so the signal lands as you are trying
-to wind down on the new schedule. Taking it at a random hour can shift the clock in an
-unhelpful direction.
+generally taken some hours before that target bedtime so the "night is coming" signal lands
+as you are trying to wind down on the new schedule. Taken at a random hour, it can shift the
+clock in an unhelpful direction.
 
-## Cautions and what it is not
+## Direction changes the plan
 
-Melatonin is not a substitute for good light and sleep timing, and it does not erase sleep
-debt. Effects, grogginess, and interactions vary from person to person, so it is worth
-checking with a clinician if you take other medication or have a health condition. Treat it
-as one optional tool inside a larger plan rather than a cure on its own.
+For eastward trips, a low evening dose at the destination helps pull the clock earlier. For
+westward trips, melatonin is needed less often because delaying is easier, and timing leans
+to the later destination bedtime. Reviews suggest it can help with jetlag in both directions
+when timed well.

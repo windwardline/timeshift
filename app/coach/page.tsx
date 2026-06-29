@@ -6,10 +6,16 @@ import { useState } from 'react';
 // US-R: the standalone Jetlag Coach. Asks POST /api/coach a question and renders
 // the grounded answer with its Sources, or an honest refusal (no Sources) when
 // the question falls outside TimeShift's knowledge base.
+interface SourceRef {
+  title: string;
+  url: string;
+}
+
 interface CoachResponse {
   grounded: boolean;
   answer: string;
-  sources: string[];
+  followUp: string;
+  sources: SourceRef[];
 }
 
 const EXAMPLES = [
@@ -17,10 +23,6 @@ const EXAMPLES = [
   'When should I take melatonin?',
   'Should I nap when I land?',
 ];
-
-function prettySource(docId: string): string {
-  return docId.replace(/\.md$/, '').replace(/-/g, ' ');
-}
 
 export default function CoachPage() {
   const [question, setQuestion] = useState('');
@@ -139,16 +141,46 @@ export default function CoachPage() {
               >
                 {result.answer}
               </p>
-              <p className="eyebrow" style={{ marginBottom: 8 }}>
-                Sources
-              </p>
-              <ul data-testid="coach-sources" style={{ margin: 0, paddingLeft: 18 }}>
-                {result.sources.map((s) => (
-                  <li key={s} className="mono" style={{ fontSize: 13, color: 'var(--muted)' }}>
-                    {prettySource(s)}
-                  </li>
-                ))}
-              </ul>
+
+              {result.followUp && (
+                <div
+                  data-testid="coach-followup"
+                  style={{
+                    margin: '0 0 18px',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(120,160,255,0.08)',
+                    borderLeft: '3px solid rgba(120,160,255,0.6)',
+                  }}
+                >
+                  <p className="eyebrow" style={{ marginBottom: 6 }}>
+                    Next step
+                  </p>
+                  <p style={{ margin: 0, color: '#e7eaff', lineHeight: 1.6 }}>{result.followUp}</p>
+                </div>
+              )}
+
+              {result.sources.length > 0 && (
+                <>
+                  <p className="eyebrow" style={{ marginBottom: 8 }}>
+                    Sources
+                  </p>
+                  <ul data-testid="coach-sources" style={{ margin: 0, paddingLeft: 18 }}>
+                    {result.sources.map((s) => (
+                      <li key={s.url} style={{ fontSize: 13, marginBottom: 4 }}>
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: 'var(--accent, #8fb3ff)' }}
+                        >
+                          {s.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </>
           ) : (
             <>

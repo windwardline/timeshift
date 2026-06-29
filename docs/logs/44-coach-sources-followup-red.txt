@@ -1,0 +1,111 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/coach.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ lib/ai/coach.test.ts (6 tests | 4 failed) 8ms
+     × uses the semantic path when an embedding is available and returns deduped sources 4ms
+     × falls back to the lexical path when the embedder returns null 2ms
+     × uses the lexical path when the corpus has no precomputed vectors, even with an embedder 1ms
+     × refuses below the lexical threshold and never calls generate 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > uses the semantic path when an embedding is available and returns deduped sources
+AssertionError: expected undefined to be 'Plan your light next.' // Object.is equality
+
+- Expected:
+"Plan your light next."
+
++ Received:
+undefined
+
+ ❯ lib/ai/coach.test.ts:47:29
+     45|     expect(result.grounded).toBe(true);
+     46|     expect(result.answer).toBe('Because the clock must advance.');
+     47|     expect(result.followUp).toBe('Plan your light next.');
+       |                             ^
+     48|     // east.md#0 and east.md#1 both pass threshold → a single deduped,…
+     49|     expect(result.sources).toEqual([{ title: 'Eastward (CDC)', url: 'h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > falls back to the lexical path when the embedder returns null
+AssertionError: expected [ 'east.md' ] to deeply equal [ { title: 'Eastward (CDC)', …(1) } ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "title": "Eastward (CDC)",
+-     "url": "https://cdc.gov/east",
+-   },
++   "east.md",
+  ]
+
+ ❯ lib/ai/coach.test.ts:63:28
+     61|     expect(result.grounded).toBe(true);
+     62|     expect(result.answer).toBe('East travel advances the clock.');
+     63|     expect(result.sources).toEqual([{ title: 'Eastward (CDC)', url: 'h…
+       |                            ^
+     64|     expect(generate).toHaveBeenCalledOnce();
+     65|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > uses the lexical path when the corpus has no precomputed vectors, even with an embedder
+AssertionError: expected [ 'east.md' ] to deeply equal [ { title: 'Eastward (CDC)', …(1) } ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "title": "Eastward (CDC)",
+-     "url": "https://cdc.gov/east",
+-   },
++   "east.md",
+  ]
+
+ ❯ lib/ai/coach.test.ts:79:28
+     77|     expect(embedQuery).not.toHaveBeenCalled();
+     78|     expect(result.grounded).toBe(true);
+     79|     expect(result.sources).toEqual([{ title: 'Eastward (CDC)', url: 'h…
+       |                            ^
+     80|   });
+     81|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  lib/ai/coach.test.ts > answerQuestion > refuses below the lexical threshold and never calls generate
+AssertionError: expected { grounded: false, …(2) } to deeply equal { grounded: false, …(3) }
+
+- Expected
++ Received
+
+  {
+    "answer": "I don't have anything in TimeShift's jetlag knowledge base that covers that question.",
+-   "followUp": "",
+    "grounded": false,
+    "sources": [],
+  }
+
+ ❯ lib/ai/coach.test.ts:88:20
+     86|     const result = await answerQuestion('zzz nonexistent topic', deps);
+     87|
+     88|     expect(result).toEqual({ grounded: false, answer: REFUSAL, followU…
+       |                    ^
+     89|     expect(generate).not.toHaveBeenCalled();
+     90|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed (6)
+   Start at  16:25:58
+   Duration  171ms (transform 28ms, setup 0ms, import 52ms, tests 8ms, environment 0ms)
+

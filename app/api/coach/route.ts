@@ -12,13 +12,15 @@ import { createGeminiClient } from '@/lib/ai/client';
 // key is configured (embedQuery returns a vector) and falls back to lexical when
 // not — so this route works keyless, returning extractive grounded answers.
 // Refusal gate thresholds (AC-R2), each tuned to its retrieval path's score scale
-// against the real KB:
-//   - lexical (TF-IDF cosine): on-topic ~0.18–0.28, off-topic ~0–0.14  → 0.16
-//   - semantic (embedding cosine): on-topic ~0.74–0.86, off-topic ~0.51 → 0.62
+// against the 55-doc KB:
+//   - semantic (embedding cosine): on-topic ~0.75–0.82, off-topic ~0.49–0.52 → 0.62
+//   - lexical (TF-IDF cosine): the weaker keyless fallback; off-topic can reach
+//     ~0.2 on a large diverse corpus, so we gate conservatively at 0.25 (when in
+//     doubt, refuse) — the semantic path does the precise separation.
 // Both overridable via env for tuning.
 const THRESHOLDS = {
   semantic: Number(process.env.COACH_THRESHOLD_SEMANTIC ?? 0.62),
-  lexical: Number(process.env.COACH_THRESHOLD_LEXICAL ?? 0.16),
+  lexical: Number(process.env.COACH_THRESHOLD_LEXICAL ?? 0.25),
 };
 
 const bodySchema = z.object({ question: z.string().trim().min(1) });
@@ -58,16 +60,28 @@ function buildGenerate(): (prompt: string) => Promise<string> {
     const client = createGeminiClient(apiKey);
     return (prompt) => client.complete(prompt);
   }
-  return async (prompt) => JSON.stringify({ answer: extractiveAnswer(prompt) });
+  // Keyless: compose { answer, followUp } extractively from the prompt's context.
+  return async (prompt) => JSON.stringify(extractiveResponse(prompt));
 }
 
-// Pull the retrieved passage text out of the grounded prompt's Context block,
-// dropping the `[Source: …]` labels, to form a keyless extractive answer.
-function extractiveAnswer(prompt: string): string {
+// Build a keyless { answer, followUp } from the retrieved passages embedded in the
+// grounded prompt's Context block. The answer quotes the top passages; the
+// follow-up points at the next retrieved topic — both grounded, no model call.
+function extractiveResponse(prompt: string): { answer: string; followUp: string } {
   const context = prompt.split('Context:\n')[1]?.split('\n\nQuestion:')[0] ?? '';
-  const passages = context
+  const blocks = context
     .split('\n\n')
-    .map((block) => block.replace(/^\[Source:[^\]]*\]\n?/, '').trim())
-    .filter(Boolean);
-  return `From TimeShift's jetlag knowledge base: ${passages.join(' ')}`;
+    .map((block) => ({
+      heading: /—\s*([^\]]+)\]/.exec(block)?.[1]?.trim() ?? '',
+      text: block.replace(/^\[Source:[^\]]*\]\n?/, '').trim(),
+    }))
+    .filter((b) => b.text);
+
+  const answer = blocks.length
+    ? `From TimeShift's jetlag knowledge base: ${blocks.slice(0, 2).map((b) => b.text).join(' ')}`
+    : '';
+  // Point at a later retrieved topic with a meaningful heading (skip intro/empty).
+  const next = blocks.slice(1).find((b) => b.heading && b.heading.toLowerCase() !== 'intro');
+  const followUp = next ? `A natural next step: consider “${next.heading}.”` : '';
+  return { answer, followUp };
 }

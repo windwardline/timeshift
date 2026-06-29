@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ai/parse.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  16:24:13
+   Duration  151ms (transform 15ms, setup 0ms, import 36ms, tests 3ms, environment 0ms)
+

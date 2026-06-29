@@ -5,18 +5,29 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chunkMarkdown } from './chunk';
-import type { Chunk, KbVector } from './types';
+import { parseDocSource, stripFrontmatter } from './frontmatter';
+import type { Chunk, KbVector, SourceRef } from './types';
 
 const KB_DIR = join(process.cwd(), 'docs', 'kb');
 const EMBEDDINGS_FILE = join(KB_DIR, 'kb-embeddings.json');
 
-export function loadCorpus(): { chunks: Chunk[]; vectors: KbVector[] } {
+export function loadCorpus(): {
+  chunks: Chunk[];
+  vectors: KbVector[];
+  sources: Record<string, SourceRef>;
+} {
   const files = readdirSync(KB_DIR)
     .filter((f) => f.endsWith('.md'))
     .sort();
-  const chunks = files.flatMap((file) =>
-    chunkMarkdown(readFileSync(join(KB_DIR, file), 'utf8'), file),
-  );
+
+  const chunks: Chunk[] = [];
+  const sources: Record<string, SourceRef> = {};
+  for (const file of files) {
+    const raw = readFileSync(join(KB_DIR, file), 'utf8');
+    chunks.push(...chunkMarkdown(stripFrontmatter(raw).body, file));
+    const source = parseDocSource(raw); // verifiable external citation, if declared
+    if (source) sources[file] = source;
+  }
 
   // Absent vectors file is an expected state (keyless build) → degrade to the
   // lexical path. A present-but-corrupt file is NOT masked: JSON.parse throws.
@@ -24,5 +35,5 @@ export function loadCorpus(): { chunks: Chunk[]; vectors: KbVector[] } {
     ? (JSON.parse(readFileSync(EMBEDDINGS_FILE, 'utf8')) as KbVector[])
     : [];
 
-  return { chunks, vectors };
+  return { chunks, vectors, sources };
 }

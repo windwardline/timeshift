@@ -20,6 +20,16 @@ export interface KbVector {
   vector: number[];
 }
 
+/**
+ * A verifiable, external citation for a KB doc (authoritative org + URL). Sources
+ * shown to the user are always these — never the internal doc filename — so a
+ * citation means something the reader can actually check (US-R, AC-R3).
+ */
+export interface SourceRef {
+  title: string;
+  url: string;
+}
+
 /** A chunk with the similarity score retrieval assigned it. */
 export interface ScoredChunk extends Chunk {
   score: number;

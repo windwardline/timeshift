@@ -57,4 +57,15 @@ describe('chunkMarkdown', () => {
     expect(chunkMarkdown('', 'doc.md')).toEqual([]);
     expect(chunkMarkdown('   \n\n  ', 'doc.md')).toEqual([]);
   });
+
+  // Frontmatter stripping is the caller's job (stripFrontmatter), so chunkMarkdown
+  // receives an already-stripped body and chunks exactly what it is given.
+  it('chunks the body it is given without interpreting frontmatter', () => {
+    const body = ['# Title', '', '## First', 'Alpha.'].join('\n');
+
+    const chunks = chunkMarkdown(body, 'doc.md');
+
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].heading).toBe('First');
+  });
 });
