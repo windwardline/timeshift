@@ -70,9 +70,41 @@ async function main() {
     include: { segments: { orderBy: { sequence: 'asc' } } },
   });
 
+  // A second showcase that crosses the International Date Line (US-E3): LAX → SYD
+  // eastbound "gains" a day — the local calendar leaps two days while the flight
+  // spans one — so the engine's crossesDateLine fact reads true here (it is false
+  // for the Singapore trip above). One nonstop leg keeps the example legible.
+  const idl = await prisma.trip.create({
+    data: {
+      name: 'Los Angeles → Sydney (QF, across the date line)',
+      destination: 'Australia/Sydney',
+      userId: user.id,
+      segments: {
+        create: [
+          {
+            sequence: 0,
+            flightNumber: 'QF 12',
+            departureAirport: 'LAX',
+            arrivalAirport: 'SYD',
+            departureTime: new Date('2025-07-02T05:30:00Z'), // 22:30 PDT Jul 1
+            arrivalTime: new Date('2025-07-02T20:30:00Z'), // 06:30 AEST Jul 3 (+2 cal days)
+            departureTz: 'America/Los_Angeles',
+            arrivalTz: 'Australia/Sydney',
+            departureLat: 33.9416,
+            departureLng: -118.4085,
+            arrivalLat: -33.9399,
+            arrivalLng: 151.1753,
+          },
+        ],
+      },
+    },
+    include: { segments: true },
+  });
+
   console.log(
     `Seeded trip ${trip.id} "${trip.name}" (dest ${trip.destination}) ` +
-      `with ${trip.segments.length} segments for ${user.email}.`,
+      `with ${trip.segments.length} segments and trip ${idl.id} "${idl.name}" ` +
+      `(dest ${idl.destination}) with ${idl.segments.length} segment for ${user.email}.`,
   );
 }
 

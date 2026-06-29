@@ -8,20 +8,29 @@ import { LogoutButton } from '@/components/LogoutButton';
 
 export const dynamic = 'force-dynamic';
 
-// The seeded demo trip, rendered as a public showcase (owned by the demo
+// Captions for the public showcase trips, keyed by destination zone. The second
+// trip crosses the date line, so the two examples together show the engine
+// handling both the everyday case and the IDL edge case.
+const SHOWCASE_CAPTIONS: Record<string, string> = {
+  'Asia/Singapore': 'A worked example — JFK → Singapore via London',
+  'Australia/Sydney': 'Crossing the date line — Los Angeles → Sydney',
+};
+
+// The seeded demo trips, rendered as public showcases (owned by the demo
 // account; served directly here, not via the ownership-scoped path).
-async function getShowcaseTrip() {
+async function getShowcaseTrips() {
   const demo = await prisma.user.findFirst({
     where: { email: 'demo@timeshift.app' },
-    include: { trips: { orderBy: { createdAt: 'asc' }, take: 1 } },
+    include: { trips: { orderBy: { createdAt: 'asc' } } },
   });
-  const tripId = demo?.trips[0]?.id;
-  return tripId && demo ? getTripWithSegments(tripId, demo.id) : null;
+  if (!demo) return [];
+  const trips = await Promise.all(demo.trips.map((t) => getTripWithSegments(t.id, demo.id)));
+  return trips.filter((t): t is NonNullable<typeof t> => !!t && t.segments.length > 0);
 }
 
 export default async function Home() {
   const user = await getCurrentUser();
-  const showcase = await getShowcaseTrip();
+  const showcases = await getShowcaseTrips();
 
   return (
     <main>
@@ -97,14 +106,14 @@ export default async function Home() {
         </section>
       )}
 
-      {showcase && showcase.segments.length > 0 && (
-        <>
+      {showcases.map((trip) => (
+        <section key={trip.id} data-testid={`showcase-${trip.destination.replace('/', '-')}`}>
           <p className="eyebrow" style={{ margin: '52px 0 0' }}>
-            A worked example — JFK → Tokyo via London
+            {SHOWCASE_CAPTIONS[trip.destination] ?? `A worked example — ${trip.name}`}
           </p>
-          <TripView trip={showcase} />
-        </>
-      )}
+          <TripView trip={trip} />
+        </section>
+      ))}
     </main>
   );
 }

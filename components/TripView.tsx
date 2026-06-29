@@ -1,7 +1,7 @@
 import { assembleTimeline } from '@/lib/engine/timeline';
 import { dayNightArcs } from '@/lib/engine/arcs';
 import { recommendSleepWindows } from '@/lib/engine/sleep';
-import { offsetMinutes } from '@/lib/engine/time';
+import { offsetMinutes, crossesDateLine } from '@/lib/engine/time';
 import { resolveHomeBaseline } from '@/lib/profile/homeZone';
 import { Timeline } from '@/components/Timeline';
 import { AdvicePanel } from '@/components/AdvicePanel';
@@ -46,6 +46,7 @@ export function TripView({ trip, homeTimeZone: profileHomeZone }: { trip: ViewTr
     offsetMinutes(last.arrivalTime, trip.destination) -
     offsetMinutes(trip.segments[0].departureTime, homeTimeZone);
   const shift = `${deltaMinutes >= 0 ? '+' : ''}${(deltaMinutes / 60).toFixed(1)}h`;
+  const crossesIdl = trip.segments.some((s) => crossesDateLine(s));
 
   return (
     <>
@@ -59,6 +60,11 @@ export function TripView({ trip, homeTimeZone: profileHomeZone }: { trip: ViewTr
             <span className="pill mono">
               shift <span className="shift">{shift}</span>
             </span>
+            {crossesIdl && (
+              <span className="pill mono" data-testid="crosses-date-line">
+                crosses the date line
+              </span>
+            )}
           </div>
         </div>
       </section>
