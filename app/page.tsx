@@ -100,7 +100,7 @@ export default async function Home() {
       {showcase && showcase.segments.length > 0 && (
         <>
           <p className="eyebrow" style={{ margin: '52px 0 0' }}>
-            A worked example — JFK → Tokyo via London
+            A worked example — JFK → Singapore via London
           </p>
           <TripView trip={showcase} />
         </>

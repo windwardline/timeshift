@@ -13,6 +13,10 @@ const TRIP_NAME = 'New York → Singapore (BA, via London)';
 test('home showcase renders the engine headline numbers', async ({ page }) => {
   await page.goto('/');
 
+  // The showcase caption must name the actual destination (Singapore), not a
+  // stale city — it sits directly above the rendered Singapore trip.
+  await expect(page.getByText('A worked example — JFK → Singapore via London')).toBeVisible();
+
   // Trip header — name + destination clock + home/dest route pills.
   await expect(page.getByRole('heading', { name: TRIP_NAME })).toBeVisible();
   await expect(page.getByText('Destination clock · Asia/Singapore')).toBeVisible();
