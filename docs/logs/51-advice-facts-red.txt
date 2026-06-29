@@ -1,0 +1,30 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/trips/[id]/advice/route.test.ts
+
+
+ RUN  v4.1.9 /Users/peacock/Projects/timeshift
+
+ ❯ app/api/trips/[id]/advice/route.test.ts (4 tests | 1 failed) 37ms
+     × returns the plan for the trip owner 35ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/api/trips/[id]/advice/route.test.ts > POST /api/trips/[id]/advice > returns the plan for the trip owner
+TypeError: Cannot read properties of undefined (reading 'offsetDeltaMinutes')
+ ❯ app/api/trips/[id]/advice/route.test.ts:66:23
+     64|     // so the UI can show "computed from your flight" (the Plan's sign…
+     65|     expect(body).toMatchObject(plan);
+     66|     expect(body.facts.offsetDeltaMinutes).toBe(780);
+       |                       ^
+     67|     expect(body.facts.originZone).toBe('America/New_York');
+     68|     expect(body.facts.destinationZone).toBe('Asia/Tokyo');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  01:03:42
+   Duration  290ms (transform 39ms, setup 0ms, import 135ms, tests 37ms, environment 0ms)
+

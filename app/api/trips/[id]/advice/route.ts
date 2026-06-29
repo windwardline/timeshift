@@ -45,7 +45,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   try {
     const plan = await generateAdvice(facts, createGeminiClient(apiKey));
-    return NextResponse.json(plan);
+    // Return the engine-computed facts alongside the plan so the client can show
+    // what the plan was computed from — the Jetlag Plan's "your itinerary,
+    // computed" signature. `facts` are deterministic engine output, not the model.
+    return NextResponse.json({ ...plan, facts });
   } catch (error) {
     if (error instanceof AdviceGenerationError || error instanceof AdviceParseError) {
       // Server-side visibility for the failure (no key, no client exposure).

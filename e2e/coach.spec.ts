@@ -20,6 +20,10 @@ test('coach answers a KB question with sources and refuses an off-topic one', as
   // A grounded answer renders non-empty prose. We assert it has content (not its
   // exact wording — model output is non-deterministic, CLAUDE.md §13).
   await expect(page.getByTestId('coach-answer')).toContainText(/\w/);
+  // The RAG signature is foregrounded: a "grounded in N sources" indicator, and a
+  // cross-link to the trip-specific Plan (the two features read as distinct).
+  await expect(page.getByTestId('coach-grounded-badge')).toContainText(/Grounded in \d+ cited/);
+  await expect(page.getByTestId('coach-build-trip')).toBeVisible();
   // Follow-on advice: a next-step suggestion renders.
   await expect(page.getByTestId('coach-followup')).toBeVisible();
   // Source integrity (AC-R3): citations are VERIFIABLE external links, not internal

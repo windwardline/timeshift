@@ -59,7 +59,13 @@ describe('POST /api/trips/[id]/advice', () => {
     const res = await post();
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(plan);
+    const body = await res.json();
+    // The plan is returned alongside the engine-computed facts it was built from,
+    // so the UI can show "computed from your flight" (the Plan's signature).
+    expect(body).toMatchObject(plan);
+    expect(body.facts.offsetDeltaMinutes).toBe(780);
+    expect(body.facts.originZone).toBe('America/New_York');
+    expect(body.facts.destinationZone).toBe('Asia/Tokyo');
     expect(mocks.complete.mock.calls[0][0]).toContain('Asia/Tokyo');
   });
 
