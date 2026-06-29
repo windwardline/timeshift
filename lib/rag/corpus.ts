@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chunkMarkdown } from './chunk';
-import { parseDocSource } from './frontmatter';
+import { parseDocSource, stripFrontmatter } from './frontmatter';
 import type { Chunk, KbVector, SourceRef } from './types';
 
 const KB_DIR = join(process.cwd(), 'docs', 'kb');
@@ -24,7 +24,7 @@ export function loadCorpus(): {
   const sources: Record<string, SourceRef> = {};
   for (const file of files) {
     const raw = readFileSync(join(KB_DIR, file), 'utf8');
-    chunks.push(...chunkMarkdown(raw, file));
+    chunks.push(...chunkMarkdown(stripFrontmatter(raw).body, file));
     const source = parseDocSource(raw); // verifiable external citation, if declared
     if (source) sources[file] = source;
   }

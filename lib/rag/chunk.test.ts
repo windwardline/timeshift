@@ -58,23 +58,14 @@ describe('chunkMarkdown', () => {
     expect(chunkMarkdown('   \n\n  ', 'doc.md')).toEqual([]);
   });
 
-  it('ignores leading YAML frontmatter, chunking only the body', () => {
-    const raw = [
-      '---',
-      'source_title: NHS — Jet lag',
-      'source_url: https://www.nhs.uk/conditions/jet-lag/',
-      '---',
-      '# Title',
-      '',
-      '## First',
-      'Alpha.',
-    ].join('\n');
+  // Frontmatter stripping is the caller's job (stripFrontmatter), so chunkMarkdown
+  // receives an already-stripped body and chunks exactly what it is given.
+  it('chunks the body it is given without interpreting frontmatter', () => {
+    const body = ['# Title', '', '## First', 'Alpha.'].join('\n');
 
-    const chunks = chunkMarkdown(raw, 'doc.md');
+    const chunks = chunkMarkdown(body, 'doc.md');
 
     expect(chunks).toHaveLength(1);
     expect(chunks[0].heading).toBe('First');
-    // The frontmatter keys/values must not leak into any chunk text.
-    expect(chunks[0].text).not.toContain('source_url');
   });
 });
