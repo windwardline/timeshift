@@ -12,13 +12,15 @@ import { createGeminiClient } from '@/lib/ai/client';
 // key is configured (embedQuery returns a vector) and falls back to lexical when
 // not — so this route works keyless, returning extractive grounded answers.
 // Refusal gate thresholds (AC-R2), each tuned to its retrieval path's score scale
-// against the real KB:
-//   - lexical (TF-IDF cosine): on-topic ~0.18–0.28, off-topic ~0–0.14  → 0.16
-//   - semantic (embedding cosine): on-topic ~0.74–0.86, off-topic ~0.51 → 0.62
+// against the 55-doc KB:
+//   - semantic (embedding cosine): on-topic ~0.75–0.82, off-topic ~0.49–0.52 → 0.62
+//   - lexical (TF-IDF cosine): the weaker keyless fallback; off-topic can reach
+//     ~0.2 on a large diverse corpus, so we gate conservatively at 0.25 (when in
+//     doubt, refuse) — the semantic path does the precise separation.
 // Both overridable via env for tuning.
 const THRESHOLDS = {
   semantic: Number(process.env.COACH_THRESHOLD_SEMANTIC ?? 0.62),
-  lexical: Number(process.env.COACH_THRESHOLD_LEXICAL ?? 0.16),
+  lexical: Number(process.env.COACH_THRESHOLD_LEXICAL ?? 0.25),
 };
 
 const bodySchema = z.object({ question: z.string().trim().min(1) });
@@ -78,7 +80,8 @@ function extractiveResponse(prompt: string): { answer: string; followUp: string 
   const answer = blocks.length
     ? `From TimeShift's jetlag knowledge base: ${blocks.slice(0, 2).map((b) => b.text).join(' ')}`
     : '';
-  const next = blocks[2] ?? blocks[1];
-  const followUp = next?.heading ? `A natural next step: read up on “${next.heading}.”` : '';
+  // Point at a later retrieved topic with a meaningful heading (skip intro/empty).
+  const next = blocks.slice(1).find((b) => b.heading && b.heading.toLowerCase() !== 'intro');
+  const followUp = next ? `A natural next step: consider “${next.heading}.”` : '';
   return { answer, followUp };
 }

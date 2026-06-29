@@ -17,11 +17,16 @@ test('coach answers a KB question with sources and refuses an off-topic one', as
 
   const result = page.getByTestId('coach-result');
   await expect(result).toHaveAttribute('data-grounded', 'true', { timeout: 30_000 });
-  // Source integrity (AC-R3): the cited doc is the one retrieval actually used.
-  await expect(page.getByTestId('coach-sources')).toContainText('melatonin timing');
   // A grounded answer renders non-empty prose. We assert it has content (not its
   // exact wording — model output is non-deterministic, CLAUDE.md §13).
   await expect(page.getByTestId('coach-answer')).toContainText(/\w/);
+  // Follow-on advice: a next-step suggestion renders.
+  await expect(page.getByTestId('coach-followup')).toBeVisible();
+  // Source integrity (AC-R3): citations are VERIFIABLE external links, not internal
+  // filenames. The melatonin question cites a melatonin source, as a real http link.
+  const sourceLink = page.getByTestId('coach-sources').getByRole('link').first();
+  await expect(sourceLink).toContainText('Melatonin');
+  await expect(sourceLink).toHaveAttribute('href', /^https?:\/\//);
 
   await page.screenshot({ path: 'docs/screenshots/e2e-coach-grounded.png', fullPage: true });
 

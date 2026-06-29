@@ -201,16 +201,23 @@ below quotes the 13-hour shift and the exact in-flight sleep window:
 
 > A standalone `/coach` page answers a free-form jetlag question **only** from
 > TimeShift's curated knowledge base: it retrieves the most relevant passages,
-> grounds the answer in them, **shows the sources it used**, and **refuses
-> honestly** when the question falls outside the KB.
+> grounds the answer in them, adds a **next-step follow-up**, **cites verifiable
+> external sources** (CDC, NHS, Sleep Foundation, …), and **refuses honestly**
+> when the question falls outside the KB.
 
-**Retrieval is grounded and the sources are real (AC-R1/R3).** The knowledge base
-is ten hand-authored markdown docs under [`docs/kb/`](docs/kb/), chunked by `##`
-heading. Retrieval is **semantic** — Google embeddings + cosine over precomputed
-chunk vectors (`docs/kb/kb-embeddings.json`) — when a key and those vectors are
-present, and falls back to a **lexical TF-IDF-cosine** search when not, so the
-feature works **keyless**. A refusal gate (`decideAnswerable`) drops any question
-whose best passage doesn't clear the threshold *before* any model call (AC-R2).
+**Retrieval is grounded and the citations are verifiable (AC-R1/R3).** The
+knowledge base is **55 hand-authored markdown docs** under [`docs/kb/`](docs/kb/),
+chunked by `##` heading (~220 passages). Each doc carries YAML frontmatter naming a
+real, authoritative source (an org title + URL), and the coach cites **those
+external links** — never the internal filename, and never anything the model made
+up. Citations are derived from the *retrieved* docs' metadata, so the model cannot
+fabricate a source by construction. Retrieval is **semantic** — Google embeddings +
+cosine over precomputed chunk vectors (`docs/kb/kb-embeddings.json`) — when a key
+and those vectors are present, and falls back to a **lexical TF-IDF-cosine** search
+when not, so the feature works **keyless**. A refusal gate (`decideAnswerable`)
+drops any question whose best passage doesn't clear the threshold *before* any
+model call (AC-R2). Every answer also includes a **follow-up**: the single most
+logical next step, grounded in the same retrieved context.
 
 **Mocked-and-unit-tested (no key, 100% coverage).** `lib/rag/` (chunking, vector
 search, lexical fallback, refusal gate) and the `lib/ai/` coach glue
@@ -229,9 +236,11 @@ answer **extractively** from the retrieved passages; with a key it upgrades to a
 LLM-written answer — the **Sources are identical either way**, since they come
 from retrieval, not the model. The refusal gate is **path-aware**: embedding
 cosine and TF-IDF cosine sit on different scales, so each path has its own
-threshold (`COACH_THRESHOLD_SEMANTIC` ≈ 0.62, `COACH_THRESHOLD_LEXICAL` ≈ 0.16),
-both env-overridable. Model output is non-deterministic, so it is never
-snapshot-asserted; the E2E (below) runs keyless for a deterministic grounded
+threshold (`COACH_THRESHOLD_SEMANTIC` ≈ 0.62, `COACH_THRESHOLD_LEXICAL` ≈ 0.25),
+both env-overridable. On the 55-doc KB the semantic path separates cleanly
+(on-topic ≈0.75–0.82 vs off-topic ≈0.49–0.52); the keyless lexical fallback is
+weaker, so it gates conservatively. Model output is non-deterministic, so it is
+never snapshot-asserted; the E2E (below) runs keyless for a deterministic grounded
 answer + refusal.
 
 ![Grounded coach answer with sources](docs/screenshots/e2e-coach-grounded.png)
