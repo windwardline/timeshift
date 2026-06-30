@@ -1,168 +1,153 @@
 # TimeShift — Demo Script (~6 min, Tuesday AM)
 
-One product, two assignments: the **jetlag planner** (main course project: data layer +
-story + live TDD) and the **grounded Jetlag Coach** (the Vibe-Friday RAG deliverable).
-Timed for ~6 minutes. Stage directions are in **[SCREEN]**, **[POINT]**, and **[SAY]**
-blocks. Practice the timing once end-to-end.
+One product, **two assignments**: the main course project (data layer + story + live TDD) and
+the Vibe-Friday RAG build-out (the grounded **Jetlag Coach**). Both instructor briefs are saved
+verbatim in [`docs/INSTRUCTOR_BRIEF.md`](./INSTRUCTOR_BRIEF.md); this script is written to satisfy
+every bullet in both. Stage directions: **[SCREEN]** = what to show, **[POINT]** = exact lines /
+elements to indicate, **[SAY]** = your words. Practice once end-to-end for timing.
 
-> **Live state (verified):** deployed at <https://timeshift.windwardline.com>. The home page
-> now shows **two** worked examples — **JFK → Singapore via London** (+12.0h, the everyday
-> case) and **Los Angeles → Sydney** (+17.0h, which **crosses the date line**). Flight search
-> is live (real AviationStack data, cached). The coach is live (Gemini) with a grounded
-> extractive fallback if the model call ever fails. Suite green, engine + deterministic AI at
-> 100% coverage.
+> **Live state (verified):** deployed at <https://timeshift.windwardline.com>. Home shows **two**
+> worked examples — **JFK → Singapore via London** (+12.0h, the everyday case) and **Los Angeles
+> → Sydney** (+17.0h, which **crosses the date line**). Flight search is live (real AviationStack
+> data, cached). The Coach is live (Gemini) with a grounded extractive fallback. Suite green;
+> engine + deterministic AI at 100% coverage.
 
----
-
-## ⚠️ Read this first — assignment-fit honesty check
-
-The RAG brief came in two forms. Be ready to name which one this product satisfies:
-
-- **Vibe-Friday RAG (the one we built to):** custom KB (md/txt/json), retrieval, AI-generated
-  **grounded** answer, **source display**, stretch = **deployed**. ✅ We satisfy all of it,
-  including the deployed stretch, plus extras (honest refusal, follow-on next-step, verifiable
-  external citations).
-- **The "simple Python CLI RAG" brief** (OpenAI SDK + scikit-learn TF-IDF + a `data/` folder,
-  Community-College mock docs): **we diverged from this on purpose.** Ours is TypeScript inside
-  the Next.js app, not a Python CLI; retrieval is Google embeddings with **TF-IDF cosine as the
-  keyless fallback** (so it still works with no API key); generation is the Claude/Gemini path,
-  not the OpenAI Responses API.
-
-**If the instructor asks "wasn't this supposed to be a Python CLI?":** say it plainly —
-*"The Vibe-Friday brief let us pick the stack and theme, so we built the RAG into the product
-itself rather than a throwaway CLI. Same architecture the Python brief teaches — load → chunk →
-TF-IDF retrieve → ground the answer to retrieved context → cite sources — just in TypeScript and
-deployed. I can walk the TF-IDF retrieval code if you want to see the internals."* Don't claim it
-*is* the Python CLI. If they specifically require the Python/OpenAI version, that's a separate
-30-line script we'd hand in alongside — flag it now rather than on the day.
+**Order:** Story → Data Layer → RAG → Live TDD. (The brief allows Story-first; it makes a better
+hook. Data Layer is still the longest segment, per the rubric.)
 
 ---
 
-## 0. Before you start (have these open in tabs)
+## ⚠️ Read this first — assignment-fit honesty check (Vibe RAG)
 
-1. **Tab A — Live app homepage:** <https://timeshift.windwardline.com>
-   (the two worked-example cards: "JFK → Singapore via London" and "Los Angeles → Sydney").
-2. **Tab B — Live Coach:** <https://timeshift.windwardline.com/coach>
-3. **Editor — three files pinned:** `prisma/schema.prisma`, `lib/db/trips.ts`, `CLAUDE.md`.
-4. **A terminal** with Claude Code running, repo at `lib/trips/`.
-5. The Coach has clickable example chips — you can just click **"When should I take melatonin?"**
-   (no typing needed).
+The RAG brief came in two forms. Be ready to name which one this satisfies:
+
+- **Vibe-Friday RAG (what we built to):** custom KB, retrieval, AI-generated **grounded** answer,
+  **source display**, stretch = **deployed**. ✅ All satisfied — theme is *health/wellness → sleep
+  routine* — plus extras (honest refusal, follow-on next-step, verifiable external citations).
+- **A "simple Python CLI RAG":** we diverged on purpose — ours is TypeScript inside the Next.js
+  app, retrieval is Google embeddings with **TF-IDF cosine as the keyless fallback**, generation
+  is the Gemini path. **If asked "wasn't this a Python CLI?":** *"The Vibe brief let us pick the
+  stack, so we built the RAG into the product, not a throwaway CLI. Same architecture the Python
+  brief teaches — load → chunk → TF-IDF retrieve → ground to retrieved context → cite sources —
+  in TypeScript and deployed."* Don't claim it *is* the Python CLI.
 
 ---
 
-## 1. The Story (~1:15)
+## 0. Before you start (open these tabs)
 
-**[SCREEN]** Tab A, the homepage hero + the first worked example (Singapore).
+1. **Tab A — homepage:** <https://timeshift.windwardline.com> (the two worked-example cards).
+2. **Tab B — Coach:** <https://timeshift.windwardline.com/coach>
+3. **Editor — pin three files:** `prisma/schema.prisma`, `lib/db/trips.ts`, `CLAUDE.md`.
+4. **Terminal** with Claude Code running, cwd at the repo root.
+5. The Coach has clickable example chips — you'll just click **"When should I take melatonin?"**.
 
-**[SAY]**
-> "TimeShift answers one question every long-haul traveler has: *when will my body actually
-> feel like it's the wrong time, and when should I sleep on the plane?* Jet lag is a
-> time-zone math problem people get wrong by hand. The user is anyone flying across 3+ zones —
-> here it's a New-York-to-Singapore trip via London."
+---
 
-**[POINT]** the day/night arcs and the timeline on the Singapore example.
+## 1. The Story (~1:15)  ·  *brief: problem / user / demo core features*
 
-**[SAY]**
-> "We map the itinerary across zones, overlay destination day and night, and recommend the
-> in-flight sleep windows. Let me show the signature feature."
+**[SCREEN]** Tab A — hero + the first worked example (Singapore).
 
-**[SCREEN]** On the Singapore card, click **"Get my jetlag plan"**. Wait for the live call
-(button reads **"Consulting…"**).
+**[SAY] — problem + user**
+> "TimeShift answers the one question every long-haul traveler has: *when will my body feel like
+> it's the wrong time, and when should I sleep on the plane?* Jet lag is a time-zone math problem
+> people get wrong by hand. The user is anyone flying across 3+ zones — here, New York to
+> Singapore via London."
 
-**[POINT]** the **"Computed from your flight"** chip strip — e.g. `+12.0h eastward shift` and the
-sleep-window chip(s) — then the **"AI-generated"** badge on the plan.
+**[POINT]** the day/night arcs and the timeline on the Singapore card.
 
-**[SAY]**
+**[SAY] — demo the core feature**
+> "We lay the itinerary across time zones, overlay destination day and night, and recommend the
+> in-flight sleep windows."
+
+**[SCREEN]** On the Singapore card, click **"Get my jetlag plan"** (button shows **"Consulting…"**
+— it's a live AI call; no sign-in needed, the showcase is public).
+
+**[POINT]** the **"Computed from your flight"** chip strip (e.g. `+12.0h eastward shift` + a
+sleep-window chip), then the **"AI-generated"** badge.
+
+**[SAY] — the signature mechanic**
 > "This is the product's signature: the plan is *computed* from this exact itinerary by our
-> temporal engine — the offset shift and the sleep windows are real numbers, not the model
-> guessing. The AI only narrates facts the engine already proved. That's a live model call,
-> right now, unique to this trip."
+> temporal engine — the shift and the sleep windows are real numbers, not the model guessing. The
+> AI only narrates facts the engine already proved."
 
-**[SCREEN]** Scroll down to the **second** worked example — **"Crossing the date line — Los
-Angeles → Sydney."**
+**[SCREEN]** Scroll to the **second** card — **"Crossing the date line — Los Angeles → Sydney."**
 
-**[POINT]** the **"crosses the date line"** pill in the trip header.
+**[POINT]** the **"crosses the date line"** pill in the header.
 
 **[SAY] — the edge case, made visible**
-> "And this is the case people get wrong by hand: flying LA→Sydney you skip a calendar day. The
-> engine *detects* the date-line crossing and flags it — `+17.0h` here. (Generating this plan
-> shows the same fact as a `crosses the Date Line` chip.) That date-line detection is the engine
-> behavior I'll point back to when we talk about testing."
-
-*(This split — Singapore = everyday plan; LA→Sydney = date-line edge case — also sets up the
-Plan-vs-Coach contrast later: Plan = computed; Coach = sourced.)*
+> "And this is the case people get wrong by hand: LA→Sydney you skip a whole calendar day. The
+> engine *detects* the date-line crossing and flags it — `+17.0h` here. Keep that in mind; it's
+> the behavior I'll point back to in the TDD demo."
 
 ---
 
-## 2. The Data Layer (~1:30)
+## 2. The Data Layer (~1:45)  ·  *brief: schema / relationships / queries*
 
 **[SCREEN]** Editor → `prisma/schema.prisma`.
 
-**[SAY] — schema shape**
+**[SAY] — schema (answers "why this schema?")**
 > "Six models. `User` owns `Trip`s; a `Trip` owns ordered `FlightSegment`s. `Session` and
-> `LoginToken` back passwordless magic-link auth. `FlightQueryCache` memoizes real flight-API
-> lookups so we don't burn the free-tier quota — that one's live, backing the app's flight
-> search."
+> `LoginToken` back passwordless magic-link auth, and `FlightQueryCache` memoizes real flight-API
+> lookups so we don't burn the free-tier quota — that one's live behind the app's flight search."
 
-**[POINT]** the `FlightSegment` model, specifically these fields:
+**[POINT]** `prisma/schema.prisma` **lines 66–69** (`departureTime`, `arrivalTime`, `departureTz`,
+`arrivalTz` on `FlightSegment`).
 
-> "Here's the one schema decision worth defending: every leg stores `departureTime` and
-> `arrivalTime` **in UTC**, and stores the IANA zone — `departureTz` / `arrivalTz` — right
-> next to it."
+**[SAY] — the decision worth defending**
+> "Every leg stores its times **in UTC** *and* the IANA zone right beside them. UTC alone loses
+> the zone; local time alone is ambiguous across DST. Keeping both lets us delegate every
+> offset/DST calculation to Luxon and never hand-roll a timezone table — the project's core
+> bug-avoidance rule."
 
-**[SAY] — *why* (this answers "why did you structure it this way?")**
-> "Storing UTC alone loses the zone; storing local time alone is ambiguous across DST. Keeping
-> the UTC instant **and** the original zone lets us delegate every offset/DST calculation to
-> Luxon and never hand-roll a timezone table — that's the project's core bug-avoidance rule."
+**[POINT]** `prisma/schema.prisma` **line 75** — `@@unique([tripId, sequence])`.
 
-**[POINT]** the `@@unique([tripId, sequence])` line on `FlightSegment`.
-
-**[SAY] — relationships**
-> "Segments are ordered by a `sequence` integer, unique per trip, so the engine always receives
-> legs in flight order. That's the relationship that matters: a trip *is* its ordered legs.
-> Layovers aren't stored — they're derived as the gaps between consecutive legs, so there's no
+**[SAY] — relationships (answers "what relationships & why?")**
+> "`User → Trip → FlightSegment`. Segments are ordered by a `sequence` integer that's unique per
+> trip, so the engine always receives legs in flight order — a trip *is* its ordered legs.
+> Layovers aren't a table; they're *derived* as the gaps between consecutive legs, so there's no
 > redundant state to keep in sync."
 
 **[SCREEN]** Editor → `lib/db/trips.ts`.
 
-**[POINT]** `getTripWithSegments` (the ownership-scoped `include`).
+**[POINT]** **lines 59–64** (`getTripWithSegments`) — specifically **line 61**, `where: { id, userId }`.
 
 **[SAY] — the query the app runs**
-> "The workhorse query: fetch one trip with all its segments ordered by sequence, **scoped to
-> the owner's id** in the `where`. Access control lives in the query itself — a non-owner's id
-> simply returns nothing, no separate permission check to forget."
+> "The workhorse query: one trip with all its segments ordered by sequence, **scoped to the
+> owner's id** in the `where`. Access control lives in the query itself — pass a non-owner's id
+> and it simply returns nothing. This ordered join is the single input the whole engine runs on."
 
-**[POINT]** `deleteSegment` (the re-read + `$transaction` resequencing).
+**[POINT]** **lines 106–121** (`deleteSegment`) — the scoped delete at **line 108**
+(`trip: { userId }`) and the **`$transaction`** at **lines 117–119**.
 
-**[SAY] — "what's the most complex query?"**
+**[SAY] — answers "most complex query?"**
 > "The most complex operation is deleting a leg: an ownership-scoped delete, then a transaction
 > that re-numbers the remaining legs back to a contiguous 0-based sequence — so the engine still
-> gets a clean ordered list. Delete plus transactional re-sequencing in one unit."
+> gets a clean ordered list. A scoped delete plus transactional re-sequencing in one unit."
 
 ---
 
-## 3. The RAG — Jetlag Coach (~1:00)
+## 3. The RAG — Jetlag Coach (~0:50)  ·  *Assignment 2: all Vibe requirements*
 
 **[SCREEN]** Tab B — `/coach`.
 
 **[POINT]** the eyebrow **"Sourced jetlag Q&A · not tied to a trip."**
 
-**[SAY] — the two features are distinct on purpose**
-> "Second deliverable, and the deliberate contrast: the Plan is *computed for your flight*; the
-> Coach is *general questions, answered only from sourced research*. Same product, opposite
-> mechanic."
+**[SAY] — the deliberate contrast**
+> "Second deliverable. The Plan is *computed for your flight*; the Coach is *general questions,
+> answered only from sourced research*. Same product, opposite mechanic. Theme: health/wellness —
+> a sleep-and-jetlag knowledge base."
 
-**[SCREEN]** Click the example chip **"When should I take melatonin?"** (or type it) →
-**Ask the coach.**
+**[SCREEN]** Click the chip **"When should I take melatonin?"** → it runs.
 
 **[POINT]**, in order: the **"✓ Grounded in N cited sources"** badge → the **Answer** → the
-**Next step** card → the **Sources** list (real external links, open in a new tab).
+**Next step** card → the **Sources** list (real external links, new tab).
 
-**[SAY] — hits every Vibe-Friday requirement**
-> "Custom knowledge base of 55 sourced docs, retrieval, an answer **grounded only in the
-> retrieved chunks**, a next-step suggestion, and **the actual external sources displayed** —
-> CDC, NHS, Sleep Foundation, not internal filenames. The model can't fabricate a citation
-> because the sources come from the retrieved documents' own metadata."
+**[SAY] — tick every Vibe requirement out loud**
+> "**Custom knowledge base** — 55 sourced markdown docs. **Retrieval** — semantic search with a
+> TF-IDF fallback. An **AI-generated answer grounded only in the retrieved chunks**, plus a
+> next-step. And **the real external sources displayed** — CDC, NHS, Sleep Foundation, not
+> internal filenames — because the citations come from the retrieved docs' own metadata, so the
+> model can't fabricate one. And it's **deployed** — that's the stretch goal."
 
 **[SCREEN]** (Optional, if time) type **"How do I fix my car engine?"** → **Ask.**
 
@@ -173,28 +158,28 @@ Plan-vs-Coach contrast later: Plan = computed; Coach = sourced.)*
 
 ---
 
-## 4. Live TDD Demo (~1:30) — kept deliberately tiny
+## 4. Live TDD Demo (~1:30)  ·  *brief: one small rehearsed feature, test-first*
 
-One small, pure, new function, **two short prompts**, one assertion. New file, so it can't
-disturb the existing green suite. Show the rules file first, then let the agent run the loop.
+Deliberately the smallest possible: one pure function, **two short prompts, one assertion**. New
+file, so it can't disturb the green suite. Show the rules file first, then let the agent run it.
 
-**[SCREEN]** Editor → `CLAUDE.md`, scroll to **§2 "The TDD law."**
+**[SCREEN]** Editor → `CLAUDE.md`, **line 18** (`## 2. The TDD law (highest priority)`).
 
-**[SAY] — show the control file FIRST**
+**[SAY] — show the control file FIRST (the brief asks for this)**
 > "This is the rules file the agent operates under. Section 2 — the TDD law: *no production code
 > before a failing test exists.* I control the AI with this, not vibes. Watch it obey."
 
-**[SCREEN]** Terminal with Claude Code. **Type prompt 1 (RED) — exactly this:**
+**[SCREEN]** Terminal. **Type prompt 1 (RED) — exactly this:**
 
 ```text
 Per CLAUDE.md §2, write ONLY a failing test (no implementation) for a new pure function daysToAdjust(min) in lib/trips/jetlag-burden.ts. Assert daysToAdjust(780) === 13 (~1 recovery day per time zone). Run it.
 ```
 
-**[POINT]** the failing run (red — "cannot find module" / `daysToAdjust` is not defined).
+**[POINT]** the failing run — red, `daysToAdjust` is not defined / cannot find module.
 
 **[SAY]**
-> "Red. It fails for the right reason — the function doesn't exist yet. That's the proof the
-> test is real."
+> "Red. It fails for the right reason — the function doesn't exist yet. That's the proof the test
+> is real."
 
 **[Type prompt 2 (GREEN) — exactly this:]**
 
@@ -206,11 +191,12 @@ Now write the minimal code to pass. Run it.
 
 **[SAY] — answers "why test first?" + "how does the agent fit?"**
 > "Green, minimal code. Writing the test first means I defined *correct* before any code existed,
-> so the test could actually fail and actually prove the fix — same discipline that made the
-> date-line case from earlier a real, discriminating test. The CLI agent is the implementer
-> inside that loop; CLAUDE.md §2 is what stops it writing code before a failing test exists."
+> so the test could actually fail and actually prove the fix — the same discipline that made the
+> date-line case real earlier. The CLI agent is the implementer inside that loop; CLAUDE.md §2 is
+> what stops it from writing code before a failing test exists."
 
-*(Expected green file, for your reference — don't read it aloud:)*
+*(Expected green file — for your reference, don't read aloud. No branches, so it stays 100%
+coverage-clean if you keep it.)*
 
 ```ts
 // lib/trips/jetlag-burden.ts
@@ -220,9 +206,10 @@ export function daysToAdjust(offsetDeltaMinutes: number): number {
 }
 ```
 
-**Even simpler fallback:** keep a sticky note with just the two prompts above. The agent already
-has the TDD law from CLAUDE.md and will scaffold the file path itself. (This is a throwaway demo
-unit — discard it after, or keep it as a real helper.)
+**Easiest-possible fallback:** keep a sticky note with just the two prompts. The agent already has
+the TDD law from CLAUDE.md and scaffolds the file path itself. (Throwaway demo unit — discard
+after, or keep it as a real helper. In a real cycle the rules also have me capture the red/green
+logs and commit each; skipped live to stay under 2 minutes.)
 
 ---
 
@@ -240,14 +227,24 @@ unit — discard it after, or keep it as a real helper.)
 | Question | Your answer |
 | --- | --- |
 | Why this schema? | UTC instant **+** IANA zone on every leg → delegate all offset/DST to Luxon, never hand-roll tz tables. |
-| What relationships & why? | `User → Trip → FlightSegment`, segments unique-ordered by `sequence` so the engine gets legs in flight order; layovers are *derived*, not stored. |
-| Most complex query? | `deleteSegment`: ownership-scoped delete + a `$transaction` re-numbering the remaining legs to a contiguous 0-based sequence. |
+| What relationships & why? | `User → Trip → FlightSegment`; segments unique-ordered by `sequence` so the engine gets legs in order; layovers are *derived*, not stored. |
+| Most complex query? | `deleteSegment` (`lib/db/trips.ts:106`): ownership-scoped delete + a `$transaction` re-numbering remaining legs to a contiguous 0-based sequence. |
 | Who's the user / one problem? | Long-haul travelers; "when will I be jet-lagged and when should I sleep on the plane?" |
 | Why test before code? | A test written after the code can't fail; writing it first defines *correct* and proves the fix is real (e.g. the date-line negative test). |
-| How does the CLI agent fit? | It's the implementer inside Red→Green→Refactor; CLAUDE.md §2 forbids it writing code before a failing test exists. |
+| How does the CLI agent fit? | It's the implementer inside Red→Green→Refactor; `CLAUDE.md` §2 (line 18) forbids it writing code before a failing test exists. |
+
+## File/line quick-reference (so you never fumble)
+
+| Show | File:line |
+| --- | --- |
+| UTC + IANA tz fields | `prisma/schema.prisma:66–69` |
+| Ordered-unique constraint | `prisma/schema.prisma:75` |
+| Ownership-scoped query | `lib/db/trips.ts:59–64` (the `where` is line 61) |
+| Most complex query | `lib/db/trips.ts:106–121` (delete line 108, `$transaction` 117–119) |
+| TDD law (rules file) | `CLAUDE.md:18` (also §4 line 45, §7 line 68, §13 line 144) |
 
 ## Timing budget
 
-Story 1:15 · Data layer 1:30 · RAG 1:00 · Live TDD 1:30 · Close 0:15 → **~5:30.**
-If you're long, drop the date-line scroll in §1 and the Coach refusal step (§3 optional).
-If you're short, generate the LA→Sydney plan too, to show the `crosses the Date Line` chip.
+Story 1:15 · Data layer 1:45 · RAG 0:50 · Live TDD 1:30 · Close 0:15 → **~5:35.**
+If long: drop the date-line scroll (§1) and the Coach refusal (§3). If short: generate the
+LA→Sydney plan to show the `crosses the Date Line` chip.
