@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Flight search route (spec §3/§6): session-gated; validates params; serves the
 // cache when fresh, else calls the client, parses + sorts, and caches. Real
@@ -34,17 +34,30 @@ const RAW = {
   ],
 };
 
+// The fixtures above and the assertions below are pinned to 2026-07-02, and
+// validateSearchParams rejects a date in the past. The route calls it without
+// injecting `now`, so the suite reads the real clock and would start failing
+// once that date passed. Freeze the clock the day before instead of chasing the
+// dates: only Date is faked, so timers and promises still behave normally.
+const NOW = new Date('2026-07-01T00:00:00Z');
+
 function get(qs = 'from=JFK&to=LHR&date=2026-07-02') {
   return GET(new Request(`http://localhost/api/flights/search?${qs}`));
 }
 
 describe('GET /api/flights/search', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
     vi.clearAllMocks();
     process.env.AVIATIONSTACK_API_KEY = 'test-key';
     mocks.getCurrentUser.mockResolvedValue({ id: 'u1' });
     mocks.readCache.mockResolvedValue(null);
     mocks.writeCache.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('rejects an anonymous request with 401', async () => {
