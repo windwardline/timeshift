@@ -12,6 +12,16 @@ to sleep on the plane.
 **Sprint scope:** 5-day deployment · solo build · Test-Driven Development (Vitest)
 throughout, with a documented Red → Green → Refactor cycle on the temporal engine.
 
+**Current state (July 2026):** CI runs typecheck, lint, the full Vitest suite,
+and a production build on every push and pull request
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). The home page now
+carries two public showcase trips — NY → Singapore (`+12.0h`) and a LAX → Sydney
+date-line crossing that surfaces `crossesDateLine` in the UI (US-E3). The
+Jetlag Coach degrades to a grounded extractive answer when the live model call
+fails (US-R). Playwright specs cover both showcases and the coach
+(`npm run test:e2e`), and `npm run test:e2e:prod` smoke-tests the deployed site
+itself for demo-morning checks.
+
 ---
 
 ## Stack
