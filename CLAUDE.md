@@ -58,6 +58,10 @@ silently.
 - After schema changes, run `npx prisma generate`.
 - **Never** hand-edit the generated Prisma client. Change `schema.prisma` and migrate.
 - The dev/test database is local; never point at a shared or production database.
+- Production Postgres is the Supabase project **TimeShift** (`fjmueibdhwbsmjvzxeru`) in the
+  Windward Line org, reached only through `DATABASE_URL`. No Supabase SDK is used, so code
+  search will not surface the dependency — the project holds live user data; never pause or
+  delete it. Gemini calls bill to the GCP project `gen-lang-client-0577239414`.
 
 ## 6. Secrets & environment
 
