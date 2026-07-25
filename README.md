@@ -50,8 +50,6 @@ maps to its own document:
 | Prompts for writing Tests (TDD plan)| [`docs/TDD_PLAN.md`](docs/TDD_PLAN.md) |
 | Context file (guardrails & rules)   | [`CLAUDE.md`](CLAUDE.md)              |
 
-Build kickoff prompt for Claude Code: [`docs/KICKOFF_PROMPT.md`](docs/KICKOFF_PROMPT.md)
-
 ---
 
 ## Test Evidence (TDD)

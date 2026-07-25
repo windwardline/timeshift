@@ -38,7 +38,7 @@ The RAG brief came in two forms. Be ready to name which one this satisfies:
 1. **Tab A — homepage:** <https://timeshift.windwardline.com> (the two worked-example cards).
 2. **Tab B — Coach:** <https://timeshift.windwardline.com/coach>
 3. **Editor — pin three files:** `prisma/schema.prisma`, `lib/db/trips.ts`, `CLAUDE.md`.
-4. **Terminal** with Claude Code running, cwd at the repo root.
+4. **Terminal** with the CLI coding agent running, cwd at the repo root.
 5. The Coach has clickable example chips — you'll just click **"When should I take melatonin?"**.
 
 ---
