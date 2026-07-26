@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import {
   applyChoice,
   normalizeStored,
@@ -21,10 +21,10 @@ const OPTIONS: Array<{ choice: ThemeChoice; label: string }> = [
 ];
 
 function defaultStorage(): LampStorage | null {
+  if (typeof window === 'undefined') return null;
   try {
-    const s = window.localStorage;
-    s.getItem(THEME_KEY);
-    return s;
+    window.localStorage.getItem(THEME_KEY);
+    return window.localStorage;
   } catch {
     return null;
   }
@@ -33,14 +33,23 @@ function defaultStorage(): LampStorage | null {
 /** Day / night / local time. Local time follows the device — fitting, for an
  *  app whose whole job is knowing what time it is where you're going. */
 export function ThemeLamp({ storage }: { storage?: LampStorage }) {
-  const [choice, setChoice] = useState<ThemeChoice>('system');
-  const [store, setStore] = useState<LampStorage | null>(storage ?? null);
+  const store = useMemo(() => storage ?? defaultStorage(), [storage]);
+  const listeners = useRef(new Set<() => void>());
 
-  useEffect(() => {
-    const s = storage ?? defaultStorage();
-    setStore(s);
-    if (s) setChoice(normalizeStored(s.getItem(THEME_KEY)));
-  }, [storage]);
+  const subscribe = useCallback((cb: () => void) => {
+    listeners.current.add(cb);
+    window.addEventListener('storage', cb);
+    return () => {
+      listeners.current.delete(cb);
+      window.removeEventListener('storage', cb);
+    };
+  }, []);
+
+  const choice = useSyncExternalStore<ThemeChoice>(
+    subscribe,
+    () => normalizeStored(store?.getItem(THEME_KEY) ?? null),
+    () => 'system',
+  );
 
   function pick(next: ThemeChoice) {
     if (store) {
@@ -50,7 +59,7 @@ export function ThemeLamp({ storage }: { storage?: LampStorage }) {
     } else {
       document.documentElement.setAttribute('data-theme', next);
     }
-    setChoice(next);
+    listeners.current.forEach((cb) => cb());
   }
 
   return (
