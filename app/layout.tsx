@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ThemeLamp } from '../components/ThemeLamp';
 import './globals.css';
 
 export const metadata = {
@@ -11,6 +12,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script
+          // Applies a stored theme before first paint; local time = no attribute.
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('ts-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}})()",
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -21,6 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <div className="aurora" aria-hidden />
         {children}
+        <ThemeLamp />
       </body>
     </html>
   );
