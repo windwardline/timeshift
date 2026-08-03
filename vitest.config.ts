@@ -22,6 +22,7 @@ export default defineConfig({
         'lib/flights/**',
         'lib/auth/credentials.ts',
         'lib/auth/magic.ts',
+        'lib/auth/email-template.ts',
       ],
     },
   },

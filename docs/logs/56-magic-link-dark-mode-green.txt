@@ -1,0 +1,11 @@
+npm notice run timeshift@0.1.0 test:run
+npm notice run vitest run lib/auth/email-template.test.ts
+
+ RUN  v4.1.10 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  23:54:33
+   Duration  101ms (transform 15ms, setup 0ms, import 21ms, tests 2ms, environment 0ms)
+
