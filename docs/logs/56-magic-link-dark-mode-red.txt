@@ -1,0 +1,177 @@
+npm notice run timeshift@0.1.0 test:run
+npm notice run vitest run lib/auth/email-template.test.ts
+
+ RUN  v4.1.10 /Users/peacock/Projects/timeshift
+
+ ❯ lib/auth/email-template.test.ts (8 tests | 6 failed) 9ms
+     × declares a light scheme in the head, since this sender owns the document 4ms
+     × declares the scheme on the root wrapper too 1ms
+     × backs the wrapper and the button with bgcolor fallbacks 1ms
+     × carries the TimeShift accent on the button, not another app's 1ms
+     × names every text color explicitly 0ms
+     × leaves no color to a client default 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/auth/email-template.test.ts > magicLinkHtml — dark-mode hardening > declares a light scheme in the head, since this sender owns the document
+AssertionError: expected '\n        <div style="font-family:sys…' to contain '<meta name="color-scheme" content="li…'
+
+- Expected
++ Received
+
+- <meta name="color-scheme" content="light">
++
++         <div style="font-family:system-ui,sans-serif;line-height:1.5">
++           <h2 style="margin:0 0 12px">Sign in to TimeShift</h2>
++           <p>Click the button below to sign in. This link expires in 15 minutes.</p>
++           <p><a href="https://timeshift.windwardline.com/api/auth/verify?token=abc123" style="display:inline-block;background:#7c5cff;color:#fff;
++              text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Sign in</a></p>
++           <p style="color:#667;font-size:13px">If you didn't request this, you can ignore it.</p>
++         </div>
+
+ ❯ lib/auth/email-template.test.ts:32:18
+     30| describe('magicLinkHtml — dark-mode hardening', () => {
+     31|   it('declares a light scheme in the head, since this sender owns the …
+     32|     expect(html).toContain('<meta name="color-scheme" content="light">…
+       |                  ^
+     33|     expect(html).toContain('<meta name="supported-color-schemes" conte…
+     34|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  lib/auth/email-template.test.ts > magicLinkHtml — dark-mode hardening > declares the scheme on the root wrapper too
+AssertionError: expected '\n        <div style="font-family:sys…' to contain 'color-scheme:light'
+
+- Expected
++ Received
+
+- color-scheme:light
++
++         <div style="font-family:system-ui,sans-serif;line-height:1.5">
++           <h2 style="margin:0 0 12px">Sign in to TimeShift</h2>
++           <p>Click the button below to sign in. This link expires in 15 minutes.</p>
++           <p><a href="https://timeshift.windwardline.com/api/auth/verify?token=abc123" style="display:inline-block;background:#7c5cff;color:#fff;
++              text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Sign in</a></p>
++           <p style="color:#667;font-size:13px">If you didn't request this, you can ignore it.</p>
++         </div>
+
+ ❯ lib/auth/email-template.test.ts:37:18
+     35|
+     36|   it('declares the scheme on the root wrapper too', () => {
+     37|     expect(html).toContain('color-scheme:light');
+       |                  ^
+     38|   });
+     39|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  lib/auth/email-template.test.ts > magicLinkHtml — dark-mode hardening > backs the wrapper and the button with bgcolor fallbacks
+AssertionError: expected '\n        <div style="font-family:sys…' to contain 'bgcolor="#ffffff"'
+
+- Expected
++ Received
+
+- bgcolor="#ffffff"
++
++         <div style="font-family:system-ui,sans-serif;line-height:1.5">
++           <h2 style="margin:0 0 12px">Sign in to TimeShift</h2>
++           <p>Click the button below to sign in. This link expires in 15 minutes.</p>
++           <p><a href="https://timeshift.windwardline.com/api/auth/verify?token=abc123" style="display:inline-block;background:#7c5cff;color:#fff;
++              text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Sign in</a></p>
++           <p style="color:#667;font-size:13px">If you didn't request this, you can ignore it.</p>
++         </div>
+
+ ❯ lib/auth/email-template.test.ts:41:18
+     39|
+     40|   it('backs the wrapper and the button with bgcolor fallbacks', () => {
+     41|     expect(html).toContain('bgcolor="#ffffff"');
+       |                  ^
+     42|     expect(html).toContain(`bgcolor="${ACCENT}"`);
+     43|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  lib/auth/email-template.test.ts > magicLinkHtml — dark-mode hardening > carries the TimeShift accent on the button, not another app's
+AssertionError: expected '\n        <div style="font-family:sys…' to contain 'background-color:#7c5cff;color:#ffffff'
+
+- Expected
++ Received
+
+- background-color:#7c5cff;color:#ffffff
++
++         <div style="font-family:system-ui,sans-serif;line-height:1.5">
++           <h2 style="margin:0 0 12px">Sign in to TimeShift</h2>
++           <p>Click the button below to sign in. This link expires in 15 minutes.</p>
++           <p><a href="https://timeshift.windwardline.com/api/auth/verify?token=abc123" style="display:inline-block;background:#7c5cff;color:#fff;
++              text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Sign in</a></p>
++           <p style="color:#667;font-size:13px">If you didn't request this, you can ignore it.</p>
++         </div>
+
+ ❯ lib/auth/email-template.test.ts:46:18
+     44|
+     45|   it('carries the TimeShift accent on the button, not another app\'s',…
+     46|     expect(html).toContain(`background-color:${ACCENT};color:#ffffff`);
+       |                  ^
+     47|     expect(html).not.toContain('#2244FF'); // Levelflow's blue
+     48|     expect(html).not.toContain('#17594e'); // pathfinder's green
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  lib/auth/email-template.test.ts > magicLinkHtml — dark-mode hardening > names every text color explicitly
+AssertionError: expected '\n        <div style="font-family:sys…' to contain 'color:#111111'
+
+- Expected
++ Received
+
+- color:#111111
++
++         <div style="font-family:system-ui,sans-serif;line-height:1.5">
++           <h2 style="margin:0 0 12px">Sign in to TimeShift</h2>
++           <p>Click the button below to sign in. This link expires in 15 minutes.</p>
++           <p><a href="https://timeshift.windwardline.com/api/auth/verify?token=abc123" style="display:inline-block;background:#7c5cff;color:#fff;
++              text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">Sign in</a></p>
++           <p style="color:#667;font-size:13px">If you didn't request this, you can ignore it.</p>
++         </div>
+
+ ❯ lib/auth/email-template.test.ts:52:18
+     50|
+     51|   it('names every text color explicitly', () => {
+     52|     expect(html).toContain('color:#111111'); // body
+       |                  ^
+     53|     expect(html).toContain('color:#555555'); // footer
+     54|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  lib/auth/email-template.test.ts > magicLinkHtml — dark-mode hardening > leaves no color to a client default
+AssertionError: expected '\n        <div style="font-family:sys…' not to match /background:#/
+
+- Expected:
+/background:#/
+
++ Received:
+"
+        <div style=\"font-family:system-ui,sans-serif;line-height:1.5\">
+          <h2 style=\"margin:0 0 12px\">Sign in to TimeShift</h2>
+          <p>Click the button below to sign in. This link expires in 15 minutes.</p>
+          <p><a href=\"https://timeshift.windwardline.com/api/auth/verify?token=abc123\" style=\"display:inline-block;background:#7c5cff;color:#fff;
+             text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600\">Sign in</a></p>
+          <p style=\"color:#667;font-size:13px\">If you didn't request this, you can ignore it.</p>
+        </div>"
+
+ ❯ lib/auth/email-template.test.ts:59:22
+     57|     // The shorthand `background:` and the 3-digit `#fff`/`#667` are w…
+     58|     // unhardened body used; #667 on white measured ~3.1:1 once invert…
+     59|     expect(html).not.toMatch(/background:#/);
+       |                      ^
+     60|     expect(html).not.toMatch(/#fff\b/);
+     61|     expect(html).not.toMatch(/#667\b/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 2 passed (8)
+   Start at  23:53:56
+   Duration  115ms (transform 14ms, setup 0ms, import 19ms, tests 9ms, environment 0ms)
+
