@@ -21,6 +21,7 @@ export default defineConfig({
         'lib/trips/**',
         'lib/flights/**',
         'lib/auth/credentials.ts',
+        'lib/auth/magic.ts',
       ],
     },
   },

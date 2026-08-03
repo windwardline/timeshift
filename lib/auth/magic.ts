@@ -15,12 +15,26 @@ export async function createLoginToken(email: string): Promise<string> {
 }
 
 /** Consume a token: if valid (exists, unused, unexpired), mark it used and
- *  return the email; otherwise return null. Single-use. */
+ *  return the email; otherwise return null. Single-use.
+ *
+ *  The claim is ONE conditional write, scoped the way the ownership writes in
+ *  lib/db/trips.ts are: every validity condition sits in the WHERE, so Postgres
+ *  holds the row lock while it re-evaluates them, and `count` reports whether
+ *  this caller is the one that consumed the token. Reading the row first and
+ *  then writing usedAt leaves a window where two concurrent verifies of the
+ *  same token both see `usedAt: null` and both mint a session — reachable
+ *  whenever a mail scanner prefetches the link while the recipient clicks it. */
 export async function consumeLoginToken(token: string): Promise<string | null> {
   const record = await prisma.loginToken.findUnique({ where: { token } });
-  if (!record || record.usedAt || record.expiresAt < new Date()) {
+  if (!record) {
     return null;
   }
-  await prisma.loginToken.update({ where: { token }, data: { usedAt: new Date() } });
-  return record.email;
+
+  // The read above only supplies the address. Validity and single-use are
+  // decided here, by the write, so nothing rests on what the read saw.
+  const claimed = await prisma.loginToken.updateMany({
+    where: { token, usedAt: null, expiresAt: { gt: new Date() } },
+    data: { usedAt: new Date() },
+  });
+  return claimed.count === 1 ? record.email : null;
 }
