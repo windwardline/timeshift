@@ -1,0 +1,57 @@
+npm notice run timeshift@0.1.0 test:run
+npm notice run vitest run lib/auth/magic.test.ts
+
+ RUN  v4.1.10 /Users/peacock/Projects/timeshift
+
+ ❯ lib/auth/magic.test.ts (8 tests | 2 failed) 8ms
+     × admits exactly one winner when the same token is consumed concurrently 3ms
+     × admits exactly one winner across a wider stampede 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/auth/magic.test.ts > consumeLoginToken > admits exactly one winner when the same token is consumed concurrently
+AssertionError: expected [ 'traveler@example.com', …(1) ] to deeply equal [ 'traveler@example.com' ]
+
+- Expected
++ Received
+
+  [
+    "traveler@example.com",
++   "traveler@example.com",
+  ]
+
+ ❯ lib/auth/magic.test.ts:162:17
+    160|     const refused = results.filter((r) => r === null);
+    161|
+    162|     expect(won).toEqual(['traveler@example.com']);
+       |                 ^
+    163|     expect(refused).toHaveLength(1);
+    164|     expect(rows[0].usedAt).toBeInstanceOf(Date);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/auth/magic.test.ts > consumeLoginToken > admits exactly one winner across a wider stampede
+AssertionError: expected [ 'traveler@example.com', …(7) ] to have a length of 1 but got 8
+
+- Expected
++ Received
+
+- 1
++ 8
+
+ ❯ lib/auth/magic.test.ts:174:47
+    172|     );
+    173|
+    174|     expect(results.filter((r) => r !== null)).toHaveLength(1);
+       |                                               ^
+    175|   });
+    176| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  23:36:14
+   Duration  136ms (transform 23ms, setup 0ms, import 35ms, tests 8ms, environment 0ms)
+

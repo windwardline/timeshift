@@ -1,0 +1,11 @@
+npm notice run timeshift@0.1.0 test:run
+npm notice run vitest run lib/auth/magic.test.ts
+
+ RUN  v4.1.10 /Users/peacock/Projects/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  23:40:09
+   Duration  115ms (transform 22ms, setup 0ms, import 32ms, tests 5ms, environment 0ms)
+
