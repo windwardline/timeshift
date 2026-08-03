@@ -3,6 +3,8 @@
 **▶ Live demo: [timeshift.windwardline.com](https://timeshift.windwardline.com)** — passwordless
 magic-link sign-in (Resend), Postgres on Supabase, hosted on Vercel behind Cloudflare DNS.
 
+![TimeShift's hero: jetlag planning for long-haul trips, with the Jetlag Coach and a worked JFK → Singapore example](docs/readme-hero.png)
+
 A high-performance itinerary visualization tool that helps international travelers
 mitigate jetlag by mapping their biological clock against their destination's time
 zone. Instead of a standard itinerary list, TimeShift renders a dynamic horizontal
@@ -12,7 +14,7 @@ to sleep on the plane.
 **Sprint scope:** 5-day deployment · solo build · Test-Driven Development (Vitest)
 throughout, with a documented Red → Green → Refactor cycle on the temporal engine.
 
-**Current state (July 2026):** CI runs typecheck, lint, the full Vitest suite,
+**Current state (August 2026):** CI runs typecheck, lint, the full Vitest suite,
 and a production build on every push and pull request
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). The home page now
 carries two public showcase trips — NY → Singapore (`+12.0h`) and a LAX → Sydney
