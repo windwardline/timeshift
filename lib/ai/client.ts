@@ -55,7 +55,8 @@ export function createGeminiClient(apiKey: string): LlmClient {
         } catch (error) {
           lastError = error;
           console.warn(
-            `[ai] model ${model} failed; trying next —`,
+            '[ai] model %s failed; trying next —',
+            model,
             error instanceof Error ? error.message : error,
           );
         }
