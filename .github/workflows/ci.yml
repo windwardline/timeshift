@@ -39,6 +39,9 @@ jobs:
       - name: Run Lint
         run: npm run lint
 
+      - name: Run Typecheck
+        run: npm run typecheck
+
       # `test` is vitest in watch mode; `test:run` is the single-shot variant.
       - name: Run Tests
         run: npm run test:run
