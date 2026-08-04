@@ -86,6 +86,8 @@ Use **Conventional Commits**, tied to the TDD phase:
 
 One logical change per commit. Do not bundle unrelated changes. Do not force-push.
 
+CI gates every PR: lint → typecheck → tests (`test:run` — bare `test` is watch mode) → build, plus `security.yml` (Semgrep, secret scan, dependency scan — required checks; a post-deploy job asserts the production security headers, which are platform-applied from `vercel.json` and contract-tested by `security-headers.test.ts`).
+
 ## 8. Test evidence
 
 Two evidence types, both captured from real runs:
