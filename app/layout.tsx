@@ -1,5 +1,19 @@
 import type { ReactNode } from 'react';
+import { JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import './globals.css';
+
+// Self-hosted at build time: served from this origin, so the strict CSP
+// (style-src/font-src 'self') holds with no Google hosts allowed.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-space-grotesk',
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-jetbrains-mono',
+});
 
 export const metadata = {
   title: 'TimeShift — beat jetlag before you land',
@@ -9,15 +23,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <body>
         <div className="aurora" aria-hidden />
         {children}
