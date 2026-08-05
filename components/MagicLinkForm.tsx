@@ -66,6 +66,9 @@ export function MagicLinkForm({ notice }: { notice?: string }) {
           {error && <p className="err">{error}</p>}
         </form>
       )}
+      <p className="eyebrow" style={{ marginTop: 16 }}>
+        <Link href="/privacy">Privacy — what we keep and why</Link>
+      </p>
     </main>
   );
 }
