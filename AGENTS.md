@@ -86,7 +86,7 @@ Use **Conventional Commits**, tied to the TDD phase:
 
 One logical change per commit. Do not bundle unrelated changes. Do not force-push.
 
-CI gates every PR: lint → typecheck → tests (`test:run` — bare `test` is watch mode) → build, plus `security.yml` (Semgrep, secret scan, dependency scan — required checks; a Headers live job asserts the production security headers on push and a daily cron — scans stay weekly — and they are platform-applied from `vercel.json` and contract-tested by `security-headers.test.ts`). An advisory Claude review runs on every same-repo PR via `claude-review.yml`, which deliberately calls the fleet reusable at `@main` — one merge updates every repo. It activates only when the `ANTHROPIC_API_KEY` secret is present; fork PRs never receive secrets, so they skip it by security design.
+CI gates every PR: lint → typecheck → tests (`test:run` — bare `test` is watch mode) → build, plus `security.yml` (Semgrep, secret scan, dependency scan — required checks; a Headers live job asserts the production security headers on push and a daily cron — scans stay weekly — and they are platform-applied from `vercel.json` and contract-tested by `security-headers.test.ts`). An advisory Claude review runs on every same-repo PR via `claude-review.yml`, which deliberately calls the fleet reusable at `@main` — one merge updates every repo. It activates only when the `CLAUDE_CODE_OAUTH_TOKEN` secret is present — reviews bill the owner's Claude subscription, not Console credits; fork PRs never receive secrets, so they skip it by security design.
 
 ## 8. Test evidence
 
