@@ -295,3 +295,34 @@ npm run test:coverage   # with coverage report
 # 6. Start the dev server
 npm run dev
 ```
+
+---
+
+## Deployments: production vs preview
+
+Production and preview deployments share one Vercel project but run against
+different environments, deliberately (owner decision 2026-08-09):
+
+| | Production | Preview |
+|---|---|---|
+| Database | Supabase `fjmueibdhwbsmjvzxeru` — live user data | Supabase `nmubttlwdgdhnkdhrivh` (`timeshift-preview`) — same migrations, no production rows |
+| `APP_URL` | set | deliberately unset |
+| Magic-link sign-in | works | refuses with a logged 500 (by design, see below) |
+
+Preview never points at the production database: previews of a magic-link
+app would otherwise mint real login tokens against real user rows.
+
+`APP_URL` stays unset in preview on purpose. The emailed link's host must
+come from trusted server config, never the request (host-header injection),
+so `app/api/auth/request-link` refuses to send when it is missing. A 500
+from the sign-in form on a preview URL is that refusal working — do not
+"fix" it with a `VERCEL_URL` or request-origin fallback; enabling preview
+sign-in is an owner decision.
+
+A preview build reporting **Ready** proves only the build. The page renders
+only if the Preview environment holds `DATABASE_URL` — `/` renders through
+`prisma.user.findFirst()`, so a missing variable 500s every route
+immediately. If previews break on `/`, check `vercel env ls preview` first.
+After a schema change, apply migrations to the preview database too
+(`prisma migrate deploy` against it); production and preview migrate
+separately.
