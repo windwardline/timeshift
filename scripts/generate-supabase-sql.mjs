@@ -7,18 +7,12 @@
 // checksums cannot drift from what `prisma migrate deploy` would apply:
 //   node scripts/generate-supabase-sql.mjs
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Derived, not listed. A hardcoded list omits a newly added migration silently --
-// absence is not an error -- and the browser path would then lock down the old
-// tables and leave the new one published. `security-rls.test.ts` reads the same
-// directory for the same reason.
-const MIGRATIONS = readdirSync('prisma/migrations', { withFileTypes: true })
-  .filter((e) => e.isDirectory())
-  .map((e) => e.name)
-  .sort()
-  .filter((name) => name >= '20260818204500');
+import { lockdownMigrations } from './lockdown-migrations.mjs';
+
+const MIGRATIONS = lockdownMigrations();
 
 // The lockdown migration is already guarded and idempotent. The other two are
 // plain generated DDL, so they get re-run safety here rather than in the
@@ -63,6 +57,20 @@ parts.push(`-- TimeShift: close the public-schema exposure on this Supabase proj
 -- migration history, so the CLI stays consistent with the database afterwards.
 
 BEGIN;
+
+-- Precondition. This file carries the lockdown migrations only, not the whole
+-- schema, so it assumes the project has already been migrated up to that point.
+-- Without this check the first ALTER TABLE fails, every following statement
+-- reports "current transaction is aborted", and the operator has to read a wall
+-- of cascade noise to find the one sentence that matters. Nothing is applied
+-- either way -- the transaction is what guarantees that -- this just says why.
+DO $$
+BEGIN
+  IF to_regclass('public."User"') IS NULL THEN
+    RAISE EXCEPTION 'This project has no TimeShift schema yet, so there is nothing to lock down. This file carries the lockdown migrations only. Apply the earlier migrations first (prisma migrate deploy), then run this again. Nothing has been changed.';
+  END IF;
+END
+$$;
 `);
 
 for (const name of MIGRATIONS) {
@@ -112,11 +120,13 @@ COMMIT;
 -- sequences as well as tables -- because a role holding only INSERT, or a view
 -- over "User", is exposure a SELECT-on-tables check reports as clean.
 --
--- Row 2 covers the half that regresses silently: default privileges decide what
--- the NEXT table created gets, whatever today's tables say. A default-ACL entry
--- only governs tables created by its owner, so Supabase's own internal entry is
--- expected and harmless -- it never governs a table your migrations make. That
--- row may be absent entirely, which is also fine.
+-- The remaining rows cover the half that regresses silently: default privileges
+-- decide what the NEXT object created gets, whatever today's objects say. There
+-- is one row per (role, object class), so several are normal. A default-ACL entry
+-- only governs objects created by its owner, so Supabase's own internal entries
+-- are expected and harmless -- they never govern an object your migrations make.
+-- These rows may be absent entirely, which is also fine: a one-row grid saying OK
+-- is a pass, not a truncated result.
 WITH obj AS (
   SELECT CASE WHEN c.relkind IN ('r','p') AND NOT c.relrowsecurity THEN false ELSE true END AS rls_ok,
          NOT (COALESCE(has_table_privilege('anon', c.oid, 'SELECT'), false)
@@ -145,19 +155,33 @@ FROM obj
 UNION ALL
 SELECT 2,
        'future objects',
-       'default privileges owned by ' || pg_get_userbyid(d.defaclrole)
+       'default privileges on ' || CASE d.defaclobjtype
+              WHEN 'r' THEN 'tables'    WHEN 'S' THEN 'sequences'
+              WHEN 'f' THEN 'functions' WHEN 'T' THEN 'types'
+              ELSE d.defaclobjtype::text END
+         || ' owned by ' || pg_get_userbyid(d.defaclrole)
          || ' grant ' || string_agg(DISTINCT r.rolname, ' + '),
        CASE WHEN pg_get_userbyid(d.defaclrole) = current_user
-            THEN 'PROBLEM - governs the tables your migrations create'
-            ELSE 'OK - Supabase internal role, never governs your tables' END
+            THEN 'PROBLEM - governs the objects your migrations create'
+            ELSE 'OK - Supabase internal role, never governs your objects' END
 FROM pg_default_acl d
 JOIN pg_namespace n ON n.oid = d.defaclnamespace
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
 JOIN pg_roles r ON r.oid = a.grantee
 WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
-GROUP BY d.defaclrole
+GROUP BY d.defaclrole, d.defaclobjtype
 ORDER BY 1;
 `);
 
-writeFileSync('docs/supabase-lockdown.sql', parts.join('\n'));
-console.log('wrote docs/supabase-lockdown.sql');
+// `--out <path>` so a caller can generate somewhere else -- the drift test needs
+// to compare against a fresh render WITHOUT rewriting the committed artifact,
+// which would let the test quietly repair the very drift it exists to catch.
+const outFlag = process.argv.indexOf('--out');
+if (outFlag !== -1 && !process.argv[outFlag + 1]) {
+  console.error('--out needs a path');
+  process.exit(2);
+}
+const OUT = outFlag === -1 ? 'docs/supabase-lockdown.sql' : process.argv[outFlag + 1];
+
+writeFileSync(OUT, parts.join('\n'));
+console.log(`wrote ${OUT}`);

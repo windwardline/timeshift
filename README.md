@@ -319,18 +319,27 @@ first finishes — so securing both is one invocation with nothing to fill in.
 
 **Without a terminal:** [`docs/supabase-lockdown.sql`](docs/supabase-lockdown.sql)
 is the same work as one script to paste into each project's Supabase SQL Editor —
-no clone, no Node, no connection string. It applies the three migrations, records
+no clone, no Node, no connection string. It applies the lockdown migrations, records
 them in `_prisma_migrations` with the checksums `prisma migrate deploy` expects
 (so the CLI stays consistent afterwards), rotates the exposed credentials, and
 ends in **one** verification query whose every row must say `OK`. One query is
 deliberate: the SQL Editor renders only the last statement's grid, so splitting
 the verdict in two showed the operator half of it — a green lockdown once read as
-a live exposure that way. The `existing objects` row covers what is there now;
-the `future objects` row covers default privileges, and reads `OK` for Supabase's
-own internal role because a default-ACL entry only governs tables created by its
-owner, never one your migrations make. That second row may be absent entirely,
-which is also fine. `supabase-lockdown-sql.test.ts` holds the single-statement
+a live exposure that way. The first row covers what exists now. The `future
+objects` rows cover default privileges, one per (role, object class), and read
+`OK` for Supabase's own internal role because a default-ACL entry only governs
+objects created by its owner, never one your migrations make. **A grid of one row
+saying `OK` is a pass**, not a truncated result — those rows are absent when
+nothing grants at all. `supabase-lockdown-sql.test.ts` holds the single-statement
 tail so it cannot silently split again.
+
+`pg_default_acl` holds a row per object class, so the revoke covers all of them —
+`TABLES`, `SEQUENCES`, `FUNCTIONS`, `TYPES`. Covering only tables and sequences
+left the functions row standing, which is both an exposure (default `EXECUTE` to
+`anon` on a future `public` function is a live PostgREST RPC endpoint) and an
+operational trap: the verifier read that row as a failure, and a failed
+verification is what makes `secure-database.sh` skip credential rotation.
+`security-rls.test.ts` asserts each class by name.
 
 One transaction, and safe to run twice. It is generated from the migrations by
 `node scripts/generate-supabase-sql.mjs`; `supabase-lockdown-sql.test.ts` fails CI

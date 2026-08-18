@@ -10,6 +10,20 @@
 
 BEGIN;
 
+-- Precondition. This file carries the lockdown migrations only, not the whole
+-- schema, so it assumes the project has already been migrated up to that point.
+-- Without this check the first ALTER TABLE fails, every following statement
+-- reports "current transaction is aborted", and the operator has to read a wall
+-- of cascade noise to find the one sentence that matters. Nothing is applied
+-- either way -- the transaction is what guarantees that -- this just says why.
+DO $$
+BEGIN
+  IF to_regclass('public."User"') IS NULL THEN
+    RAISE EXCEPTION 'This project has no TimeShift schema yet, so there is nothing to lock down. This file carries the lockdown migrations only. Apply the earlier migrations first (prisma migrate deploy), then run this again. Nothing has been changed.';
+  END IF;
+END
+$$;
+
 
 -- ===========================================================================
 -- 20260818204500_lock_down_public_schema
@@ -213,6 +227,72 @@ WHERE NOT EXISTS (
 
 
 -- ===========================================================================
+-- 20260818233000_revoke_default_privileges_all_classes
+-- ===========================================================================
+-- Finish the default-privileges half of the public-schema lockdown.
+--
+-- `20260818204500_lock_down_public_schema` revoked default privileges on TABLES
+-- and SEQUENCES. `pg_default_acl` holds one row per (role, schema, object
+-- class), and Supabase's bootstrap also grants defaults on FUNCTIONS -- so that
+-- row survived the lockdown. Two consequences, one of each kind:
+--
+--   Security: the surviving entry means the next function created in `public`
+--   by the migrating role is granted EXECUTE to `anon`, and PostgREST publishes
+--   a `public` function as an RPC endpoint. No such function exists today; the
+--   point of a default-privileges revoke is precisely the object that does not
+--   exist yet.
+--
+--   Operational: `scripts/verify-lockdown.mjs` and the verification query in
+--   `docs/supabase-lockdown.sql` both read `pg_default_acl` for `anon` and
+--   `authenticated` without filtering by object class. The FUNCTIONS row made a
+--   fully locked-down database report a problem, which `secure-database.sh`
+--   turns into a hard failure -- skipping the credential rotation that is part
+--   of the fix. Revoking the whole surface is what makes those checks true,
+--   rather than narrowing the checks to match a partial revoke.
+--
+-- TYPES is included for the same reason TABLES and SEQUENCES are: it is a class
+-- `pg_default_acl` can hold in a schema, so leaving it out leaves a row the
+-- verifiers would flag. Object class 'n' (schemas) is stored with no namespace
+-- and so is never reached by an `IN SCHEMA public` sweep.
+--
+-- Same shape as the original: guarded on the role existing, and issued through
+-- `format`/`%I` per role. `ALTER DEFAULT PRIVILEGES` only ever alters entries
+-- owned by the role running it -- Supabase's own `supabase_admin` entries are
+-- untouched here and remain harmless, because a default-ACL entry governs only
+-- the objects its owner creates, and migrations do not run as that role.
+-- Spelled out one class per statement rather than looped over a class array:
+-- the set of classes covered is the whole point of this migration, and
+-- security-rls.test.ts asserts each one by name so a future class cannot be
+-- dropped from the sweep without CI saying so.
+DO $$
+DECLARE r text;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TYPES FROM %I', r);
+    END IF;
+  END LOOP;
+END
+$$;
+
+-- Record it the way `prisma migrate deploy` would, so the CLI does not try to
+-- apply it again later.
+INSERT INTO "_prisma_migrations"
+  ("id", "checksum", "finished_at", "migration_name", "logs", "rolled_back_at", "started_at", "applied_steps_count")
+SELECT gen_random_uuid()::text, '7233dab722d697a3650d63c56c1ad8c193e35b05fdf66e90dcc09e976666dd99', now(), '20260818233000_revoke_default_privileges_all_classes', NULL, NULL, now(), 1
+WHERE NOT EXISTS (
+  SELECT 1 FROM "_prisma_migrations" WHERE "migration_name" = '20260818233000_revoke_default_privileges_all_classes'
+);
+
+
+-- ===========================================================================
 -- Rotate the credentials the exposure made readable
 -- ===========================================================================
 -- Session tokens and unconsumed magic links were readable by anyone holding this
@@ -235,11 +315,13 @@ COMMIT;
 -- sequences as well as tables -- because a role holding only INSERT, or a view
 -- over "User", is exposure a SELECT-on-tables check reports as clean.
 --
--- Row 2 covers the half that regresses silently: default privileges decide what
--- the NEXT table created gets, whatever today's tables say. A default-ACL entry
--- only governs tables created by its owner, so Supabase's own internal entry is
--- expected and harmless -- it never governs a table your migrations make. That
--- row may be absent entirely, which is also fine.
+-- The remaining rows cover the half that regresses silently: default privileges
+-- decide what the NEXT object created gets, whatever today's objects say. There
+-- is one row per (role, object class), so several are normal. A default-ACL entry
+-- only governs objects created by its owner, so Supabase's own internal entries
+-- are expected and harmless -- they never govern an object your migrations make.
+-- These rows may be absent entirely, which is also fine: a one-row grid saying OK
+-- is a pass, not a truncated result.
 WITH obj AS (
   SELECT CASE WHEN c.relkind IN ('r','p') AND NOT c.relrowsecurity THEN false ELSE true END AS rls_ok,
          NOT (COALESCE(has_table_privilege('anon', c.oid, 'SELECT'), false)
@@ -268,15 +350,19 @@ FROM obj
 UNION ALL
 SELECT 2,
        'future objects',
-       'default privileges owned by ' || pg_get_userbyid(d.defaclrole)
+       'default privileges on ' || CASE d.defaclobjtype
+              WHEN 'r' THEN 'tables'    WHEN 'S' THEN 'sequences'
+              WHEN 'f' THEN 'functions' WHEN 'T' THEN 'types'
+              ELSE d.defaclobjtype::text END
+         || ' owned by ' || pg_get_userbyid(d.defaclrole)
          || ' grant ' || string_agg(DISTINCT r.rolname, ' + '),
        CASE WHEN pg_get_userbyid(d.defaclrole) = current_user
-            THEN 'PROBLEM - governs the tables your migrations create'
-            ELSE 'OK - Supabase internal role, never governs your tables' END
+            THEN 'PROBLEM - governs the objects your migrations create'
+            ELSE 'OK - Supabase internal role, never governs your objects' END
 FROM pg_default_acl d
 JOIN pg_namespace n ON n.oid = d.defaclnamespace
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
 JOIN pg_roles r ON r.oid = a.grantee
 WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
-GROUP BY d.defaclrole
+GROUP BY d.defaclrole, d.defaclobjtype
 ORDER BY 1;

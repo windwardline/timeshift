@@ -3,6 +3,8 @@
 // dependency, so it needs no psql and no extra tooling.
 import { PrismaClient } from '@prisma/client';
 
+import { lockdownMigrations } from './lockdown-migrations.mjs';
+
 const prisma = new PrismaClient();
 let bad = 0;
 
@@ -64,27 +66,39 @@ try {
   // than counted as a failure: a condition this tooling cannot remediate must
   // not fail the run, because in secure-database.sh a failed verification skips
   // credential rotation, which is part of the fix rather than an extra.
+  // Grouped by object class as well as owner. pg_default_acl holds one row per
+  // (role, schema, class), the migrations revoke every class it can hold in a
+  // schema, and naming the class is what makes a surviving row diagnosable --
+  // a report that says "tables" while the row standing is functions sends the
+  // operator to look in the wrong place.
   const defaults = await prisma.$queryRawUnsafe(`
     SELECT pg_get_userbyid(d.defaclrole) AS owner,
            (pg_get_userbyid(d.defaclrole) = current_user) AS is_ours,
+           CASE d.defaclobjtype WHEN 'r' THEN 'tables'    WHEN 'S' THEN 'sequences'
+                                WHEN 'f' THEN 'functions' WHEN 'T' THEN 'types'
+                                ELSE d.defaclobjtype::text END AS class,
            string_agg(DISTINCT r.rolname, ', ') AS roles
     FROM pg_default_acl d
     JOIN pg_namespace n ON n.oid = d.defaclnamespace
     CROSS JOIN LATERAL aclexplode(d.defaclacl) a
     JOIN pg_roles r ON r.oid = a.grantee
     WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
-    GROUP BY d.defaclrole
+    GROUP BY d.defaclrole, d.defaclobjtype
   `);
-  const ours = defaults.find((d) => d.is_ours);
-  if (ours) bad += 1;
+  const ours = defaults.filter((d) => d.is_ours);
+  bad += ours.length;
   console.log(
-    `\ndefault privileges for tables this role creates: ${
-      ours ? `GRANTED TO ${ours.roles} <-- next table will be exposed` : 'revoked'
+    `\ndefault privileges for objects this role creates: ${
+      ours.length === 0
+        ? 'revoked'
+        : ours
+            .map((d) => `${d.class} GRANTED TO ${d.roles} <-- next one will be exposed`)
+            .join('; ')
     }`,
   );
   for (const d of defaults.filter((x) => !x.is_ours)) {
     console.log(
-      `  note: ${d.owner} still grants ${d.roles} on tables IT creates — not ours, not a failure`,
+      `  note: ${d.owner} still grants ${d.roles} on ${d.class} IT creates — not ours, not a failure`,
     );
   }
 
@@ -102,22 +116,25 @@ try {
     : [];
   const names = applied.map((r) => r.name);
   console.log('\nmigrations applied:');
-  for (const want of ['lock_down_public_schema', 'add_rate_limit', 'drop_dead_password_hash']) {
-    const hit = names.find((n) => n.includes(want));
+  // Derived from the migrations directory, not a hand-kept list: a list written
+  // out here goes stale the moment a migration is added, and it goes stale
+  // silently -- reporting "locked down" for a database missing the newest one.
+  for (const want of lockdownMigrations()) {
+    const hit = names.find((n) => n === want);
     if (!hit) bad += 1;
     console.log(`  ${hit ? 'yes' : 'NO '}  ${want}`);
   }
 
-  const cols = await prisma.$queryRawUnsafe(
-    `SELECT count(*)::int AS n FROM information_schema.columns
-     WHERE table_name = 'User' AND column_name = 'passwordHash'`,
-  );
   const userExists = await prisma.$queryRawUnsafe(
     `SELECT to_regclass('public."User"') IS NOT NULL AS present`,
   );
   if (!userExists[0].present) {
     console.log('\ndead passwordHash column: n/a (User table not created yet)');
   } else {
+    const cols = await prisma.$queryRawUnsafe(
+      `SELECT count(*)::int AS n FROM information_schema.columns
+       WHERE table_name = 'User' AND column_name = 'passwordHash'`,
+    );
     const dropped = cols[0].n === 0;
     if (!dropped) bad += 1;
     console.log(`\ndead passwordHash column: ${dropped ? 'dropped' : 'STILL PRESENT'}`);

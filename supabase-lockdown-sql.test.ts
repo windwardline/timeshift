@@ -1,8 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+
+import { LOCKDOWN_FLOOR } from './scripts/lockdown-migrations.mjs';
 
 // docs/supabase-lockdown.sql is generated, committed, and used to secure a live
 // database by hand. Nothing else checks it: security-rls.test.ts reads
@@ -20,30 +23,51 @@ function shippedMigrations(): string[] {
   return readdirSync(join(root, 'prisma/migrations'), { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
-    .filter((n) => n >= '20260818204500');
+    .filter((n) => n >= LOCKDOWN_FLOOR);
 }
 
 describe('docs/supabase-lockdown.sql', () => {
   it('is exactly what the generator produces from the current migrations', () => {
+    // Generated to a temp path, never over the committed file. Regenerating in
+    // place makes this gate fire exactly once: the failing run leaves the fresh
+    // content on disk, the rerun a developer reflexively does reads that back as
+    // "committed" and passes, and a tracked security artifact has been rewritten
+    // by a test run with nothing on screen to say so.
+    const out = join(mkdtempSync(join(tmpdir(), 'lockdown-sql-')), 'generated.sql');
+    execFileSync('node', ['scripts/generate-supabase-sql.mjs', '--out', out], { cwd: root });
     const committed = readFileSync(join(root, 'docs/supabase-lockdown.sql'), 'utf8');
-    // The generator writes the file; regenerate into place and compare, then the
-    // working tree is left as it was if they already matched.
-    execFileSync('node', ['scripts/generate-supabase-sql.mjs'], { cwd: root });
-    const regenerated = readFileSync(join(root, 'docs/supabase-lockdown.sql'), 'utf8');
     expect(
-      regenerated,
+      readFileSync(out, 'utf8'),
       'docs/supabase-lockdown.sql is stale or hand-edited — run `node scripts/generate-supabase-sql.mjs`',
     ).toBe(committed);
+  });
+
+  it('leaves the committed file untouched when it runs', () => {
+    // The gate above must not be able to fix its own failure. Corrupt the file,
+    // run the suite's generator invocation, and the corruption must survive --
+    // if it does not, the test is self-healing again.
+    const path = join(root, 'docs/supabase-lockdown.sql');
+    const original = readFileSync(path, 'utf8');
+    try {
+      writeFileSync(path, '-- drifted\n');
+      const out = join(mkdtempSync(join(tmpdir(), 'lockdown-sql-')), 'generated.sql');
+      execFileSync('node', ['scripts/generate-supabase-sql.mjs', '--out', out], { cwd: root });
+      expect(readFileSync(path, 'utf8'), 'the generator overwrote the committed file').toBe(
+        '-- drifted\n',
+      );
+    } finally {
+      writeFileSync(path, original);
+    }
   });
 
   it('carries every migration from the lockdown onward', () => {
     // The failure this is really guarding: a migration that exists but is missing
     // from the file, so the browser path silently skips it.
     const sql = readFileSync(join(root, 'docs/supabase-lockdown.sql'), 'utf8');
-    const expected = readFileSync(join(root, 'scripts/generate-supabase-sql.mjs'), 'utf8').includes(
-      "name >= '20260818204500'",
+    const derived = readFileSync(join(root, 'scripts/lockdown-migrations.mjs'), 'utf8').includes(
+      "name >= LOCKDOWN_FLOOR",
     );
-    expect(expected, 'generator no longer derives its migration list by date').toBe(true);
+    expect(derived, 'the shared list no longer derives its migrations by date').toBe(true);
 
     const shipped = shippedMigrations();
     expect(shipped.length).toBeGreaterThan(0);
@@ -67,6 +91,27 @@ describe('docs/supabase-lockdown.sql', () => {
     expect(sql).toContain('WHERE NOT EXISTS');
     expect(sql).toMatch(/^BEGIN;/m);
     expect(sql).toMatch(/^COMMIT;/m);
+  });
+
+  it('fails with one legible sentence on a project that was never migrated', () => {
+    // The file carries the lockdown migrations, not the schema they alter. On a
+    // project without it the first ALTER TABLE aborts the transaction and every
+    // later statement echoes "current transaction is aborted" -- nothing is
+    // applied, which is correct, but the reason is buried in the cascade.
+    const sql = readFileSync(join(root, 'docs/supabase-lockdown.sql'), 'utf8');
+    const fromBegin = sql.slice(sql.indexOf('BEGIN;'));
+    // Up to the first statement that changes anything, not the first mention of
+    // one -- the comment above the guard names ALTER TABLE too.
+    const firstChange = fromBegin.search(/^ALTER TABLE "/m);
+    expect(firstChange).toBeGreaterThan(0);
+    const preflight = fromBegin.slice(0, firstChange);
+    expect(preflight, 'no precondition check before the first schema change').toContain(
+      `to_regclass('public."User"') IS NULL`,
+    );
+    expect(preflight).toMatch(/RAISE\s+EXCEPTION/i);
+    expect(preflight, 'the message must say nothing was changed').toContain(
+      'Nothing has been changed.',
+    );
   });
 
   it('ends with a single verification statement', () => {

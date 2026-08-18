@@ -308,6 +308,28 @@ describe('public-schema lockdown (prisma/migrations)', () => {
     );
   });
 
+  it('revokes default privileges on every object class pg_default_acl can hold', () => {
+    // pg_default_acl stores one row per (role, schema, object class). Covering
+    // only TABLES and SEQUENCES leaves the FUNCTIONS and TYPES rows standing,
+    // and both tools that read pg_default_acl then report a correctly locked
+    // database as exposed -- secure-database.sh treats that as a hard failure
+    // and skips credential rotation, and the paste file's one result grid says
+    // PROBLEM. Revoking the whole surface is also the better answer on its own
+    // terms: default EXECUTE to anon on a future public function is a live
+    // PostgREST RPC endpoint. (Object class 'n', schemas, is stored with no
+    // namespace, so an IN SCHEMA public sweep never sees it.)
+    const sql = migrationSql();
+    for (const objectClass of ['TABLES', 'SEQUENCES', 'FUNCTIONS', 'TYPES']) {
+      expect(sql, `default privileges on ${objectClass} never revoked`).toMatch(
+        new RegExp(
+          String.raw`ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+public\s+REVOKE\s+ALL\s+ON\s+` +
+            objectClass,
+          'i',
+        ),
+      );
+    }
+  });
+
   it('never turns the lockdown back off in a later migration', () => {
 
     // The checks above concatenate every migration and match on presence, so on

@@ -1,0 +1,37 @@
+=== A migrated Supabase-shaped project, put back into the state the email described
+=== (RLS off on User/Session, anon+authenticated granted, default privileges granted
+===  on all four object classes, plus Supabase's own supabase_admin entry)
+
+--- BEFORE: the same verdict query the paste file ends with ---
+ ord |      check       |                                     detail                                      |                         verdict                         
+-----+------------------+---------------------------------------------------------------------------------+---------------------------------------------------------
+   1 | existing objects | 8 object(s) in public                                                           | PROBLEM - 3 reachable with the publishable key
+   2 | future objects   | default privileges on sequences owned by postgres grant anon + authenticated    | PROBLEM - governs the objects your migrations create
+   2 | future objects   | default privileges on types owned by postgres grant anon + authenticated        | PROBLEM - governs the objects your migrations create
+   2 | future objects   | default privileges on functions owned by postgres grant anon + authenticated    | PROBLEM - governs the objects your migrations create
+   2 | future objects   | default privileges on tables owned by postgres grant anon + authenticated       | PROBLEM - governs the objects your migrations create
+   2 | future objects   | default privileges on tables owned by supabase_admin grant anon + authenticated | OK - Supabase internal role, never governs your objects
+(6 rows)
+
+
+--- pasting docs/supabase-lockdown.sql (its own closing grid) ---
+ ord |      check       |                                     detail                                      |                         verdict                         
+-----+------------------+---------------------------------------------------------------------------------+---------------------------------------------------------
+   1 | existing objects | 8 object(s) in public                                                           | OK
+   2 | future objects   | default privileges on tables owned by supabase_admin grant anon + authenticated | OK - Supabase internal role, never governs your objects
+(2 rows)
+
+
+--- running it a SECOND time: same result, nothing breaks ---
+ ord |      check       |                                     detail                                      |                         verdict                         
+-----+------------------+---------------------------------------------------------------------------------+---------------------------------------------------------
+   1 | existing objects | 8 object(s) in public                                                           | OK
+   2 | future objects   | default privileges on tables owned by supabase_admin grant anon + authenticated | OK - Supabase internal role, never governs your objects
+(2 rows)
+
+
+--- and the CLI verifier agrees ---
+
+dead passwordHash column: dropped
+
+RESULT: locked down.

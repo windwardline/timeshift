@@ -1,0 +1,129 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (7 tests | 2 failed) 188ms
+     × is exactly what the generator produces from the current migrations 96ms
+     × fails with one legible sentence on a project that was never migrated 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > docs/supabase-lockdown.sql > is exactly what the generator produces from the current migrations
+AssertionError: docs/supabase-lockdown.sql is stale or hand-edited — run `node scripts/generate-supabase-sql.mjs`: expected '-- TimeShift: close the public-schema…' to be '-- TimeShift: close the public-schema…' // Object.is equality
+
+- Expected
++ Received
+
+@@ -8,10 +8,24 @@
+  -- It applies exactly what `prisma migrate deploy` would, and records the same
+  -- migration history, so the CLI stays consistent with the database afterwards.
+
+  BEGIN;
+
++ -- Precondition. This file carries the lockdown migrations only, not the whole
++ -- schema, so it assumes the project has already been migrated up to that point.
++ -- Without this check the first ALTER TABLE fails, every following statement
++ -- reports "current transaction is aborted", and the operator has to read a wall
++ -- of cascade noise to find the one sentence that matters. Nothing is applied
++ -- either way -- the transaction is what guarantees that -- this just says why.
++ DO $$
++ BEGIN
++   IF to_regclass('public."User"') IS NULL THEN
++     RAISE EXCEPTION 'This project has no TimeShift schema yet, so there is nothing to lock down. This file carries the lockdown migrations only. Apply the earlier migrations first (prisma migrate deploy), then run this again. Nothing has been changed.';
++   END IF;
++ END
++ $$;
++
+
+  -- ===========================================================================
+  -- 20260818204500_lock_down_public_schema
+  -- ===========================================================================
+  -- Lock the public schema away from Supabase's PostgREST roles.
+
+ ❯ supabase-lockdown-sql.test.ts:42:7
+     40|       readFileSync(out, 'utf8'),
+     41|       'docs/supabase-lockdown.sql is stale or hand-edited — run `node …
+     42|     ).toBe(committed);
+       |       ^
+     43|   });
+     44|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > docs/supabase-lockdown.sql > fails with one legible sentence on a project that was never migrated
+AssertionError: no precondition check before the first schema change: expected 'BEGIN;\n\n\n-- ======================…' to contain 'to_regclass(\'public."User"\') IS NULL'
+
+- Expected
++ Received
+
+- to_regclass('public."User"') IS NULL
++ BEGIN;
++
++
++ -- ===========================================================================
++ -- 20260818204500_lock_down_public_schema
++ -- ===========================================================================
++ -- Lock the public schema away from Supabase's PostgREST roles.
++ --
++ -- Why this migration exists
++ -- ------------------------
++ -- TimeShift reaches Postgres only through Prisma over DATABASE_URL; it uses no
++ -- Supabase SDK (AGENTS.md §5). Supabase, however, still publishes every table in
++ -- the `public` schema through PostgREST, and its bootstrap grants ALL on new
++ -- tables in `public` to the `anon` and `authenticated` roles. `anon` is the role
++ -- behind a project's publishable key, so until this migration every table Prisma
++ -- created was world-readable and world-writable over HTTPS:
++ --
++ --   * "Session"."token"    -- live session cookies -> sign in as any user
++ --   * "LoginToken"."token" -- unconsumed magic links -> take over any account
++ --   * "User"."email"       -- the whole user list
++ --
++ -- That is what the Supabase advisories `rls_disabled_in_public` and
++ -- `sensitive_columns_exposed` flagged. Prisma does not model RLS or grants, so
++ -- neither is expressible in schema.prisma and both have to live here.
++ --
++ -- The fix is two independent layers; either alone would close the hole.
++ --   1. Row-Level Security on every table, with NO policies -> deny-all for every
++ --      role except the table owner. The owner (the `postgres` role Prisma
++ --      migrates and connects as) bypasses RLS, so the app is unaffected. FORCE
++ --      ROW LEVEL SECURITY is deliberately NOT set: that would lock out the
++ --      application's own connection.
++ --   2. Revoking the table grants PostgREST rides on, so the tables disappear
++ --      from the API surface entirely rather than merely returning zero rows.
++ --
++ -- `service_role` is intentionally left alone: it is reachable only with the
++ -- secret service key, never ships to a browser, and carries BYPASSRLS by design.
++ --
++ -- On guards, precisely: block 2 is role-guarded and so is a true no-op on a plain
++ -- local/CI Postgres where the Supabase roles do not exist, and blocks 1b and 2
++ -- are ownership-guarded so neither can abort on a table this role does not own.
++ -- Block 1a is NOT conditional -- those six statements enable RLS on every
++ -- database the migration touches, local ones included. That is safe only because
++ -- the app connects as the table owner, who bypasses RLS. Point a local
++ -- DATABASE_URL at a non-owner role and every query returns zero rows silently,
++ -- with no error to explain it; that is the one failure mode worth knowing about.
++
++ -- 1a. RLS on each modelled table. These lines are contract-tested against
++ --     schema.prisma by security-rls.test.ts: adding a model without adding its
++ --     line here fails CI.
++
+
+ ❯ supabase-lockdown-sql.test.ts:103:79
+    101|     const sql = readFileSync(join(root, 'docs/supabase-lockdown.sql'),…
+    102|     const preflight = sql.slice(sql.indexOf('BEGIN;'), sql.indexOf('AL…
+    103|     expect(preflight, 'no precondition check before the first schema c…
+       |                                                                               ^
+    104|       `to_regclass('public."User"') IS NULL`,
+    105|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  23:32:57
+   Duration  481ms (transform 76ms, setup 0ms, import 102ms, tests 188ms, environment 0ms)
+
