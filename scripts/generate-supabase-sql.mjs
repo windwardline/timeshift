@@ -11,39 +11,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { lockdownMigrations } from './lockdown-migrations.mjs';
+import { assertRerunnable, makeRerunnable } from './rerunnable.mjs';
 
 const MIGRATIONS = lockdownMigrations();
-
-// The lockdown migration is already guarded and idempotent. The other two are
-// plain generated DDL, so they get re-run safety here rather than in the
-// migration, where `migrate deploy` guarantees once-only application anyway.
-// Each entry is (needle -> replacement). Applied strictly: a needle that no longer
-// matches throws rather than no-opping, because a silent miss costs the file its
-// safe-to-run-twice property and the failure only shows up as an aborted
-// transaction on someone's second paste.
-const IDEMPOTENT = {
-  '20260818211531_add_rate_limit': [
-    ['CREATE TABLE "RateLimit"', 'CREATE TABLE IF NOT EXISTS "RateLimit"'],
-    ['CREATE INDEX "RateLimit_expiresAt_idx"', 'CREATE INDEX IF NOT EXISTS "RateLimit_expiresAt_idx"'],
-  ],
-  '20260818212336_drop_dead_password_hash': [
-    ['DROP COLUMN "passwordHash"', 'DROP COLUMN IF EXISTS "passwordHash"'],
-  ],
-};
-
-function makeIdempotent(name, sql) {
-  let out = sql;
-  for (const [needle, replacement] of IDEMPOTENT[name] ?? []) {
-    if (!out.includes(needle)) {
-      throw new Error(
-        `${name}: expected to make ${JSON.stringify(needle)} re-runnable, but it is not in the ` +
-          'migration any more. Update IDEMPOTENT rather than shipping a file that aborts on a second run.',
-      );
-    }
-    out = out.replace(needle, replacement);
-  }
-  return out;
-}
 
 const parts = [];
 parts.push(`-- TimeShift: close the public-schema exposure on this Supabase project.
@@ -77,7 +47,12 @@ for (const name of MIGRATIONS) {
   const path = join('prisma/migrations', name, 'migration.sql');
   const raw = readFileSync(path, 'utf8');
   const checksum = createHash('sha256').update(raw).digest('hex'); // what Prisma stores
-  const body = makeIdempotent(name, raw);
+  const body = makeRerunnable(name, raw);
+  // Refuse to emit rather than emit a false promise. The rewrites above only
+  // cover migrations someone thought about; lockdownMigrations() pulls in new
+  // ones automatically, so without this a new CREATE TABLE ships verbatim under
+  // a header that says the file is safe to run twice.
+  assertRerunnable(name, body);
 
   parts.push(`
 -- ===========================================================================
@@ -100,6 +75,18 @@ parts.push(`
 -- ===========================================================================
 -- Rotate the credentials the exposure made readable
 -- ===========================================================================
+-- NOTE, and the one place this file is NOT the same as scripts/secure-database.sh:
+-- the script rotates only after verification passes and offers --skip-rotation to
+-- defer it. Here rotation is inside the transaction, so it lands with the lockdown
+-- and BEFORE you read the verdict grid below. That is the price of applying
+-- everything atomically in one paste, and it is the safe direction: if anything in
+-- this transaction fails, nothing rotates either.
+--
+-- To defer it, delete the two UPDATE statements below in the SQL Editor before
+-- clicking Run. That is the --skip-rotation equivalent and it is fine to do -- the
+-- editor is a scratch buffer, so it does not touch the committed file, and the
+-- "never edit it by hand" rule is about this repo, not about your paste.
+--
 -- Session tokens and unconsumed magic links were readable by anyone holding this
 -- project's publishable key, and both are bearer credentials with no second
 -- factor. Expiring rather than deleting keeps the history and is safe to repeat.

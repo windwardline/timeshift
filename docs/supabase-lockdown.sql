@@ -295,6 +295,18 @@ WHERE NOT EXISTS (
 -- ===========================================================================
 -- Rotate the credentials the exposure made readable
 -- ===========================================================================
+-- NOTE, and the one place this file is NOT the same as scripts/secure-database.sh:
+-- the script rotates only after verification passes and offers --skip-rotation to
+-- defer it. Here rotation is inside the transaction, so it lands with the lockdown
+-- and BEFORE you read the verdict grid below. That is the price of applying
+-- everything atomically in one paste, and it is the safe direction: if anything in
+-- this transaction fails, nothing rotates either.
+--
+-- To defer it, delete the two UPDATE statements below in the SQL Editor before
+-- clicking Run. That is the --skip-rotation equivalent and it is fine to do -- the
+-- editor is a scratch buffer, so it does not touch the committed file, and the
+-- "never edit it by hand" rule is about this repo, not about your paste.
+--
 -- Session tokens and unconsumed magic links were readable by anyone holding this
 -- project's publishable key, and both are bearer credentials with no second
 -- factor. Expiring rather than deleting keeps the history and is safe to repeat.

@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { LOCKDOWN_FLOOR } from './scripts/lockdown-migrations.mjs';
+import { assertRerunnable, makeRerunnable } from './scripts/rerunnable.mjs';
 
 // docs/supabase-lockdown.sql is generated, committed, and used to secure a live
 // database by hand. Nothing else checks it: security-rls.test.ts reads
@@ -26,6 +27,64 @@ function shippedMigrations(): string[] {
     .filter((n) => n >= LOCKDOWN_FLOOR);
 }
 
+describe('rerunnable guard', () => {
+  // The generated file promises "safe to run twice". That promise was only ever
+  // enforced for the two migrations named in the generator's rewrite map: a NEW
+  // migration is copied in verbatim, and the map's throw never fires for a needle
+  // that was never declared. So the next model someone adds ships a
+  // `CREATE TABLE "Foo"` under a header that says the file is re-runnable, and
+  // the operator's second paste aborts with `relation "Foo" already exists` on a
+  // project that is in fact already secured.
+  it('accepts DDL that is guarded', () => {
+    expect(() =>
+      assertRerunnable('m', 'CREATE TABLE IF NOT EXISTS "Foo" (id text);'),
+    ).not.toThrow();
+    expect(() =>
+      assertRerunnable('m', 'ALTER TABLE "User" DROP COLUMN IF EXISTS "x";'),
+    ).not.toThrow();
+    expect(() => assertRerunnable('m', 'CREATE INDEX IF NOT EXISTS i ON "Foo"(id);')).not.toThrow();
+  });
+
+  it('refuses DDL that collides on a second run', () => {
+    for (const ddl of [
+      'CREATE TABLE "Foo" (id text);',
+      'CREATE UNIQUE INDEX "Foo_id_key" ON "Foo"(id);',
+      'ALTER TABLE "Foo" ADD COLUMN "b" text;',
+      'ALTER TABLE "Foo" ADD CONSTRAINT "fk" FOREIGN KEY ("b") REFERENCES "Bar"("id");',
+      'CREATE TYPE "Mood" AS ENUM (\'ok\');',
+      'ALTER TABLE "Foo" DROP COLUMN "b";',
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+  });
+
+  it('does not trip on DDL that only appears in a comment', () => {
+    // The lockdown migrations are heavily commented and discuss the very
+    // statements being scanned for; a scanner that reads its own prose refuses
+    // a migration that is fine.
+    expect(() =>
+      assertRerunnable('m', `-- CREATE TABLE "Foo" (id text);\nSELECT 1;`),
+    ).not.toThrow();
+  });
+
+  it('still sees DDL inside a string literal, because EXECUTE runs it', () => {
+    // Deliberately NOT exempted. A literal is how dynamic DDL is written --
+    // EXECUTE format('CREATE TABLE ...') collides on a second run exactly like
+    // the bare statement does. Scanning it costs a false positive on a literal
+    // that is never executed, which is the cheaper mistake: a false positive
+    // makes an author think, a false negative ships the broken promise.
+    expect(() => assertRerunnable('m', `EXECUTE format('CREATE TABLE \"Foo\" (id text)');`)).toThrow();
+  });
+
+  it('passes every migration the paste file actually ships', () => {
+    for (const name of shippedMigrations()) {
+      const sql = readFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'utf8');
+      // Scanned after the generator's rewrites, which is where the guards are added.
+      expect(() => assertRerunnable(name, makeRerunnable(name, sql)), name).not.toThrow();
+    }
+  });
+});
+
 describe('docs/supabase-lockdown.sql', () => {
   it('is exactly what the generator produces from the current migrations', () => {
     // Generated to a temp path, never over the committed file. Regenerating in
@@ -43,21 +102,20 @@ describe('docs/supabase-lockdown.sql', () => {
   });
 
   it('leaves the committed file untouched when it runs', () => {
-    // The gate above must not be able to fix its own failure. Corrupt the file,
-    // run the suite's generator invocation, and the corruption must survive --
-    // if it does not, the test is self-healing again.
+    // The gate above must not be able to fix its own failure, so --out has to
+    // write somewhere else. Established by watching the file's identity rather
+    // than by corrupting it and restoring in a finally: a finally does not run
+    // on SIGINT or a killed worker, and the cost of losing that race is a
+    // committed security artifact replaced by a stub that `git commit -am`
+    // sweeps up. mtime and inode both move on a rewrite even when the bytes
+    // would have been identical, which a content comparison would miss.
     const path = join(root, 'docs/supabase-lockdown.sql');
-    const original = readFileSync(path, 'utf8');
-    try {
-      writeFileSync(path, '-- drifted\n');
-      const out = join(mkdtempSync(join(tmpdir(), 'lockdown-sql-')), 'generated.sql');
-      execFileSync('node', ['scripts/generate-supabase-sql.mjs', '--out', out], { cwd: root });
-      expect(readFileSync(path, 'utf8'), 'the generator overwrote the committed file').toBe(
-        '-- drifted\n',
-      );
-    } finally {
-      writeFileSync(path, original);
-    }
+    const before = statSync(path);
+    const out = join(mkdtempSync(join(tmpdir(), 'lockdown-sql-')), 'generated.sql');
+    execFileSync('node', ['scripts/generate-supabase-sql.mjs', '--out', out], { cwd: root });
+    const after = statSync(path);
+    expect(after.mtimeMs, 'the generator rewrote the committed file').toBe(before.mtimeMs);
+    expect(after.ino, 'the generator replaced the committed file').toBe(before.ino);
   });
 
   it('carries every migration from the lockdown onward', () => {

@@ -336,6 +336,15 @@ saying `OK` is a pass**, not a truncated result — those rows are absent when
 nothing grants at all. `supabase-lockdown-sql.test.ts` holds the single-statement
 tail so it cannot silently split again.
 
+The two paths differ in exactly one place, and the file says so where it matters:
+`secure-database.sh` rotates only after verification passes and takes
+`--skip-rotation`, while the paste file rotates inside the transaction, before the
+verdict grid is read. That is what applying everything in one atomic paste costs,
+and it fails in the safe direction — a transaction that aborts rotates nothing. To
+defer rotation in the browser, delete the two `UPDATE` statements before clicking
+Run; the SQL Editor is a scratch buffer, so that is not hand-editing the committed
+file.
+
 `pg_default_acl` holds a row per object class, so the revoke covers all of them —
 `TABLES`, `SEQUENCES`, `FUNCTIONS`, `TYPES`. Covering only tables and sequences
 left the functions row standing, which is both an exposure (default `EXECUTE` to
