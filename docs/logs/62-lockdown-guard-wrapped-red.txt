@@ -1,0 +1,258 @@
+
+> timeshift@0.1.0 test:run
+> vitest run security-rls.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ security-rls.test.ts (5 tests | 1 failed) 15ms
+     × never turns the lockdown back off in a later migration 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  security-rls.test.ts > public-schema lockdown (prisma/migrations) > never turns the lockdown back off in a later migration
+AssertionError: re-granted to a PostgREST role: expected '\nCREATE TABLE "User" (\n    "id" TEX…' not to match /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?a…/i
+
+- Expected:
+/\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC)\b/i
+
++ Received:
+"
+CREATE TABLE \"User\" (
+    \"id\" TEXT NOT NULL,
+    \"email\" TEXT NOT NULL,
+    \"passwordHash\" TEXT NOT NULL,
+    \"homeTimeZone\" TEXT NOT NULL,
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"User_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE TABLE \"Trip\" (
+    \"id\" TEXT NOT NULL,
+    \"name\" TEXT NOT NULL,
+    \"destination\" TEXT NOT NULL,
+    \"userId\" TEXT NOT NULL,
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"Trip_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE TABLE \"FlightSegment\" (
+    \"id\" TEXT NOT NULL,
+    \"tripId\" TEXT NOT NULL,
+    \"sequence\" INTEGER NOT NULL,
+    \"departureAirport\" TEXT NOT NULL,
+    \"arrivalAirport\" TEXT NOT NULL,
+    \"departureTime\" TIMESTAMP(3) NOT NULL,
+    \"arrivalTime\" TIMESTAMP(3) NOT NULL,
+    \"departureTz\" TEXT NOT NULL,
+    \"arrivalTz\" TEXT NOT NULL,
+    \"departureLat\" DOUBLE PRECISION,
+    \"departureLng\" DOUBLE PRECISION,
+    \"arrivalLat\" DOUBLE PRECISION,
+    \"arrivalLng\" DOUBLE PRECISION,
+
+    CONSTRAINT \"FlightSegment_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"User_email_key\" ON \"User\"(\"email\");
+
+
+CREATE UNIQUE INDEX \"FlightSegment_tripId_sequence_key\" ON \"FlightSegment\"(\"tripId\", \"sequence\");
+
+
+ALTER TABLE \"Trip\" ADD CONSTRAINT \"Trip_userId_fkey\" FOREIGN KEY (\"userId\") REFERENCES \"User\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+ALTER TABLE \"FlightSegment\" ADD CONSTRAINT \"FlightSegment_tripId_fkey\" FOREIGN KEY (\"tripId\") REFERENCES \"Trip\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+CREATE TABLE \"Session\" (
+    \"id\" TEXT NOT NULL,
+    \"token\" TEXT NOT NULL,
+    \"userId\" TEXT NOT NULL,
+    \"expiresAt\" TIMESTAMP(3) NOT NULL,
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"Session_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"Session_token_key\" ON \"Session\"(\"token\");
+
+
+ALTER TABLE \"Session\" ADD CONSTRAINT \"Session_userId_fkey\" FOREIGN KEY (\"userId\") REFERENCES \"User\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+ALTER TABLE \"User\" ALTER COLUMN \"passwordHash\" DROP NOT NULL;
+
+
+CREATE TABLE \"LoginToken\" (
+    \"id\" TEXT NOT NULL,
+    \"token\" TEXT NOT NULL,
+    \"email\" TEXT NOT NULL,
+    \"expiresAt\" TIMESTAMP(3) NOT NULL,
+    \"usedAt\" TIMESTAMP(3),
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"LoginToken_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"LoginToken_token_key\" ON \"LoginToken\"(\"token\");
+
+
+ALTER TABLE \"FlightSegment\" ADD COLUMN     \"flightNumber\" TEXT;
+
+
+CREATE TABLE \"FlightQueryCache\" (
+    \"id\" TEXT NOT NULL,
+    \"queryKey\" TEXT NOT NULL,
+    \"payload\" JSONB NOT NULL,
+    \"fetchedAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"FlightQueryCache_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"FlightQueryCache_queryKey_key\" ON \"FlightQueryCache\"(\"queryKey\");
+
+GRANT SELECT ON TABLE \"Session\"
+  TO anon;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ALTER TABLE \"User\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"LoginToken\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"Session\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"Trip\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"FlightSegment\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"FlightQueryCache\" ENABLE ROW LEVEL SECURITY;
+
+
+
+
+
+
+
+
+
+
+
+DO $$
+DECLARE t regclass;
+BEGIN
+  FOR t IN
+    SELECT c.oid::regclass
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity
+      AND pg_catalog.pg_has_role(current_user, c.relowner, 'USAGE')
+  LOOP
+    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END
+$$;
+
+
+
+
+DO $$
+DECLARE r text; obj record;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      
+      
+      
+      
+      
+      FOR obj IN
+        SELECT c.oid::regclass AS ident, c.relkind AS kind
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+          AND pg_catalog.pg_has_role(current_user, c.relowner, 'USAGE')
+      LOOP
+        IF obj.kind = 'S' THEN
+          EXECUTE format('REVOKE ALL ON SEQUENCE %s FROM %I', obj.ident, r);
+        ELSE
+          EXECUTE format('REVOKE ALL ON TABLE %s FROM %I', obj.ident, r);
+        END IF;
+      END LOOP;
+      
+      
+      
+      
+      
+      
+      
+      EXECUTE format('REVOKE ALL ON SCHEMA public FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', r);
+    END IF;
+  END LOOP;
+END
+$$;
+"
+
+ ❯ security-rls.test.ts:78:55
+     76|     // on the next line re-opens the door just as wide. PUBLIC counts …
+     77|     // PostgREST role here because `anon` inherits everything granted …
+     78|     expect(sql, 're-granted to a PostgREST role').not.toMatch(
+       |                                                       ^
+     79|       /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC)\b/i,
+     80|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  21:02:32
+   Duration  264ms (transform 35ms, setup 0ms, import 49ms, tests 15ms, environment 0ms)
+

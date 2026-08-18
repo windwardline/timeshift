@@ -62,6 +62,19 @@ silently.
   Windward Line org, reached only through `DATABASE_URL`. No Supabase SDK is used, so code
   search will not surface the dependency — the project holds live user data; never pause or
   delete it. Gemini calls bill to the GCP project `gen-lang-client-0577239414`.
+- Preview Postgres is a **second** Supabase project, `nmubttlwdgdhnkdhrivh`
+  (`timeshift-preview`) — same migrations, no production rows. The two migrate
+  **separately and manually**: nothing in `vercel.json` or the build scripts runs
+  `prisma migrate deploy`, so a merge applies no migration anywhere. Any schema or
+  grant change has to be deployed to **both** projects by hand, or they drift.
+- Because Supabase publishes the `public` schema through PostgREST, every table needs
+  row-level security and the `anon`/`authenticated` grants revoked. Prisma models
+  neither, so both live in a hand-written migration
+  (`20260818204500_lock_down_public_schema`). **A new model in `schema.prisma` needs an
+  `ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;` line in a migration** — without it
+  the table is readable by anyone holding the project's publishable key. Never set
+  `FORCE ROW LEVEL SECURITY`: the app connects as the table owner and relies on the
+  owner's RLS bypass.
 
 ## 6. Secrets & environment
 
@@ -86,7 +99,7 @@ Use **Conventional Commits**, tied to the TDD phase:
 
 One logical change per commit. Do not bundle unrelated changes. Do not force-push.
 
-CI gates every PR: lint → typecheck → tests (`test:run` — bare `test` is watch mode) → build, plus `security.yml` (Semgrep, secret scan, dependency scan — required checks; a Headers live job asserts the production security headers on push and a daily cron — scans stay weekly — and they are platform-applied from `vercel.json` and contract-tested by `security-headers.test.ts`). An advisory Claude review runs on every same-repo PR via `claude-review.yml`, which deliberately calls the fleet reusable at `@main` — one merge updates every repo. It activates only when the `CLAUDE_CODE_OAUTH_TOKEN` secret is present — reviews bill the owner's Claude subscription, not Console credits; fork PRs never receive secrets, so they skip it by security design.
+CI gates every PR: lint → typecheck → tests (`test:run` — bare `test` is watch mode) → build, plus `security.yml` (Semgrep, secret scan, dependency scan — required checks; a Headers live job asserts the production security headers on push and a daily cron — scans stay weekly — and they are platform-applied from `vercel.json` and contract-tested by `security-headers.test.ts`). `security-rls.test.ts` is the same shape for the database: it fails CI when a model ships without its `ENABLE ROW LEVEL SECURITY` line, or when a later migration disables RLS or re-grants to `anon`/`authenticated` (see §5). An advisory Claude review runs on every same-repo PR via `claude-review.yml`, which deliberately calls the fleet reusable at `@main` — one merge updates every repo. It activates only when the `CLAUDE_CODE_OAUTH_TOKEN` secret is present — reviews bill the owner's Claude subscription, not Console credits; fork PRs never receive secrets, so they skip it by security design.
 
 ## 8. Test evidence
 
