@@ -236,15 +236,36 @@ HTTP-only — a paid HTTPS plan is recommended for production.
 Five tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for auth) and a
 standalone `FlightQueryCache` (the flight-search TTL cache) — defined in
 [`prisma/schema.prisma`](prisma/schema.prisma) and migrated into PostgreSQL
-(`prisma/migrations/`). Accounts use bcrypt-hashed passwords and opaque
-DB-backed session tokens in an httpOnly cookie; every trip query is scoped to its owner,
-so a non-owner can't read or act on someone else's trip (US-B4). Every timestamp is stored in UTC with the original IANA timezone
+(`prisma/migrations/`). Sign-in is passwordless — a single-use magic-link token —
+and sessions are opaque DB-backed tokens in an httpOnly cookie; every trip query is
+scoped to its owner, so a non-owner can't read or act on someone else's trip (US-B4). Every timestamp is stored in UTC with the original IANA timezone
 string kept alongside it, so all offset/DST reasoning stays delegated to Luxon. Layovers
 are **derived** (gaps between consecutive segments), not stored. The query that feeds the
 whole engine pipeline is `getTripWithSegments` in [`lib/db/trips.ts`](lib/db/trips.ts): an
 ownership-scoped `findFirst` with an ordered `include` on segments. Schema, migrations, and
 the thin query layer are configuration/integration, not TDD'd — the engine remains the TDD
 showcase.
+
+### The public-schema lockdown
+
+Postgres is hosted on Supabase, and Supabase publishes every table in the `public`
+schema through PostgREST — granting the `anon` role (the role behind a project's
+publishable key) access to each new table Prisma creates. Prisma models neither
+row-level security nor grants, so nothing in `schema.prisma` closes that door.
+[`20260818204500_lock_down_public_schema`](prisma/migrations/20260818204500_lock_down_public_schema/migration.sql)
+does, in two independent layers: RLS enabled on every table with no policies
+(deny-all for every role but the owner the app connects as), and the PostgREST
+grants revoked — including via `ALTER DEFAULT PRIVILEGES`, so a table added by a
+later migration is not silently re-exposed. `FORCE ROW LEVEL SECURITY` is
+deliberately not set; it would strip the owner's bypass and 500 every route.
+
+[`security-rls.test.ts`](security-rls.test.ts) contract-tests this the way
+`security-headers.test.ts` contract-tests the headers: a model added to
+`schema.prisma` without its `ENABLE ROW LEVEL SECURITY` line fails CI.
+
+The migration only takes effect where it is applied. Production and preview
+migrate separately, so `prisma migrate deploy` must be run against **both**
+Supabase projects.
 
 ## End-to-end verification
 
