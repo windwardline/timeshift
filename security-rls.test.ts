@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 // keeps the header contract: a new model without its RLS line fails CI, not a
 // Supabase advisory email.
 //
-// Known limits, so nobody over-trusts it. Three of them, each with its own
+// Known limits, so nobody over-trusts it. Four of them, each with its own
 // mitigation or lack of one.
 //
 // 1. It matches text across the whole migration set, so a later migration that
@@ -27,6 +27,12 @@ import { describe, expect, it } from 'vitest';
 //    (concatenating the word GRANT, or naming the role through a variable rather
 //    than a `format()` placeholder) is beyond it entirely. No mitigation in this
 //    file; the grants layer of the lockdown is what would still be standing.
+//
+// 4. The stripper decides whether a dollar-quoted body is code or data from its
+//    opener (`DO`/`AS` means code, so plpgsql comments inside it are stripped;
+//    anything else is treated as a data literal and copied verbatim). A code body
+//    introduced some other way would be read as data, leaving its comments in the
+//    text the matchers see -- noisy rather than blind, so it fails toward red.
 //
 // 3. It errs the other way too: `%I` and `%s` are in the alternation, so ANY
 //    dynamic grant trips it -- including a legitimate
@@ -61,7 +67,28 @@ function tableNames(): string[] {
 // the rest of that line -- which would hide a real re-GRANT sitting after it and
 // leave the guard silently green. Tracking string literals is what makes removing
 // comments safe enough to be the single source for both directions.
-/** Remove SQL comments, leaving anything inside a string literal untouched. */
+/**
+ * Remove SQL comments, leaving anything inside a string literal untouched.
+ *
+ * Postgres has two string syntaxes and both matter here. `'…'` is the obvious
+ * one. Dollar quoting (`$$…$$`, `$tag$…$tag$`) is the other, and it is used two
+ * ways in these migrations, which the same rule cannot serve:
+ *
+ *   - as a DATA literal — `VALUES ($t$a--b$t$)` — where the `--` is content, and
+ *     treating it as a comment would blank the rest of the line and take any
+ *     statement after it out of the matchers' sight. Silently green, the exact
+ *     defect the `'…'` handling exists to prevent.
+ *   - as a CODE body — `DO $$ … $$` — where the lockdown migration explains
+ *     itself at length in plpgsql `--` comments. Those must still be stripped:
+ *     that prose discusses GRANT, anon and PUBLIC, and letting it reach the
+ *     matchers is what made the guard prose-sensitive two rounds ago.
+ *
+ * The two are indistinguishable from the delimiter alone, so the opener decides:
+ * a dollar quote introduced by `DO` or `AS` is a code body and its contents are
+ * stripped recursively; any other is data and is copied out verbatim. That covers
+ * how Postgres actually spells these — recorded as limit 4, since a code body
+ * introduced some other way would be treated as data.
+ */
 function stripSqlComments(sql: string): string {
   let out = '';
   let inString = false;
@@ -83,6 +110,14 @@ function stripSqlComments(sql: string): string {
       inString = true;
       out += c;
       i += 1;
+    } else if (c === '$' && /^\$[A-Za-z_0-9]*\$/.test(sql.slice(i))) {
+      const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))![0];
+      const close = sql.indexOf(tag, i + tag.length);
+      const bodyEnd = close === -1 ? sql.length : close;
+      const body = sql.slice(i + tag.length, bodyEnd);
+      const isCodeBody = /\b(?:DO|AS)\s*$/i.test(out);
+      out += tag + (isCodeBody ? stripSqlComments(body) : body) + (close === -1 ? '' : tag);
+      i = close === -1 ? sql.length : close + tag.length;
     } else if (c === '-' && next === '-') {
       while (i < sql.length && sql[i] !== '\n') i += 1; // to end of line
     } else if (c === '/' && next === '*') {
@@ -124,7 +159,7 @@ const DISABLES_RLS = /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i;
 // hand-written, since Prisma does not model RLS -- and hand-written is exactly
 // where casing and line wrapping vary. Postgres keywords are case-insensitive, so
 // `force row level security` is a valid statement an exact substring never sees.
-const FORCES_RLS = /FORCE\s+ROW\s+LEVEL\s+SECURITY/i;
+const FORCES_RLS = /(?<!\bNO\s{1,40})FORCE\s+ROW\s+LEVEL\s+SECURITY/i;
 const RE_GRANTS_TO_POSTGREST_ROLE =
   /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC|%I|%s)\b/i;
 
@@ -153,6 +188,29 @@ describe('stripSqlComments', () => {
   it("preserves '' escapes inside a literal rather than ending the string early", () => {
     const sql = `INSERT INTO "C" VALUES ('it''s -- fine');  GRANT ALL ON "S" TO anon;`;
     expect(stripSqlComments(sql)).toContain('GRANT ALL ON "S" TO anon');
+  });
+
+  it('keeps a real statement that follows a dollar-quoted literal containing --', () => {
+    // Postgres has two string syntaxes and this is the second one. Same defect as
+    // the `'a--b'` case above: if the body is not recognised as a literal, the
+    // `--` inside it blanks the rest of the line and takes the GRANT with it.
+    const sql = `INSERT INTO "Doc" VALUES ($t$a--b$t$);  GRANT ALL ON "User" TO anon;`;
+    expect(stripSqlComments(sql)).toContain('GRANT ALL ON "User" TO anon');
+  });
+
+  it('treats an untagged $$ data literal as a literal too', () => {
+    const sql = `INSERT INTO "Doc" VALUES ($$a--b$$);  GRANT ALL ON "User" TO anon;`;
+    expect(stripSqlComments(sql)).toContain('GRANT ALL ON "User" TO anon');
+  });
+
+  it('still strips plpgsql comments inside a DO block body', () => {
+    // The other half, and why a dollar-quoted body cannot simply be skipped: the
+    // lockdown migration explains itself at length inside `DO $$ ... $$`, and that
+    // prose must not reach the matchers -- limits 2 and 3 discuss GRANT and anon.
+    const sql = `DO $$\nBEGIN\n  -- we no longer grant SELECT on this to anon\n  PERFORM 1;\nEND\n$$;`;
+    const stripped = stripSqlComments(sql);
+    expect(stripped).not.toMatch(/grant/i);
+    expect(stripped).toContain('PERFORM 1;');
   });
 
   it('leaves ordinary SQL untouched', () => {
@@ -194,6 +252,14 @@ describe('negative matchers', () => {
 
   it('leaves the REVOKE idiom the migrations actually use alone', () => {
     expect(grants(`EXECUTE format('REVOKE ALL ON TABLE %s FROM %I', obj.ident, r);`)).toBe(false);
+  });
+
+  it('does not block the statement that undoes a FORCE', () => {
+    // `NO FORCE ROW LEVEL SECURITY` is what someone writes to repair a database
+    // where FORCE was set by hand. Blocking it would refuse the fix while quoting
+    // a message about causing the problem.
+    expect(FORCES_RLS.test('ALTER TABLE "User" NO FORCE ROW LEVEL SECURITY;')).toBe(false);
+    expect(FORCES_RLS.test('alter table "User" no force row level security;')).toBe(false);
   });
 
   it('catches RLS being forced, whatever the casing or wrapping', () => {
