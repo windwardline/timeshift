@@ -11,12 +11,27 @@ import { describe, expect, it } from 'vitest';
 // This test keeps that contract in the repo, the same way security-headers.test.ts
 // keeps the header contract: a new model without its RLS line fails CI, not a
 // Supabase advisory email.
+//
+// Known limit, so nobody over-trusts it: this matches text across the whole
+// migration set, so a later migration that DROPs and re-CREATEs a modelled table
+// still passes -- the original ENABLE line remains in the concatenation while the
+// recreated table has RLS off. The lockdown's second layer covers that case (the
+// ALTER DEFAULT PRIVILEGES revoke is persistent server state, so the recreated
+// table gets no anon grant), but the diff would be down to one layer. Only a live
+// check against the database itself could catch it here.
 
 const root = process.cwd();
 
-function modelNames(): string[] {
+// The RLS statement has to name the TABLE, which is the model name only until a
+// model carries `@@map`. Keying the guard off the model name would then demand a
+// line that does not match the table -- and the line that satisfied it,
+// `ALTER TABLE "<Model>"`, would abort `prisma migrate deploy` with
+// `relation "<Model>" does not exist` against a live database. Resolve the map.
+function tableNames(): string[] {
   const schema = readFileSync(join(root, 'prisma/schema.prisma'), 'utf8');
-  return [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]);
+  return [...schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)].map(
+    ([, name, body]) => body.match(/@@map\("([^"]+)"\)/)?.[1] ?? name,
+  );
 }
 
 // Comments are stripped before every assertion below. The lockdown migration
@@ -24,19 +39,22 @@ function modelNames(): string[] {
 // raw text would let a comment satisfy a check -- deleting the DO block entirely
 // while keeping its comments would otherwise still pass -- and would equally let
 // prose trip the negative checks. Only executable SQL should decide these.
-function migrationSql(): string {
+function rawMigrationSql(): string {
   const dir = join(root, 'prisma/migrations');
-  const raw = readdirSync(dir, { withFileTypes: true })
+  return readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => readFileSync(join(dir, e.name, 'migration.sql'), 'utf8'))
     .join('\n');
-  return raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+}
+
+function migrationSql(): string {
+  return rawMigrationSql().replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
 }
 
 describe('public-schema lockdown (prisma/migrations)', () => {
   it('enables row-level security on every modelled table', () => {
     const sql = migrationSql();
-    const models = modelNames();
+    const models = tableNames();
     expect(models.length).toBeGreaterThan(0);
     for (const model of models) {
       expect(
@@ -64,6 +82,19 @@ describe('public-schema lockdown (prisma/migrations)', () => {
   });
 
   it('never turns the lockdown back off in a later migration', () => {
+    // Checked against the RAW text as well as the stripped text below. The
+    // stripper is regex-naive: a `--` inside a string literal blanks the rest of
+    // its line, which would hide a trailing re-GRANT and leave this guard
+    // silently green. Raw text cannot be blinded that way, and the migration's
+    // own prose does not trip either pattern.
+    const rawSql = rawMigrationSql();
+    expect(rawSql, 'a later migration disables RLS').not.toMatch(
+      /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i,
+    );
+    expect(rawSql, 're-granted to a PostgREST role').not.toMatch(
+      /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC)\b/i,
+    );
+
     // The checks above concatenate every migration and match on presence, so on
     // their own they are append-only: a later migration that DISABLEs RLS or
     // re-GRANTs to anon leaves the original ENABLE text in place and stays green.
