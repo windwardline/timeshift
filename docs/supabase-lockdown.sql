@@ -225,48 +225,58 @@ UPDATE "LoginToken" SET "usedAt"    = now() WHERE "usedAt" IS NULL;
 COMMIT;
 
 -- ===========================================================================
--- Verification
+-- Verification -- one query, one result grid, every row must say OK
 -- ===========================================================================
--- Every row must read: anon_can_use = false, authenticated_can_use = false, and
--- rls = true wherever it applies (it is meaningless on views and sequences).
+-- The SQL Editor only renders the LAST statement's results, so the whole verdict
+-- is folded into a single query rather than split across two.
 --
--- Checked across the same surface the migration revokes -- all four write/read
--- privileges, and views and sequences as well as tables -- because a role holding
--- only INSERT, or a view over "User", is exposure that a SELECT-on-tables check
--- reports as clean.
-SELECT c.relname                                             AS "object",
-       CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned table'
-                      WHEN 'v' THEN 'view'  WHEN 'm' THEN 'materialized view'
-                      WHEN 'f' THEN 'foreign table' ELSE 'sequence' END AS "kind",
-       CASE WHEN c.relkind IN ('r','p') THEN c.relrowsecurity::text ELSE 'n/a' END AS "rls",
-       COALESCE(has_table_privilege('anon', c.oid, 'SELECT'), false)
-         OR COALESCE(has_table_privilege('anon', c.oid, 'INSERT'), false)
-         OR COALESCE(has_table_privilege('anon', c.oid, 'UPDATE'), false)
-         OR COALESCE(has_table_privilege('anon', c.oid, 'DELETE'), false) AS "anon_can_use",
-       COALESCE(has_table_privilege('authenticated', c.oid, 'SELECT'), false)
-         OR COALESCE(has_table_privilege('authenticated', c.oid, 'INSERT'), false)
-         OR COALESCE(has_table_privilege('authenticated', c.oid, 'UPDATE'), false)
-         OR COALESCE(has_table_privilege('authenticated', c.oid, 'DELETE'), false) AS "authenticated_can_use"
-FROM pg_class c
-JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m','f','S')
-ORDER BY 1;
-
--- And the half that regresses silently: default privileges decide what the NEXT
--- table created gets, whatever today's tables say.
+-- Row 1 covers what exists today, checked across the same surface the migration
+-- revokes -- all four read/write privileges, and views, materialized views and
+-- sequences as well as tables -- because a role holding only INSERT, or a view
+-- over "User", is exposure a SELECT-on-tables check reports as clean.
 --
--- "applies to YOUR tables" is the column that matters. A default-ACL entry only
--- governs tables created by its owner, and your migrations run as the role shown
--- in "created by". Supabase also sets these under its own internal role; that row
--- is expected and harmless, because it never governs a table your migrations make.
-SELECT pg_get_userbyid(d.defaclrole)                       AS "created by",
-       string_agg(DISTINCT r.rolname, ' + ')               AS "still granted to",
+-- Row 2 covers the half that regresses silently: default privileges decide what
+-- the NEXT table created gets, whatever today's tables say. A default-ACL entry
+-- only governs tables created by its owner, so Supabase's own internal entry is
+-- expected and harmless -- it never governs a table your migrations make. That
+-- row may be absent entirely, which is also fine.
+WITH obj AS (
+  SELECT CASE WHEN c.relkind IN ('r','p') AND NOT c.relrowsecurity THEN false ELSE true END AS rls_ok,
+         NOT (COALESCE(has_table_privilege('anon', c.oid, 'SELECT'), false)
+           OR COALESCE(has_table_privilege('anon', c.oid, 'INSERT'), false)
+           OR COALESCE(has_table_privilege('anon', c.oid, 'UPDATE'), false)
+           OR COALESCE(has_table_privilege('anon', c.oid, 'DELETE'), false)
+           OR COALESCE(has_table_privilege('authenticated', c.oid, 'SELECT'), false)
+           OR COALESCE(has_table_privilege('authenticated', c.oid, 'INSERT'), false)
+           OR COALESCE(has_table_privilege('authenticated', c.oid, 'UPDATE'), false)
+           OR COALESCE(has_table_privilege('authenticated', c.oid, 'DELETE'), false)) AS no_api_access
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m','f','S')
+)
+SELECT 1                                                       AS ord,
+       'existing objects'                                      AS "check",
+       count(*)::text || ' object(s) in public'                AS detail,
+       CASE WHEN count(*) FILTER (WHERE NOT no_api_access) > 0
+              THEN 'PROBLEM - ' || count(*) FILTER (WHERE NOT no_api_access)::text
+                   || ' reachable with the publishable key'
+            WHEN count(*) FILTER (WHERE NOT rls_ok) > 0
+              THEN 'PROBLEM - ' || count(*) FILTER (WHERE NOT rls_ok)::text
+                   || ' table(s) without RLS'
+            ELSE 'OK' END                                      AS verdict
+FROM obj
+UNION ALL
+SELECT 2,
+       'future objects',
+       'default privileges owned by ' || pg_get_userbyid(d.defaclrole)
+         || ' grant ' || string_agg(DISTINCT r.rolname, ' + '),
        CASE WHEN pg_get_userbyid(d.defaclrole) = current_user
-            THEN 'YES — needs attention'
-            ELSE 'no — Supabase internal, harmless' END    AS "applies to YOUR tables"
+            THEN 'PROBLEM - governs the tables your migrations create'
+            ELSE 'OK - Supabase internal role, never governs your tables' END
 FROM pg_default_acl d
 JOIN pg_namespace n ON n.oid = d.defaclnamespace
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
 JOIN pg_roles r ON r.oid = a.grantee
 WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
-GROUP BY d.defaclrole;
+GROUP BY d.defaclrole
+ORDER BY 1;

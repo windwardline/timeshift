@@ -68,4 +68,21 @@ describe('docs/supabase-lockdown.sql', () => {
     expect(sql).toMatch(/^BEGIN;/m);
     expect(sql).toMatch(/^COMMIT;/m);
   });
+
+  it('ends with a single verification statement', () => {
+    // Supabase's SQL Editor renders only the LAST statement's result grid. Split
+    // the verification across two queries and the operator sees the second one
+    // alone -- which is how a green lockdown got read as a live exposure. One
+    // statement after COMMIT means the grid on screen is the whole verdict.
+    const sql = readFileSync(join(root, 'docs/supabase-lockdown.sql'), 'utf8');
+    const after = sql.slice(sql.lastIndexOf('COMMIT;') + 'COMMIT;'.length);
+    const statements = after
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('--'))
+      .join('\n')
+      .split(';')
+      .filter((s) => s.trim().length > 0);
+    expect(statements, 'the editor would show only the last of these').toHaveLength(1);
+    expect(after, 'the verdict column is what the operator reads').toContain('AS verdict');
+  });
 });

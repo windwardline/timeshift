@@ -322,12 +322,15 @@ is the same work as one script to paste into each project's Supabase SQL Editor 
 no clone, no Node, no connection string. It applies the three migrations, records
 them in `_prisma_migrations` with the checksums `prisma migrate deploy` expects
 (so the CLI stays consistent afterwards), rotates the exposed credentials, and
-prints two tables. In the first, every row must read `locked`-equivalent: no
-`anon_can_use` or `authenticated_can_use`, and `rls = true` wherever it applies
-(`n/a` on views and sequences is expected). In the second, only rows whose
-"applies to YOUR tables" column says `no` are acceptable — Supabase sets default
-privileges under its own internal role, and those never govern a table your
-migrations create.
+ends in **one** verification query whose every row must say `OK`. One query is
+deliberate: the SQL Editor renders only the last statement's grid, so splitting
+the verdict in two showed the operator half of it — a green lockdown once read as
+a live exposure that way. The `existing objects` row covers what is there now;
+the `future objects` row covers default privileges, and reads `OK` for Supabase's
+own internal role because a default-ACL entry only governs tables created by its
+owner, never one your migrations make. That second row may be absent entirely,
+which is also fine. `supabase-lockdown-sql.test.ts` holds the single-statement
+tail so it cannot silently split again.
 
 One transaction, and safe to run twice. It is generated from the migrations by
 `node scripts/generate-supabase-sql.mjs`; `supabase-lockdown-sql.test.ts` fails CI
