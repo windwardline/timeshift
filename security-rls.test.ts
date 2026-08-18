@@ -12,21 +12,28 @@ import { describe, expect, it } from 'vitest';
 // keeps the header contract: a new model without its RLS line fails CI, not a
 // Supabase advisory email.
 //
-// Known limits, so nobody over-trusts it. It matches text across the whole
-// migration set, so a later migration that DROPs and re-CREATEs a modelled table
-// still passes -- the original ENABLE line remains in the concatenation while the
-// recreated table has RLS off. It also reads SQL as text, so a grant assembled
-// from pieces at runtime (concatenating the word GRANT, or naming the role
-// through a variable rather than a `format()` placeholder) is beyond it.
+// Known limits, so nobody over-trusts it. Three of them, each with its own
+// mitigation or lack of one.
 //
-// It errs the other way too: because `%s` is in the alternation, ANY dynamic
-// grant trips it -- including a legitimate `format('GRANT USAGE ON SCHEMA public
-// TO %I', 'postgres')`, which would fail as "re-granted to a PostgREST role" and
-// so misdescribe itself. Safe direction to be wrong in, but read the message with
-// that in mind. The lockdown's second layer covers that case (the
-// ALTER DEFAULT PRIVILEGES revoke is persistent server state, so the recreated
-// table gets no anon grant), but the diff would be down to one layer. Only a live
-// check against the database itself could catch it here.
+// 1. It matches text across the whole migration set, so a later migration that
+//    DROPs and re-CREATEs a modelled table still passes: the original ENABLE line
+//    remains in the concatenation while the recreated table has RLS off. The
+//    lockdown's second layer still covers that case -- the ALTER DEFAULT
+//    PRIVILEGES revoke is persistent server state, so the recreated table gets no
+//    anon grant -- but the diff would be down to one layer, and only a live check
+//    against the database itself would catch it here.
+//
+// 2. It reads SQL as text, so a grant assembled from pieces at runtime
+//    (concatenating the word GRANT, or naming the role through a variable rather
+//    than a `format()` placeholder) is beyond it entirely. No mitigation in this
+//    file; the grants layer of the lockdown is what would still be standing.
+//
+// 3. It errs the other way too: `%I` and `%s` are in the alternation, so ANY
+//    dynamic grant trips it -- including a legitimate
+//    `format('GRANT USAGE ON SCHEMA public TO %I', 'postgres')`, which matches on
+//    the `%I` and would fail as "re-granted to a PostgREST role", misdescribing
+//    itself. That is the safe direction to be wrong in, but read the message with
+//    this in mind before assuming a re-grant to anon.
 
 const root = process.cwd();
 
@@ -113,6 +120,11 @@ function migrationSql(): string {
 // so the likeliest re-grant is that block copied with REVOKE swapped for GRANT,
 // where no role name appears literally at all.
 const DISABLES_RLS = /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i;
+// Same shape as DISABLES_RLS, and for the same reason: this line can only ever be
+// hand-written, since Prisma does not model RLS -- and hand-written is exactly
+// where casing and line wrapping vary. Postgres keywords are case-insensitive, so
+// `force row level security` is a valid statement an exact substring never sees.
+const FORCES_RLS = /FORCE\s+ROW\s+LEVEL\s+SECURITY/i;
 const RE_GRANTS_TO_POSTGREST_ROLE =
   /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC|%I|%s)\b/i;
 
@@ -184,6 +196,15 @@ describe('negative matchers', () => {
     expect(grants(`EXECUTE format('REVOKE ALL ON TABLE %s FROM %I', obj.ident, r);`)).toBe(false);
   });
 
+  it('catches RLS being forced, whatever the casing or wrapping', () => {
+    // Forcing RLS strips the owner's bypass, which the app depends on: every route
+    // would 500. Availability rather than exposure, but it is what this catches.
+    expect(FORCES_RLS.test('ALTER TABLE "User" FORCE ROW LEVEL SECURITY;')).toBe(true);
+    expect(FORCES_RLS.test('alter table "User" force row level security;')).toBe(true);
+    expect(FORCES_RLS.test('ALTER TABLE "User"\n  FORCE ROW\n  LEVEL SECURITY;')).toBe(true);
+    expect(FORCES_RLS.test('ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;')).toBe(false);
+  });
+
   it('catches RLS being disabled, and does not confuse it with enabling', () => {
     expect(DISABLES_RLS.test('ALTER TABLE "S" DISABLE ROW LEVEL SECURITY;')).toBe(true);
     expect(DISABLES_RLS.test('ALTER TABLE "S"\n  DISABLE ROW\n  LEVEL SECURITY;')).toBe(true);
@@ -235,6 +256,6 @@ describe('public-schema lockdown (prisma/migrations)', () => {
   it('never forces RLS on the owner, which would lock the app out', () => {
     // The app connects as the table owner, who bypasses RLS. FORCE ROW LEVEL
     // SECURITY removes that bypass and would 500 every route.
-    expect(migrationSql()).not.toContain('FORCE ROW LEVEL SECURITY');
+    expect(migrationSql()).not.toMatch(FORCES_RLS);
   });
 });
