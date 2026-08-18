@@ -86,7 +86,7 @@ describe('consume', () => {
   it('falls back to the current time when no clock is injected', async () => {
     // Production calls omit `now`; only the tests inject one.
     mocks.queryRaw.mockResolvedValue([{ count: 1 }]);
-    const { now: _omitted, ...noClock } = opts;
+    const noClock = { bucket: 'coach', subject: '1.2.3.4', limit: 3, windowMs: 600_000 };
     expect((await consume(noClock)).allowed).toBe(true);
   });
 });
