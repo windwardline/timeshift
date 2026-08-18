@@ -25,8 +25,21 @@ for arg in "$@"; do
   esac
 done
 [ -n "$URL" ] || URL="${DATABASE_URL:-}"
+if [ -z "$URL" ] && [ -t 0 ]; then
+  # Ask rather than fail. Nothing in this script should need editing before it is
+  # run -- a command with a placeholder in it is a command that gets pasted with
+  # the placeholder still in it.
+  printf '\n'
+  printf 'Paste the Supabase connection string for the project you want to secure.\n'
+  printf '  Supabase -> Project Settings -> Database -> Connection string -> URI\n'
+  printf '  Use port 5432 (direct or session), NOT 6543.\n'
+  printf '  Input is hidden; the project it points at is echoed back for you to check.\n\n'
+  printf 'connection string: '
+  read -r -s URL </dev/tty || true
+  printf '\n'
+fi
 if [ -z "$URL" ]; then
-  echo "error: pass the connection string as an argument, or set DATABASE_URL." >&2
+  echo "error: no connection string given." >&2
   echo "  Supabase → Project Settings → Database → Connection string → URI" >&2
   exit 2
 fi
@@ -117,5 +130,23 @@ fi
 
 say ""
 say "done for ${REF:-this project}."
-[ "$REF" = "fjmueibdhwbsmjvzxeru" ] && say "next: run this again with the timeshift-preview connection string."
+
+# Both Supabase projects need this, and doing one and forgetting the other is the
+# failure mode with no symptom. Offer the second rather than describing it.
+if [ "$ASSUME_YES" != 1 ] && [ -t 0 ]; then
+  case "$REF" in
+    fjmueibdhwbsmjvzxeru) OTHER="timeshift-preview (nmubttlwdgdhnkdhrivh)" ;;
+    nmubttlwdgdhnkdhrivh) OTHER="production (fjmueibdhwbsmjvzxeru)" ;;
+    *)                    OTHER="the other project" ;;
+  esac
+  say ""
+  printf 'secure %s now as well? [Y/n] ' "$OTHER"
+  read -r again </dev/tty || again=""
+  case "$again" in
+    [nN]*) say "stopping. Re-run this script for $OTHER when ready." ;;
+    *)     say ""; exec "$0" ;;
+  esac
+else
+  [ "$REF" = "fjmueibdhwbsmjvzxeru" ] && say "next: run this again for timeshift-preview."
+fi
 exit 0

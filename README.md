@@ -309,9 +309,13 @@ one project — preflight checks, `migrate deploy`, verification, and rotating t
 credentials the exposure made readable:
 
 ```bash
-./scripts/secure-database.sh "<connection string>"   # once per project
-./scripts/secure-database.sh "<connection string>" --verify-only   # read-only check
+./scripts/secure-database.sh                 # prompts for the connection string
+./scripts/secure-database.sh --verify-only   # read-only: report state, change nothing
 ```
+
+Run with no arguments and it asks for the connection string (input hidden), echoes
+back which project that string points at, and offers the second project when the
+first finishes — so securing both is one invocation with nothing to fill in.
 
 It refuses the transaction pooler (port 6543, which cannot run migrations), names
 which project the URL points at before touching it, and stops if the local Prisma
