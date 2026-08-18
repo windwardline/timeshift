@@ -28,18 +28,18 @@ import { describe, expect, it } from 'vitest';
 //    than a `format()` placeholder) is beyond it entirely. No mitigation in this
 //    file; the grants layer of the lockdown is what would still be standing.
 //
-// 4. The stripper decides whether a dollar-quoted body is code or data from its
-//    opener (`DO`/`AS` means code, so plpgsql comments inside it are stripped;
-//    anything else is treated as a data literal and copied verbatim). A code body
-//    introduced some other way would be read as data, leaving its comments in the
-//    text the matchers see -- noisy rather than blind, so it fails toward red.
-//
 // 3. It errs the other way too: `%I` and `%s` are in the alternation, so ANY
 //    dynamic grant trips it -- including a legitimate
 //    `format('GRANT USAGE ON SCHEMA public TO %I', 'postgres')`, which matches on
 //    the `%I` and would fail as "re-granted to a PostgREST role", misdescribing
 //    itself. That is the safe direction to be wrong in, but read the message with
 //    this in mind before assuming a re-grant to anon.
+//
+// 4. The stripper decides whether a dollar-quoted body is code or data from its
+//    opener (`DO`/`AS` means code, so plpgsql comments inside it are stripped;
+//    anything else is treated as a data literal and copied verbatim). A code body
+//    introduced some other way would be read as data, leaving its comments in the
+//    text the matchers see -- noisy rather than blind, so it fails toward red.
 
 const root = process.cwd();
 
