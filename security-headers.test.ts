@@ -55,4 +55,27 @@ describe('security headers (vercel.json)', () => {
     // preventDefault — nothing performs a native form navigation.
     expect(csp).not.toContain('unsafe-eval');
   });
+
+  it("keeps script-src 'unsafe-inline', deliberately (#73)", () => {
+    // Recorded decision, not an oversight. Removing it from an App Router app
+    // means admitting scripts by per-request nonce, which requires the CSP to be
+    // built in middleware — and a nonce only reaches the markup on a page that is
+    // rendered per request.
+    //
+    // Measured on this app: `/coach` and `/privacy` are statically prerendered,
+    // so their HTML is built once with no nonce while every response carries a
+    // fresh one. Chromium then refused all ten of their script chunks; the pages
+    // still rendered their server HTML, so they looked fine, but the Jetlag Coach
+    // fired no request when its form was submitted. A headline feature silently
+    // inert is a worse outcome than the directive this would remove.
+    //
+    // Closing it properly means forcing every route dynamic and adding a build
+    // check so no future page can regress to static — real cost for a hardening
+    // measure with no reachable sink today: the app renders no user-supplied
+    // HTML, uses no dangerouslySetInnerHTML, and shows model output as text.
+    // Revisit if a page ever renders untrusted markup.
+    const csp =
+      loadRule()?.headers.find((h) => h.key === 'Content-Security-Policy')?.value ?? '';
+    expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+  });
 });
