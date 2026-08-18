@@ -73,12 +73,29 @@ $$;
 --    later. Without the ALTER DEFAULT PRIVILEGES half, the next `prisma migrate`
 --    would silently hand `anon` a fresh publicly-readable table.
 DO $$
-DECLARE r text;
+DECLARE r text; obj record;
 BEGIN
   FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
-      EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r);
-      EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r);
+      -- Per-object and ownership-guarded, for the same reason block 1b is: the
+      -- blanket `REVOKE ALL ON ALL TABLES IN SCHEMA public` aborts with
+      -- `permission denied for table ...` on the first object the migrating role
+      -- does not own, which would fail the migration on a live database. Objects
+      -- that fail the guard are not ours and were never granted by us.
+      FOR obj IN
+        SELECT c.oid::regclass AS ident, c.relkind AS kind
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+          AND pg_catalog.pg_has_role(current_user, c.relowner, 'USAGE')
+      LOOP
+        IF obj.kind = 'S' THEN
+          EXECUTE format('REVOKE ALL ON SEQUENCE %s FROM %I', obj.ident, r);
+        ELSE
+          EXECUTE format('REVOKE ALL ON TABLE %s FROM %I', obj.ident, r);
+        END IF;
+      END LOOP;
       -- Removes the role's DIRECT schema grant only. `anon` still holds USAGE
       -- on `public` through the PUBLIC pseudo-role, which Postgres grants by
       -- default (PG15 revoked CREATE from PUBLIC; USAGE stayed). So this line is

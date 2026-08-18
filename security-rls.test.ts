@@ -46,7 +46,7 @@ describe('public-schema lockdown (prisma/migrations)', () => {
     // Matched on the contract -- both roles named, table grants revoked -- not on
     // the DO block's formatting, so a whitespace rewrite does not go red.
     for (const role of ['anon', 'authenticated']) expect(sql).toContain(role);
-    expect(sql).toMatch(/REVOKE\s+ALL\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public/i);
+    expect(sql).toMatch(/REVOKE\s+ALL\s+ON\s+(?:ALL\s+TABLES\s+IN\s+SCHEMA\s+public|TABLE)/i);
   });
 
   it('revokes default privileges so a future table is not auto-granted', () => {
