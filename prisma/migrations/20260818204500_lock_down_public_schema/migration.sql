@@ -29,10 +29,14 @@
 -- `service_role` is intentionally left alone: it is reachable only with the
 -- secret service key, never ships to a browser, and carries BYPASSRLS by design.
 --
--- Every statement below is idempotent and guarded -- by role existence, and in
--- block 1b by table ownership -- so this migration is a no-op on a plain local/CI
--- Postgres where the Supabase roles do not exist, and cannot abort on a table it
--- does not own.
+-- On guards, precisely: block 2 is role-guarded and so is a true no-op on a plain
+-- local/CI Postgres where the Supabase roles do not exist, and blocks 1b and 2
+-- are ownership-guarded so neither can abort on a table this role does not own.
+-- Block 1a is NOT conditional -- those six statements enable RLS on every
+-- database the migration touches, local ones included. That is safe only because
+-- the app connects as the table owner, who bypasses RLS. Point a local
+-- DATABASE_URL at a non-owner role and every query returns zero rows silently,
+-- with no error to explain it; that is the one failure mode worth knowing about.
 
 -- 1a. RLS on each modelled table. These lines are contract-tested against
 --     schema.prisma by security-rls.test.ts: adding a model without adding its

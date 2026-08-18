@@ -19,12 +19,18 @@ function modelNames(): string[] {
   return [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]);
 }
 
+// Comments are stripped before every assertion below. The lockdown migration
+// discusses `anon`, `GRANT` and `PUBLIC` at length in its own prose, so matching
+// raw text would let a comment satisfy a check -- deleting the DO block entirely
+// while keeping its comments would otherwise still pass -- and would equally let
+// prose trip the negative checks. Only executable SQL should decide these.
 function migrationSql(): string {
   const dir = join(root, 'prisma/migrations');
-  return readdirSync(dir, { withFileTypes: true })
+  const raw = readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => readFileSync(join(dir, e.name, 'migration.sql'), 'utf8'))
     .join('\n');
+  return raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
 }
 
 describe('public-schema lockdown (prisma/migrations)', () => {
@@ -66,8 +72,11 @@ describe('public-schema lockdown (prisma/migrations)', () => {
     expect(sql, 'a later migration disables RLS').not.toMatch(
       /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i,
     );
+    // `[^;]*` rather than `[^;\n]*`: SQL wraps, and a GRANT whose TO clause sits
+    // on the next line re-opens the door just as wide. PUBLIC counts as a
+    // PostgREST role here because `anon` inherits everything granted to it.
     expect(sql, 're-granted to a PostgREST role').not.toMatch(
-      /\bGRANT\b[^;\n]*\bTO\s+(?:"?anon"?|"?authenticated"?)\b/i,
+      /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC)\b/i,
     );
   });
 
