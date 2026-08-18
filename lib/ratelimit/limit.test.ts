@@ -80,7 +80,11 @@ describe('consume', () => {
     // degrade to "[object Object]" when diagnosing a refusal.
     mocks.queryRaw.mockRejectedValue('connection terminated');
     expect((await consume(opts)).allowed).toBe(false);
-    expect(console.error).toHaveBeenCalledWith(expect.any(String), 'connection terminated');
+    expect(console.error).toHaveBeenCalledWith(
+      expect.any(String),
+      'coach',
+      'connection terminated',
+    );
   });
 
   it('falls back to the current time when no clock is injected', async () => {

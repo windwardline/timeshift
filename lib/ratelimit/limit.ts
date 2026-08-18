@@ -47,7 +47,7 @@ export async function consume(options: ConsumeOptions): Promise<ConsumeResult> {
     if (!rows.length || typeof rows[0]?.count !== 'number') {
       // Should be unreachable: the statement always RETURNINGs a row. Treated as
       // a failure rather than assumed-fine, so a silent bypass cannot open here.
-      console.error(`[ratelimit] no count returned for ${bucket}; refusing the request.`);
+      console.error('[ratelimit] no count returned; refusing the request. Bucket:', bucket);
       return { allowed: false, retryAfter: retryAfterSeconds(now, windowMs) };
     }
     count = Number(rows[0].count);
@@ -57,10 +57,15 @@ export async function consume(options: ConsumeOptions): Promise<ConsumeResult> {
     // attacker the bypass: knock the database over, then spend freely. A missing
     // "RateLimit" relation means the migration has not been applied to this
     // environment yet — named here because a bare 503 is undiagnosable.
+    // The message is a constant and the variables are separate arguments: a value
+    // interpolated into a log format string can carry format specifiers and forge
+    // the line around it. `bucket` is one of our own literals today, but a logger
+    // that is only safe while its inputs stay trusted is a trap for the next edit.
     console.error(
-      `[ratelimit] counter unavailable for ${bucket} — refusing the request. ` +
-        'If this says the "RateLimit" relation does not exist, run `prisma migrate deploy` ' +
-        'against this environment. Cause:',
+      '[ratelimit] counter unavailable — refusing the request. If this says the' +
+        ' "RateLimit" relation does not exist, run `prisma migrate deploy` against' +
+        ' this environment. Bucket / cause:',
+      bucket,
       error instanceof Error ? error.message : error,
     );
     return { allowed: false, retryAfter: retryAfterSeconds(now, windowMs) };
