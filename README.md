@@ -321,7 +321,10 @@ first finishes — so securing both is one invocation with nothing to fill in.
 is the same work as one script to paste into each project's Supabase SQL Editor —
 no clone, no Node, no connection string. It applies the lockdown migrations, records
 them in `_prisma_migrations` with the checksums `prisma migrate deploy` expects
-(so the CLI stays consistent afterwards), rotates the exposed credentials, and
+(so the CLI stays consistent afterwards — checked end to end in
+`docs/logs/99-paste-path-cli-consistency.txt`: a project fixed through the browser
+alone leaves `prisma migrate status` reporting up to date and `deploy` a no-op),
+rotates the exposed credentials, and
 ends in **one** verification query whose every row must say `OK`. One query is
 deliberate: the SQL Editor renders only the last statement's grid, so splitting
 the verdict in two showed the operator half of it — a green lockdown once read as

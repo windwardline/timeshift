@@ -1,0 +1,22 @@
+=== Claim under test (README): after fixing a project through the browser only,
+=== 'the CLI stays consistent afterwards'. If the recorded checksums were wrong,
+=== the next 'prisma migrate deploy' -- a Vercel build, or the owner's laptop --
+=== would fail on mismatch against a database that is actually correct.
+
+--- a project migrated only up to the point BEFORE the lockdown ---
+      
+All migrations have been successfully applied.
+
+--- fixed through the BROWSER path alone (docs/supabase-lockdown.sql, no CLI) ---
+-----+------------------+---------------------------------------------------------------------------------+---------------------------------------------------------
+   1 | existing objects | 8 object(s) in public                                                           | OK
+   2 | future objects   | default privileges on tables owned by supabase_admin grant anon + authenticated | OK - Supabase internal role, never governs your objects
+(2 rows)
+
+
+--- and now the CLI, with the full migration set: ---
+9 migrations found in prisma/migrations
+
+Database schema is up to date!
+
+No pending migrations to apply.
