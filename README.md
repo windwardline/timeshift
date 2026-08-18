@@ -317,6 +317,15 @@ Run with no arguments and it asks for the connection string (input hidden), echo
 back which project that string points at, and offers the second project when the
 first finishes — so securing both is one invocation with nothing to fill in.
 
+**Without a terminal:** [`docs/supabase-lockdown.sql`](docs/supabase-lockdown.sql)
+is the same work as one script to paste into each project's Supabase SQL Editor —
+no clone, no Node, no connection string. It applies the three migrations, records
+them in `_prisma_migrations` with the checksums `prisma migrate deploy` expects
+(so the CLI stays consistent afterwards), rotates the exposed credentials, and
+prints a table that must read `rls = true, anon = false` for every row. One
+transaction, and safe to run twice. Regenerate it from the migrations with
+`node scripts/generate-supabase-sql.mjs` — never edit it by hand.
+
 It refuses the transaction pooler (port 6543, which cannot run migrations), names
 which project the URL points at before touching it, and stops if the local Prisma
 is not the pinned major. Re-running is safe.
