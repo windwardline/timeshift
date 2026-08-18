@@ -79,16 +79,42 @@ UPDATE "LoginToken" SET "usedAt"    = now() WHERE "usedAt" IS NULL;
 COMMIT;
 
 -- ===========================================================================
--- Verification — every row must read: rls = true, anon = false, authenticated = false
+-- Verification
 -- ===========================================================================
-SELECT c.relname                                                     AS "table",
-       c.relrowsecurity                                              AS "rls",
-       COALESCE(has_table_privilege('anon',          c.oid, 'SELECT'), false) AS "anon_can_read",
-       COALESCE(has_table_privilege('authenticated', c.oid, 'SELECT'), false) AS "authenticated_can_read"
+-- Every row must read: anon_can_use = false, authenticated_can_use = false, and
+-- rls = true wherever it applies (it is meaningless on views and sequences).
+--
+-- Checked across the same surface the migration revokes -- all four write/read
+-- privileges, and views and sequences as well as tables -- because a role holding
+-- only INSERT, or a view over "User", is exposure that a SELECT-on-tables check
+-- reports as clean.
+SELECT c.relname                                             AS "object",
+       CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned table'
+                      WHEN 'v' THEN 'view'  WHEN 'm' THEN 'materialized view'
+                      WHEN 'f' THEN 'foreign table' ELSE 'sequence' END AS "kind",
+       CASE WHEN c.relkind IN ('r','p') THEN c.relrowsecurity::text ELSE 'n/a' END AS "rls",
+       COALESCE(has_table_privilege('anon', c.oid, 'SELECT'), false)
+         OR COALESCE(has_table_privilege('anon', c.oid, 'INSERT'), false)
+         OR COALESCE(has_table_privilege('anon', c.oid, 'UPDATE'), false)
+         OR COALESCE(has_table_privilege('anon', c.oid, 'DELETE'), false) AS "anon_can_use",
+       COALESCE(has_table_privilege('authenticated', c.oid, 'SELECT'), false)
+         OR COALESCE(has_table_privilege('authenticated', c.oid, 'INSERT'), false)
+         OR COALESCE(has_table_privilege('authenticated', c.oid, 'UPDATE'), false)
+         OR COALESCE(has_table_privilege('authenticated', c.oid, 'DELETE'), false) AS "authenticated_can_use"
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public' AND c.relkind = 'r'
+WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m','f','S')
 ORDER BY 1;
+
+-- And the half that regresses silently: if this returns any row, the NEXT table
+-- a migration creates will be exposed again, whatever today's tables say.
+SELECT r.rolname AS "future tables still granted to"
+FROM pg_default_acl d
+JOIN pg_namespace n ON n.oid = d.defaclnamespace
+CROSS JOIN LATERAL aclexplode(d.defaclacl) a
+JOIN pg_roles r ON r.oid = a.grantee
+WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
+GROUP BY r.rolname;
 `);
 
 writeFileSync('docs/supabase-lockdown.sql', parts.join('\n'));

@@ -67,6 +67,11 @@ silently.
   **separately and manually**: nothing in `vercel.json` or the build scripts runs
   `prisma migrate deploy`, so a merge applies no migration anywhere. Any schema or
   grant change has to be deployed to **both** projects by hand, or they drift.
+  `scripts/secure-database.sh` is that procedure with the footguns removed — it
+  prompts for the connection string, names which project it points at before
+  acting, refuses the transaction pooler, verifies afterwards, and offers the
+  second project. `docs/supabase-lockdown.sql` is the same work for a browser and
+  the Supabase SQL Editor, with no clone or toolchain.
 - Endpoints that are open by design **and** spend on a third party (Gemini, Resend) are
   rate-limited through `lib/ratelimit/` — currently `/api/coach`, the showcase branch of
   `/api/trips/[id]/advice`, and `/api/auth/request-link`. The limiter **fails closed**: if

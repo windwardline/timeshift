@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Apply the security migrations to one Supabase project, verify the result, and
-# rotate the credentials that were exposed. Everything the lockdown needs, in one
-# command, run once per project:
+# rotate the credentials that were exposed. Run it with no arguments:
 #
-#   ./scripts/secure-database.sh "postgresql://postgres:PASSWORD@db.REF.supabase.co:5432/postgres"
+#   ./scripts/secure-database.sh
+#
+# It asks for the connection string (input hidden, so it stays out of shell
+# history), echoes back which project that string points at, and offers the second
+# project once the first finishes — so securing both is one invocation.
+#
+# Passing the string as an argument still works, but puts it in shell history.
 #
 # Flags:
 #   --skip-rotation   apply and verify, but do not sign existing users out
@@ -44,6 +49,9 @@ if [ -z "$URL" ]; then
   exit 2
 fi
 
+# Resolve the script's own path BEFORE cd'ing, so the re-run below still works
+# when invoked by a relative path from another directory.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")/.."
 say() { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -121,7 +129,10 @@ set -e
 
 if [ "$SKIP_ROTATION" != 1 ]; then
   say ""; say "== rotate exposed credentials =="
-  DATABASE_URL="$URL" ./node_modules/.bin/prisma db execute --url "$URL" --stdin <<'SQL'
+  # --schema, not --url: a connection string passed as an argument is visible in
+  # `ps` and /proc to every user on the host. The env prefix already carries it,
+  # and the datasource block resolves env("DATABASE_URL").
+  DATABASE_URL="$URL" ./node_modules/.bin/prisma db execute --schema prisma/schema.prisma --stdin <<'SQL'
 UPDATE "Session"    SET "expiresAt" = now() WHERE "expiresAt" > now();
 UPDATE "LoginToken" SET "usedAt"    = now() WHERE "usedAt" IS NULL;
 SQL
@@ -144,7 +155,17 @@ if [ "$ASSUME_YES" != 1 ] && [ -t 0 ]; then
   read -r again </dev/tty || again=""
   case "$again" in
     [nN]*) say "stopping. Re-run this script for $OTHER when ready." ;;
-    *)     say ""; exec "$0" ;;
+    *)
+      # `env -u DATABASE_URL` is load-bearing: without it, a shell that exports
+      # DATABASE_URL (direnv, `set -a`, CI) makes the second pass silently reuse
+      # the SAME connection string, re-securing the project just done, announcing
+      # the other one, and looping. That is the exact mistake this script exists
+      # to prevent. Flags are forwarded so --skip-rotation is not quietly dropped.
+      say ""
+      RERUN_FLAGS=""
+      [ "$SKIP_ROTATION" = 1 ] && RERUN_FLAGS="--skip-rotation"
+      exec env -u DATABASE_URL "$SELF" $RERUN_FLAGS
+      ;;
   esac
 else
   [ "$REF" = "fjmueibdhwbsmjvzxeru" ] && say "next: run this again for timeshift-preview."
