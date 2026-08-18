@@ -7,26 +7,49 @@
 // checksums cannot drift from what `prisma migrate deploy` would apply:
 //   node scripts/generate-supabase-sql.mjs
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const MIGRATIONS = [
-  '20260818204500_lock_down_public_schema',
-  '20260818211531_add_rate_limit',
-  '20260818212336_drop_dead_password_hash',
-];
+// Derived, not listed. A hardcoded list omits a newly added migration silently --
+// absence is not an error -- and the browser path would then lock down the old
+// tables and leave the new one published. `security-rls.test.ts` reads the same
+// directory for the same reason.
+const MIGRATIONS = readdirSync('prisma/migrations', { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => e.name)
+  .sort()
+  .filter((name) => name >= '20260818204500');
 
 // The lockdown migration is already guarded and idempotent. The other two are
 // plain generated DDL, so they get re-run safety here rather than in the
 // migration, where `migrate deploy` guarantees once-only application anyway.
+// Each entry is (needle -> replacement). Applied strictly: a needle that no longer
+// matches throws rather than no-opping, because a silent miss costs the file its
+// safe-to-run-twice property and the failure only shows up as an aborted
+// transaction on someone's second paste.
 const IDEMPOTENT = {
-  '20260818211531_add_rate_limit': (sql) =>
-    sql
-      .replace('CREATE TABLE "RateLimit"', 'CREATE TABLE IF NOT EXISTS "RateLimit"')
-      .replace('CREATE INDEX "RateLimit_expiresAt_idx"', 'CREATE INDEX IF NOT EXISTS "RateLimit_expiresAt_idx"'),
-  '20260818212336_drop_dead_password_hash': (sql) =>
-    sql.replace('DROP COLUMN "passwordHash"', 'DROP COLUMN IF EXISTS "passwordHash"'),
+  '20260818211531_add_rate_limit': [
+    ['CREATE TABLE "RateLimit"', 'CREATE TABLE IF NOT EXISTS "RateLimit"'],
+    ['CREATE INDEX "RateLimit_expiresAt_idx"', 'CREATE INDEX IF NOT EXISTS "RateLimit_expiresAt_idx"'],
+  ],
+  '20260818212336_drop_dead_password_hash': [
+    ['DROP COLUMN "passwordHash"', 'DROP COLUMN IF EXISTS "passwordHash"'],
+  ],
 };
+
+function makeIdempotent(name, sql) {
+  let out = sql;
+  for (const [needle, replacement] of IDEMPOTENT[name] ?? []) {
+    if (!out.includes(needle)) {
+      throw new Error(
+        `${name}: expected to make ${JSON.stringify(needle)} re-runnable, but it is not in the ` +
+          'migration any more. Update IDEMPOTENT rather than shipping a file that aborts on a second run.',
+      );
+    }
+    out = out.replace(needle, replacement);
+  }
+  return out;
+}
 
 const parts = [];
 parts.push(`-- TimeShift: close the public-schema exposure on this Supabase project.
@@ -46,7 +69,7 @@ for (const name of MIGRATIONS) {
   const path = join('prisma/migrations', name, 'migration.sql');
   const raw = readFileSync(path, 'utf8');
   const checksum = createHash('sha256').update(raw).digest('hex'); // what Prisma stores
-  const body = (IDEMPOTENT[name] ?? ((s) => s))(raw);
+  const body = makeIdempotent(name, raw);
 
   parts.push(`
 -- ===========================================================================
@@ -106,15 +129,24 @@ JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m','f','S')
 ORDER BY 1;
 
--- And the half that regresses silently: if this returns any row, the NEXT table
--- a migration creates will be exposed again, whatever today's tables say.
-SELECT r.rolname AS "future tables still granted to"
+-- And the half that regresses silently: default privileges decide what the NEXT
+-- table created gets, whatever today's tables say.
+--
+-- \"applies to YOUR tables\" is the column that matters. A default-ACL entry only
+-- governs tables created by its owner, and your migrations run as the role shown
+-- in \"created by\". Supabase also sets these under its own internal role; that row
+-- is expected and harmless, because it never governs a table your migrations make.
+SELECT pg_get_userbyid(d.defaclrole)                       AS "created by",
+       string_agg(DISTINCT r.rolname, ' + ')               AS "still granted to",
+       CASE WHEN pg_get_userbyid(d.defaclrole) = current_user
+            THEN 'YES — needs attention'
+            ELSE 'no — Supabase internal, harmless' END    AS "applies to YOUR tables"
 FROM pg_default_acl d
 JOIN pg_namespace n ON n.oid = d.defaclnamespace
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
 JOIN pg_roles r ON r.oid = a.grantee
 WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
-GROUP BY r.rolname;
+GROUP BY d.defaclrole;
 `);
 
 writeFileSync('docs/supabase-lockdown.sql', parts.join('\n'));

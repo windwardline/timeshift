@@ -322,9 +322,16 @@ is the same work as one script to paste into each project's Supabase SQL Editor 
 no clone, no Node, no connection string. It applies the three migrations, records
 them in `_prisma_migrations` with the checksums `prisma migrate deploy` expects
 (so the CLI stays consistent afterwards), rotates the exposed credentials, and
-prints a table that must read `rls = true, anon = false` for every row. One
-transaction, and safe to run twice. Regenerate it from the migrations with
-`node scripts/generate-supabase-sql.mjs` — never edit it by hand.
+prints two tables. In the first, every row must read `locked`-equivalent: no
+`anon_can_use` or `authenticated_can_use`, and `rls = true` wherever it applies
+(`n/a` on views and sequences is expected). In the second, only rows whose
+"applies to YOUR tables" column says `no` are acceptable — Supabase sets default
+privileges under its own internal role, and those never govern a table your
+migrations create.
+
+One transaction, and safe to run twice. It is generated from the migrations by
+`node scripts/generate-supabase-sql.mjs`; `supabase-lockdown-sql.test.ts` fails CI
+if the committed file drifts from them or is hand-edited.
 
 It refuses the transaction pooler (port 6543, which cannot run migrations), names
 which project the URL points at before touching it, and stops if the local Prisma

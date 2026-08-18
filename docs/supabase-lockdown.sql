@@ -252,12 +252,21 @@ JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m','f','S')
 ORDER BY 1;
 
--- And the half that regresses silently: if this returns any row, the NEXT table
--- a migration creates will be exposed again, whatever today's tables say.
-SELECT r.rolname AS "future tables still granted to"
+-- And the half that regresses silently: default privileges decide what the NEXT
+-- table created gets, whatever today's tables say.
+--
+-- "applies to YOUR tables" is the column that matters. A default-ACL entry only
+-- governs tables created by its owner, and your migrations run as the role shown
+-- in "created by". Supabase also sets these under its own internal role; that row
+-- is expected and harmless, because it never governs a table your migrations make.
+SELECT pg_get_userbyid(d.defaclrole)                       AS "created by",
+       string_agg(DISTINCT r.rolname, ' + ')               AS "still granted to",
+       CASE WHEN pg_get_userbyid(d.defaclrole) = current_user
+            THEN 'YES — needs attention'
+            ELSE 'no — Supabase internal, harmless' END    AS "applies to YOUR tables"
 FROM pg_default_acl d
 JOIN pg_namespace n ON n.oid = d.defaclnamespace
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
 JOIN pg_roles r ON r.oid = a.grantee
 WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
-GROUP BY r.rolname;
+GROUP BY d.defaclrole;

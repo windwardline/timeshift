@@ -12,9 +12,15 @@ try {
   // PostgREST writes through those too -- and tables alone would miss views and
   // materialised views, which are their own exposure path: a view over "User" is
   // not covered by the base table's RLS unless it is security_invoker.
+  // `has_table_privilege` raises if the role does not exist rather than returning
+  // NULL, so COALESCE cannot rescue it: on a local Postgres without Supabase's
+  // roles the whole query would throw and report as unverifiable, which reads
+  // identically to a database that is genuinely open. Guard on the role instead.
   const PRIVS = ['SELECT', 'INSERT', 'UPDATE', 'DELETE'];
   const anyPriv = (role) =>
-    PRIVS.map((p) => `COALESCE(has_table_privilege('${role}', c.oid, '${p}'), false)`).join(' OR ');
+    `(to_regrole('${role}') IS NOT NULL AND (` +
+    PRIVS.map((p) => `COALESCE(has_table_privilege('${role}', c.oid, '${p}'), false)`).join(' OR ') +
+    '))';
   const tables = await prisma.$queryRawUnsafe(`
     SELECT c.relname::text AS table,
            CASE c.relkind WHEN 'r' THEN '' WHEN 'p' THEN ' (partitioned)'
@@ -48,19 +54,39 @@ try {
   // The half of the migration that regresses silently: if the default privileges
   // are re-granted, the NEXT table a migration creates is exposed again, and
   // nothing about today's tables would show it.
+  //
+  // Scoped to the CONNECTING role, because that is the surface the migration can
+  // actually change: `ALTER DEFAULT PRIVILEGES ... REVOKE` without `FOR ROLE`
+  // only touches entries owned by the role running it, and a default-ACL entry
+  // only governs tables created BY its owner. Supabase's bootstrap also sets
+  // these under `supabase_admin`, which survives and is harmless here -- Prisma
+  // creates our tables as this role, not that one. Reported separately rather
+  // than counted as a failure: a condition this tooling cannot remediate must
+  // not fail the run, because in secure-database.sh a failed verification skips
+  // credential rotation, which is part of the fix rather than an extra.
   const defaults = await prisma.$queryRawUnsafe(`
-    SELECT COALESCE(string_agg(DISTINCT r.rolname, ', '), '') AS roles
+    SELECT pg_get_userbyid(d.defaclrole) AS owner,
+           (pg_get_userbyid(d.defaclrole) = current_user) AS is_ours,
+           string_agg(DISTINCT r.rolname, ', ') AS roles
     FROM pg_default_acl d
     JOIN pg_namespace n ON n.oid = d.defaclnamespace
     CROSS JOIN LATERAL aclexplode(d.defaclacl) a
     JOIN pg_roles r ON r.oid = a.grantee
     WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
+    GROUP BY d.defaclrole
   `);
-  const leaked = defaults[0].roles;
-  if (leaked) bad += 1;
+  const ours = defaults.find((d) => d.is_ours);
+  if (ours) bad += 1;
   console.log(
-    `\ndefault privileges for future tables: ${leaked ? `GRANTED TO ${leaked} <-- next table will be exposed` : 'revoked'}`,
+    `\ndefault privileges for tables this role creates: ${
+      ours ? `GRANTED TO ${ours.roles} <-- next table will be exposed` : 'revoked'
+    }`,
   );
+  for (const d of defaults.filter((x) => !x.is_ours)) {
+    console.log(
+      `  note: ${d.owner} still grants ${d.roles} on tables IT creates — not ours, not a failure`,
+    );
+  }
 
   // A database that has never been migrated has no _prisma_migrations table at
   // all. That is a legitimate state to report -- "nothing applied yet" -- not an
