@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -13,6 +14,14 @@ import { describe, expect, it } from 'vitest';
 // security-rls.test.ts exists to replace. This is the check instead.
 
 const root = process.cwd();
+
+/** The migrations the paste file is responsible for — the lockdown onward. */
+function shippedMigrations(): string[] {
+  return readdirSync(join(root, 'prisma/migrations'), { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .filter((n) => n >= '20260818204500');
+}
 
 describe('docs/supabase-lockdown.sql', () => {
   it('is exactly what the generator produces from the current migrations', () => {
@@ -36,11 +45,7 @@ describe('docs/supabase-lockdown.sql', () => {
     );
     expect(expected, 'generator no longer derives its migration list by date').toBe(true);
 
-    const { readdirSync } = require('node:fs') as typeof import('node:fs');
-    const shipped = readdirSync(join(root, 'prisma/migrations'), { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name)
-      .filter((n) => n >= '20260818204500');
+    const shipped = shippedMigrations();
     expect(shipped.length).toBeGreaterThan(0);
     for (const name of shipped) expect(sql, `${name} missing from the paste file`).toContain(name);
   });
@@ -48,13 +53,8 @@ describe('docs/supabase-lockdown.sql', () => {
   it('records each migration under the checksum Prisma computes', () => {
     // A wrong checksum makes the next `prisma migrate deploy` fail on mismatch,
     // which would strand the CLI against a database that is actually correct.
-    const { createHash, } = require('node:crypto') as typeof import('node:crypto');
-    const { readdirSync } = require('node:fs') as typeof import('node:fs');
     const sql = readFileSync(join(root, 'docs/supabase-lockdown.sql'), 'utf8');
-    for (const name of readdirSync(join(root, 'prisma/migrations'), { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name)
-      .filter((n) => n >= '20260818204500')) {
+    for (const name of shippedMigrations()) {
       const raw = readFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'utf8');
       expect(sql, `${name} checksum`).toContain(createHash('sha256').update(raw).digest('hex'));
     }
