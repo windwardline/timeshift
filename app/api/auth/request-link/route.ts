@@ -15,11 +15,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: valid.error }, { status: 400 });
   }
 
+  // The emailed link's host MUST come from trusted server config, never the
+  // request — a spoofed Host header would otherwise send victims a link to an
+  // attacker's domain and hijack the token (host-header injection).
+  const base = process.env.APP_URL;
+  if (!base) {
+    console.error('[auth] APP_URL is not configured — refusing to send a magic link.');
+    return NextResponse.json({ error: 'Server misconfigured.' }, { status: 500 });
+  }
+
   // Limited twice, because there are two victims (#71). Per caller blunts a
   // scripted loop; per recipient protects the person whose inbox the mail lands
   // in, which is the abuse that actually hurts someone else -- so it is stricter.
-  // Both are counted after validation, and before any token is minted or mail
-  // sent, so a refusal costs neither a row nor a send.
+  // Both are counted after validation and after the config check, and before any
+  // token is minted or mail sent, so a refusal costs neither a row nor a send --
+  // and a request this server was never going to honour (preview leaves APP_URL
+  // unset by design) costs the caller no allowance and the database no write.
   const ipRate = await consume({
     bucket: 'magicLinkIp', subject: clientIp(request), ...LIMITS.magicLinkIp,
   });
@@ -29,15 +40,6 @@ export async function POST(request: Request) {
     bucket: 'magicLinkEmail', subject: valid.email, ...LIMITS.magicLinkEmail,
   });
   if (!emailRate.allowed) return tooManyRequests(emailRate.retryAfter);
-
-  // The emailed link's host MUST come from trusted server config, never the
-  // request — a spoofed Host header would otherwise send victims a link to an
-  // attacker's domain and hijack the token (host-header injection).
-  const base = process.env.APP_URL;
-  if (!base) {
-    console.error('[auth] APP_URL is not configured — refusing to send a magic link.');
-    return NextResponse.json({ error: 'Server misconfigured.' }, { status: 500 });
-  }
 
   const token = await createLoginToken(valid.email);
   const link = `${base}/api/auth/verify?token=${token}`;

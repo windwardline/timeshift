@@ -132,6 +132,17 @@ describe('POST /api/auth/request-link', () => {
     expect(mocks.createLoginToken).not.toHaveBeenCalled();
   });
 
+  it('does not spend the caller\'s allowance when the server is misconfigured', async () => {
+    // Preview leaves APP_URL unset on purpose, so this route 500s there by
+    // design. Counting those attempts would burn a real person's hourly
+    // allowance -- and a database write -- on a request the server was never
+    // going to honour.
+    delete process.env.APP_URL;
+    const res = await linkPost(jsonReq('http://localhost/api/auth/request-link', body));
+    expect(res.status).toBe(500);
+    expect(mocks.consume).not.toHaveBeenCalled();
+  });
+
   it('sends normally while within both limits', async () => {
     const res = await linkPost(jsonReq('http://localhost/api/auth/request-link', body));
     expect(res.status).toBe(200);
