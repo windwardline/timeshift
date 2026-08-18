@@ -21,6 +21,39 @@ describe('consume', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
+  // The atomicity this module rests on lives entirely in the shape of one
+  // statement, and every other case here asserts what `consume` does with a count
+  // it was handed rather than where that count came from. Without this, rewriting
+  // the increment as a read-then-write -- `prisma.rateLimit.upsert` with an
+  // increment reads as the more idiomatic Prisma call -- passes the suite while
+  // reintroducing the burst the limiter exists to stop.
+  it('increments with one atomic statement, not a read followed by a write', async () => {
+    mocks.queryRaw.mockResolvedValue([{ count: 1 }]);
+    await consume(opts);
+
+    expect(mocks.queryRaw).toHaveBeenCalledTimes(1);
+    const sql = mocks.queryRaw.mock.calls[0][0] as { text: string; values: unknown[] };
+    const text = sql.text.replace(/\s+/g, ' ').trim();
+
+    expect(text).toMatch(/^INSERT INTO "RateLimit"/i);
+    expect(text).toMatch(/ON CONFLICT \("key"\) DO UPDATE/i);
+    // The count must come back from the same statement that wrote it -- that is
+    // what makes it this caller's position in the window rather than a snapshot.
+    expect(text).toMatch(/RETURNING "count"/i);
+    expect(text).not.toMatch(/\bSELECT\b/i);
+  });
+
+  it('binds the key and expiry as parameters rather than building SQL text', async () => {
+    // The key is derived from caller-supplied input (an email, for the
+    // magic-link bucket). Interpolating it into the statement would put attacker
+    // input in the query rather than beside it.
+    mocks.queryRaw.mockResolvedValue([{ count: 1 }]);
+    await consume(opts);
+    const sql = mocks.queryRaw.mock.calls[0][0] as { text: string; values: unknown[] };
+    expect(sql.values).toEqual(['coach:6694f83c9f476da31f5df6bcc520034e:2978424', new Date('2026-08-18T12:10:00Z')]);
+    expect(sql.text).not.toContain('coach:');
+  });
+
   it('allows a request while the count is within the limit', async () => {
     mocks.queryRaw.mockResolvedValue([{ count: 1 }]);
     expect(await consume(opts)).toEqual({ allowed: true, retryAfter: 0 });

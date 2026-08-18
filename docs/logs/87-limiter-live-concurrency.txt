@@ -1,0 +1,8 @@
+Live check: lib/ratelimit against a real Postgres with the migrations applied.
+Limit 5 per 10-minute window.
+
+sequential, 8 requests : allow allow allow allow allow DENY DENY DENY
+concurrent, 40 at once : 5 allowed, 35 denied
+  -> a read-then-write increment would admit far more than 5 here.
+after window rollover   : allowed again
+retry-after on denial   : 420 seconds

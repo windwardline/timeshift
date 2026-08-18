@@ -233,8 +233,10 @@ HTTP-only — a paid HTTPS plan is recommended for production.
 
 ## Data layer
 
-Five tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for auth) and a
-standalone `FlightQueryCache` (the flight-search TTL cache) — defined in
+Seven tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for auth),
+`LoginToken` (single-use magic-link tokens), and two standalone caches/counters:
+`FlightQueryCache` (the flight-search TTL cache) and `RateLimit` (the fixed-window
+counters below) — defined in
 [`prisma/schema.prisma`](prisma/schema.prisma) and migrated into PostgreSQL
 (`prisma/migrations/`). Sign-in is passwordless — a single-use magic-link token —
 and sessions are opaque DB-backed tokens in an httpOnly cookie; every trip query is
