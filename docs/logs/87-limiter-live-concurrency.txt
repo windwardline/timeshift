@@ -1,8 +1,22 @@
-Live check: lib/ratelimit against a real Postgres with the migrations applied.
-Limit 5 per 10-minute window.
+$ DATABASE_URL=postgres://…@localhost:55432/ts_rl npm run ratelimit:check -- --reporter=verbose
+# Postgres 16.13, migrations applied via `prisma migrate deploy`.
 
-sequential, 8 requests : allow allow allow allow allow DENY DENY DENY
-concurrent, 40 at once : 5 allowed, 35 denied
-  -> a read-then-write increment would admit far more than 5 here.
-after window rollover   : allowed again
-retry-after on denial   : 420 seconds
+
+> timeshift@0.1.0 ratelimit:check
+> vitest run --config vitest.live.config.ts --reporter=verbose
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ✓ scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > admits exactly the limit over 8 sequential requests, then refuses 100ms
+ ✓ scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > admits exactly the limit when 40 requests arrive at once 31ms
+ ✓ scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > admits the caller again once the window rolls over 3ms
+ ✓ scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > keeps separate subjects independent 2ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  22:39:16
+   Duration  449ms (transform 66ms, setup 0ms, import 126ms, tests 139ms, environment 0ms)
+
+
+exit status: 0
