@@ -280,6 +280,11 @@ RETURNING`, so the returned count is the caller's own position in the window —
 verified against a live database: 40 simultaneous requests against a limit of 5
 admit exactly 5. Magic-link sends are limited per recipient as well as per
 caller, since the inbox being filled belongs to someone other than the caller.
+Subjects are hashed into the key rather than stored, so the counter table never
+becomes a second list of email addresses — including addresses of people who
+never signed up, since anyone can type one into the sign-in form. The limiter
+only compares keys for equality, so a digest serves it identically.
+
 That second limit is a genuine trade and is recorded as one: keying on the
 supplied address stops a flood aimed at one inbox, but it also lets someone who
 knows an address spend that address's allowance and delay its owner's sign-in for

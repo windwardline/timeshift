@@ -12,10 +12,12 @@ import { describe, expect, it } from 'vitest';
 // keeps the header contract: a new model without its RLS line fails CI, not a
 // Supabase advisory email.
 //
-// Known limit, so nobody over-trusts it: this matches text across the whole
+// Known limits, so nobody over-trusts it. It matches text across the whole
 // migration set, so a later migration that DROPs and re-CREATEs a modelled table
 // still passes -- the original ENABLE line remains in the concatenation while the
-// recreated table has RLS off. The lockdown's second layer covers that case (the
+// recreated table has RLS off. It also reads SQL as text, so a grant assembled
+// from pieces at runtime (concatenating the word GRANT, or naming the role
+// through a variable rather than a `format()` placeholder) is beyond it. The lockdown's second layer covers that case (the
 // ALTER DEFAULT PRIVILEGES revoke is persistent server state, so the recreated
 // table gets no anon grant), but the diff would be down to one layer. Only a live
 // check against the database itself could catch it here.
@@ -91,6 +93,48 @@ function migrationSql(): string {
   return stripSqlComments(raw);
 }
 
+// The stripper is the single point of failure for every assertion below: if it
+// ever blanked a real statement, all four negatives would pass on empty text and
+// this guard would go silently green. It is a hand-written state machine living in
+// a test file, so the coverage gate does not reach it -- these cases are what stop
+// a later "simplify this back to a regex" edit from reintroducing the bug it was
+// written to fix.
+describe('stripSqlComments', () => {
+  it('removes line comments', () => {
+    expect(stripSqlComments('SELECT 1; -- a trailing note\nSELECT 2;')).not.toContain('note');
+  });
+
+  it('removes block comments, including across lines', () => {
+    expect(stripSqlComments('SELECT 1; /* a\n note */ SELECT 2;')).not.toContain('note');
+  });
+
+  it('keeps a real statement that follows a literal containing --', () => {
+    // The case a regex stripper gets wrong: it treats the `--` inside the literal
+    // as a comment, blanks the rest of the line, and hides the GRANT after it.
+    const sql = `INSERT INTO "C" VALUES ('a--b');  GRANT ALL ON "Session" TO anon;`;
+    expect(stripSqlComments(sql)).toContain('GRANT ALL ON "Session" TO anon');
+  });
+
+  it("preserves '' escapes inside a literal rather than ending the string early", () => {
+    const sql = `INSERT INTO "C" VALUES ('it''s -- fine');  GRANT ALL ON "S" TO anon;`;
+    expect(stripSqlComments(sql)).toContain('GRANT ALL ON "S" TO anon');
+  });
+
+  it('leaves ordinary SQL untouched', () => {
+    const sql = 'ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;';
+    expect(stripSqlComments(sql)).toContain(sql);
+  });
+
+  it('strips prose that would otherwise trip the negative matchers', () => {
+    const stripped = stripSqlComments(
+      '-- we no longer grant SELECT on this table to anon\n' +
+        '-- and we never DISABLE ROW LEVEL SECURITY here\n',
+    );
+    expect(stripped).not.toMatch(/grant/i);
+    expect(stripped).not.toMatch(/DISABLE/i);
+  });
+});
+
 describe('public-schema lockdown (prisma/migrations)', () => {
   it('enables row-level security on every modelled table', () => {
     const sql = migrationSql();
@@ -134,8 +178,13 @@ describe('public-schema lockdown (prisma/migrations)', () => {
     // `[^;]*` rather than `[^;\n]*`: SQL wraps, and a GRANT whose TO clause sits
     // on the next line re-opens the door just as wide. PUBLIC counts as a
     // PostgREST role here because `anon` inherits everything granted to it.
+    // `%I` and `%s` are in the alternation because the lockdown migration does all
+    // of its privilege work dynamically -- `format('REVOKE ALL ON TABLE %s FROM %I',
+    // obj.ident, r)` -- so the likeliest re-grant is that block copied with REVOKE
+    // swapped for GRANT. The role never appears literally there, and a matcher that
+    // only knows literal role names would pass a migration re-opening every table.
     expect(sql, 're-granted to a PostgREST role').not.toMatch(
-      /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC)\b/i,
+      /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC|%I|%s)\b/i,
     );
   });
 
