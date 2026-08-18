@@ -160,6 +160,17 @@ describe('POST /api/trips/[id]/advice', () => {
     expect(mocks.generateAdvice).not.toHaveBeenCalled();
   });
 
+  it('does not spend the caller\'s allowance when the model is not configured', async () => {
+    // Mirrors the APP_URL ordering on /api/auth/request-link. A deployment with
+    // no key 503s without spending anything upstream, so charging anonymous
+    // callers for it would hand real visitors 429s on the showcase trip for a
+    // limit they never hit.
+    delete process.env.GEMINI_API_KEY;
+    const res = await advicePost(new Request('http://localhost', { headers: { 'x-forwarded-for': '1.2.3.4' } }), { params });
+    expect(res.status).toBe(503);
+    expect(mocks.consume).not.toHaveBeenCalled();
+  });
+
   it('does not spend a limiter slot for a signed-in owner', async () => {
     // Owners are already bounded by their session; only the open showcase path
     // is a spend vector for anonymous callers.

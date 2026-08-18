@@ -34,21 +34,61 @@ function tableNames(): string[] {
   );
 }
 
-// Comments are stripped before every assertion below. The lockdown migration
-// discusses `anon`, `GRANT` and `PUBLIC` at length in its own prose, so matching
-// raw text would let a comment satisfy a check -- deleting the DO block entirely
-// while keeping its comments would otherwise still pass -- and would equally let
-// prose trip the negative checks. Only executable SQL should decide these.
-function rawMigrationSql(): string {
-  const dir = join(root, 'prisma/migrations');
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => readFileSync(join(dir, e.name, 'migration.sql'), 'utf8'))
-    .join('\n');
+// Every assertion runs on the migrations with comments removed, because the
+// lockdown migration discusses `anon`, `GRANT` and `PUBLIC` at length in its own
+// prose: matching raw text would let a comment satisfy a positive check (deleting
+// the DO block while keeping its comments must not pass) and let prose fail a
+// negative one ("we no longer grant SELECT on this table to anon" is English, not
+// a re-grant).
+//
+// The stripper is quote-aware rather than a regex, and that is the load-bearing
+// part. A regex stripper treats the `--` inside `'a--b'` as a comment and blanks
+// the rest of that line -- which would hide a real re-GRANT sitting after it and
+// leave the guard silently green. Tracking string literals is what makes removing
+// comments safe enough to be the single source for both directions.
+/** Remove SQL comments, leaving anything inside a string literal untouched. */
+function stripSqlComments(sql: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < sql.length; ) {
+    const c = sql[i];
+    const next = sql[i + 1];
+    if (inString) {
+      out += c;
+      if (c === "'") {
+        if (next === "'") {
+          out += next; // '' is an escaped quote, not the end of the literal
+          i += 2;
+          continue;
+        }
+        inString = false;
+      }
+      i += 1;
+    } else if (c === "'") {
+      inString = true;
+      out += c;
+      i += 1;
+    } else if (c === '-' && next === '-') {
+      while (i < sql.length && sql[i] !== '\n') i += 1; // to end of line
+    } else if (c === '/' && next === '*') {
+      i += 2;
+      while (i < sql.length && !(sql[i] === '*' && sql[i + 1] === '/')) i += 1;
+      i += 2;
+    } else {
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
 }
 
 function migrationSql(): string {
-  return rawMigrationSql().replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+  const dir = join(root, 'prisma/migrations');
+  const raw = readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => readFileSync(join(dir, e.name, 'migration.sql'), 'utf8'))
+    .join('\n');
+  return stripSqlComments(raw);
 }
 
 describe('public-schema lockdown (prisma/migrations)', () => {
@@ -82,18 +122,6 @@ describe('public-schema lockdown (prisma/migrations)', () => {
   });
 
   it('never turns the lockdown back off in a later migration', () => {
-    // Checked against the RAW text as well as the stripped text below. The
-    // stripper is regex-naive: a `--` inside a string literal blanks the rest of
-    // its line, which would hide a trailing re-GRANT and leave this guard
-    // silently green. Raw text cannot be blinded that way, and the migration's
-    // own prose does not trip either pattern.
-    const rawSql = rawMigrationSql();
-    expect(rawSql, 'a later migration disables RLS').not.toMatch(
-      /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i,
-    );
-    expect(rawSql, 're-granted to a PostgREST role').not.toMatch(
-      /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC)\b/i,
-    );
 
     // The checks above concatenate every migration and match on presence, so on
     // their own they are append-only: a later migration that DISABLEs RLS or

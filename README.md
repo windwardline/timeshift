@@ -280,6 +280,13 @@ RETURNING`, so the returned count is the caller's own position in the window —
 verified against a live database: 40 simultaneous requests against a limit of 5
 admit exactly 5. Magic-link sends are limited per recipient as well as per
 caller, since the inbox being filled belongs to someone other than the caller.
+That second limit is a genuine trade and is recorded as one: keying on the
+supplied address stops a flood aimed at one inbox, but it also lets someone who
+knows an address spend that address's allowance and delay its owner's sign-in for
+the rest of the hour. The allowance sits well above normal use to keep that
+expensive rather than free; `lib/ratelimit/config.ts` records the option for
+removing the edge entirely, which changes sign-in behaviour and so is an owner
+decision.
 
 **It fails closed.** If the counter cannot be read, the request is refused rather
 than allowed. A limiter that degrades to "unlimited" when the database is

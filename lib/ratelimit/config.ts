@@ -30,6 +30,20 @@ export const LIMITS: Record<string, LimitSpec> = {
   magicLinkIp: { limit: fromEnv('RATELIMIT_MAGIC_LINK_IP', 10), windowMs: 60 * MINUTE },
   // Per recipient, and stricter: the abuse here is mail landing in someone else's
   // inbox, so the address being mailed is the thing that needs protecting.
+  //
+  // KNOWN TRADE-OFF, both directions. Keying on the supplied address stops a
+  // flood aimed at one inbox — but it also means anyone who knows an address can
+  // spend that address's allowance and lock its owner out of sign-in for the rest
+  // of the hour, and the 429 they see is indistinguishable from one they caused.
+  // The allowance is deliberately well above normal use (a person needing five
+  // links in an hour is already in trouble) to keep that expensive rather than
+  // free, but the vector is real and lowering this number sharpens it.
+  //
+  // Removing the edge entirely means not spending a slot when an unconsumed token
+  // for that address is still valid — replying with the same generic 200 without
+  // minting or sending. That changes sign-in behaviour (a second request inside
+  // the TTL would send no new mail, which matters when the first landed in spam),
+  // so it is an owner decision rather than one taken here (AGENTS.md §11).
   magicLinkEmail: { limit: fromEnv('RATELIMIT_MAGIC_LINK_EMAIL', 5), windowMs: 60 * MINUTE },
 };
 

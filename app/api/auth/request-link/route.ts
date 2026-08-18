@@ -27,6 +27,9 @@ export async function POST(request: Request) {
   // Limited twice, because there are two victims (#71). Per caller blunts a
   // scripted loop; per recipient protects the person whose inbox the mail lands
   // in, which is the abuse that actually hurts someone else -- so it is stricter.
+  // That second limit cuts both ways: it also lets someone who knows an address
+  // spend its allowance and delay that person's sign-in. See lib/ratelimit/config.ts,
+  // where the trade-off and the option for removing it are recorded.
   // Both are counted after validation and after the config check, and before any
   // token is minted or mail sent, so a refusal costs neither a row nor a send --
   // and a request this server was never going to honour (preview leaves APP_URL

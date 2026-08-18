@@ -34,21 +34,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
   }
 
-  // Only the open path is counted (#71). Reaching here as a non-owner means the
-  // showcase trip, which any anonymous caller may ask about — and each ask is a
-  // generation on the owner's GCP project. An owner is already bounded by having
-  // had to sign in, so their own trips are not rate-limited.
-  if (!isOwner) {
-    const rate = await consume({ bucket: 'advice', subject: clientIp(request), ...LIMITS.advice });
-    if (!rate.allowed) return tooManyRequests(rate.retryAfter);
-  }
-
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { error: 'AI advice is not configured (set GEMINI_API_KEY).' },
       { status: 503 },
     );
+  }
+
+  // Only the open path is counted (#71). Reaching here as a non-owner means the
+  // showcase trip, which any anonymous caller may ask about — and each ask is a
+  // generation on the owner's GCP project. An owner is already bounded by having
+  // had to sign in, so their own trips are not rate-limited.
+  //
+  // Counted AFTER the key check, matching /api/auth/request-link: a deployment
+  // without GEMINI_API_KEY 503s without spending anything upstream, so charging
+  // the caller for it would hand real visitors 429s for a limit they never hit.
+  // (/api/coach is counted before its key check on purpose — it answers keyless
+  // through the lexical fallback, so a keyless call there is real work.)
+  if (!isOwner) {
+    const rate = await consume({ bucket: 'advice', subject: clientIp(request), ...LIMITS.advice });
+    if (!rate.allowed) return tooManyRequests(rate.retryAfter);
   }
 
   const timeline = assembleTimeline(trip);
