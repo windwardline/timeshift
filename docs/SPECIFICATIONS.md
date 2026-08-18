@@ -56,7 +56,7 @@ layover blocks, and sleep-window recommendations.
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
+  // passwordHash was dropped once sign-in moved to passwordless magic links
   homeTimeZone String   // IANA tz, e.g. "America/New_York"
   createdAt    DateTime @default(now())
   trips        Trip[]

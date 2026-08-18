@@ -1,0 +1,37 @@
+
+> timeshift@0.1.0 test:run
+> vitest run security-rls.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ security-rls.test.ts (18 tests | 1 failed) 29ms
+     × catches RLS being forced, whatever the casing or wrapping 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  security-rls.test.ts > negative matchers > catches RLS being forced, whatever the casing or wrapping
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ security-rls.test.ts:203:77
+    201|     // would 500. Availability rather than exposure, but it is what th…
+    202|     expect(FORCES_RLS.test('ALTER TABLE "User" FORCE ROW LEVEL SECURIT…
+    203|     expect(FORCES_RLS.test('alter table "User" force row level securit…
+       |                                                                             ^
+    204|     expect(FORCES_RLS.test('ALTER TABLE "User"\n  FORCE ROW\n  LEVEL S…
+    205|     expect(FORCES_RLS.test('ALTER TABLE "User" ENABLE ROW LEVEL SECURI…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  22:10:00
+   Duration  340ms (transform 105ms, setup 0ms, import 124ms, tests 29ms, environment 0ms)
+

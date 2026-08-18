@@ -1,0 +1,132 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ratelimit/limit.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ lib/ratelimit/limit.test.ts (12 tests | 6 failed) 25ms
+     × increments with one atomic statement, not a read followed by a write 9ms
+     × binds the key and expiry as parameters rather than building SQL text 5ms
+     × allows the request that exactly reaches the limit 2ms
+     × collects expired windows when a new one opens, not on every call 1ms
+     × fails closed when the statement returns nothing usable 1ms
+     × fails closed when the returned row carries no usable count 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ratelimit/limit.test.ts > consume > increments with one atomic statement, not a read followed by a write
+AssertionError: expected 'SELECT "count" FROM "RateLimit" WHERE…' to match /^INSERT INTO "RateLimit"/i
+
+- Expected:
+/^INSERT INTO "RateLimit"/i
+
++ Received:
+"SELECT \"count\" FROM \"RateLimit\" WHERE \"key\" = $1"
+
+ ❯ lib/ratelimit/limit.test.ts:38:18
+     36|     const text = sql.text.replace(/\s+/g, ' ').trim();
+     37|
+     38|     expect(text).toMatch(/^INSERT INTO "RateLimit"/i);
+       |                  ^
+     39|     expect(text).toMatch(/ON CONFLICT \("key"\) DO UPDATE/i);
+     40|     // The count must come back from the same statement that wrote it …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  lib/ratelimit/limit.test.ts > consume > binds the key and expiry as parameters rather than building SQL text
+AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+    "coach:6694f83c9f476da31f5df6bcc520034e:2978424",
+-   2026-08-18T12:10:00.000Z,
+  ]
+
+ ❯ lib/ratelimit/limit.test.ts:53:24
+     51|     await consume(opts);
+     52|     const sql = mocks.queryRaw.mock.calls[0][0] as { text: string; val…
+     53|     expect(sql.values).toEqual(['coach:6694f83c9f476da31f5df6bcc520034…
+       |                        ^
+     54|     expect(sql.text).not.toContain('coach:');
+     55|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  lib/ratelimit/limit.test.ts > consume > allows the request that exactly reaches the limit
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ lib/ratelimit/limit.test.ts:64:43
+     62|   it('allows the request that exactly reaches the limit', async () => {
+     63|     mocks.queryRaw.mockResolvedValue([{ count: 3 }]);
+     64|     expect((await consume(opts)).allowed).toBe(true);
+       |                                           ^
+     65|   });
+     66|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  lib/ratelimit/limit.test.ts > consume > collects expired windows when a new one opens, not on every call
+AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+ ❯ lib/ratelimit/limit.test.ts:75:30
+     73|     mocks.queryRaw.mockResolvedValue([{ count: 1 }]);
+     74|     await consume(opts);
+     75|     expect(mocks.deleteMany).toHaveBeenCalledTimes(1);
+       |                              ^
+     76|
+     77|     mocks.deleteMany.mockClear();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  lib/ratelimit/limit.test.ts > consume > fails closed when the statement returns nothing usable
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ lib/ratelimit/limit.test.ts:102:43
+    100|   it('fails closed when the statement returns nothing usable', async (…
+    101|     mocks.queryRaw.mockResolvedValue([]);
+    102|     expect((await consume(opts)).allowed).toBe(false);
+       |                                           ^
+    103|   });
+    104|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  lib/ratelimit/limit.test.ts > consume > fails closed when the returned row carries no usable count
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ lib/ratelimit/limit.test.ts:107:43
+    105|   it('fails closed when the returned row carries no usable count', asy…
+    106|     mocks.queryRaw.mockResolvedValue([{ count: null }]);
+    107|     expect((await consume(opts)).allowed).toBe(false);
+       |                                           ^
+    108|     expect(console.error).toHaveBeenCalled();
+    109|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 6 passed (12)
+   Start at  22:30:18
+   Duration  417ms (transform 136ms, setup 0ms, import 197ms, tests 25ms, environment 0ms)
+

@@ -7,6 +7,9 @@ import { assembleTripFacts } from '@/lib/ai/facts';
 import { generateAdvice, AdviceGenerationError } from '@/lib/ai/advice';
 import { AdviceParseError } from '@/lib/ai/parse';
 import { createGeminiClient } from '@/lib/ai/client';
+import { consume } from '@/lib/ratelimit/limit';
+import { LIMITS, clientIp } from '@/lib/ratelimit/config';
+import { tooManyRequests } from '@/lib/ratelimit/response';
 
 // The public showcase trip is open to everyone; every other trip is owner-only.
 const SHOWCASE_EMAIL = 'demo@timeshift.app';
@@ -14,7 +17,7 @@ const SHOWCASE_EMAIL = 'demo@timeshift.app';
 // Server-only AI advice endpoint (CLAUDE.md §13). Loads the trip, enforces
 // access, runs the engine to derive the facts, then asks the model — via the
 // real client behind the env key — to narrate them.
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const trip = await getTripWithOwner(id);
@@ -26,7 +29,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // data, no hint the trip exists.
   const viewer = await getCurrentUser();
   const isShowcase = trip.user.email === SHOWCASE_EMAIL;
-  if (!isShowcase && trip.userId !== viewer?.id) {
+  const isOwner = trip.userId === viewer?.id;
+  if (!isShowcase && !isOwner) {
     return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
   }
 
@@ -36,6 +40,21 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       { error: 'AI advice is not configured (set GEMINI_API_KEY).' },
       { status: 503 },
     );
+  }
+
+  // Only the open path is counted (#71). Reaching here as a non-owner means the
+  // showcase trip, which any anonymous caller may ask about — and each ask is a
+  // generation on the owner's GCP project. An owner is already bounded by having
+  // had to sign in, so their own trips are not rate-limited.
+  //
+  // Counted AFTER the key check, matching /api/auth/request-link: a deployment
+  // without GEMINI_API_KEY 503s without spending anything upstream, so charging
+  // the caller for it would hand real visitors 429s for a limit they never hit.
+  // (/api/coach is counted before its key check on purpose — it answers keyless
+  // through the lexical fallback, so a keyless call there is real work.)
+  if (!isOwner) {
+    const rate = await consume({ bucket: 'advice', subject: clientIp(request), ...LIMITS.advice });
+    if (!rate.allowed) return tooManyRequests(rate.retryAfter);
   }
 
   const timeline = assembleTimeline(trip);

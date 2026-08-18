@@ -1,0 +1,46 @@
+# RED capture: the same live check against a READ-THEN-WRITE increment,
+# i.e. lib/ratelimit/limit.ts with the atomic INSERT ... ON CONFLICT ... RETURNING
+# replaced by SELECT-then-write. Shows what the atomic statement is buying.
+
+$ DATABASE_URL=postgres://…@localhost:55432/ts_rl npm run ratelimit:check -- --reporter=verbose
+
+
+> timeshift@0.1.0 ratelimit:check
+> vitest run --config vitest.live.config.ts --reporter=verbose
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ✓ scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > admits exactly the limit over 8 sequential requests, then refuses 105ms
+ × scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > admits exactly the limit when 40 requests arrive at once 52ms
+   → expected [ …(40) ] to have a length of 5 but got 40
+ ✓ scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > admits the caller again once the window rolls over 5ms
+ ✓ scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > keeps separate subjects independent 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/ratelimit-live-check.live.ts > rate limiter against a live database (limit 5 per 600000ms) > admits exactly the limit when 40 requests arrive at once
+AssertionError: expected [ …(40) ] to have a length of 5 but got 40
+
+- Expected
++ Received
+
+- 5
++ 40
+
+ ❯ scripts/ratelimit-live-check.live.ts:34:44
+     32|     // observe the same pre-limit count and pass.
+     33|     const burst = await Promise.all(Array.from({ length: 40 }, () => r…
+     34|     expect(burst.filter((r) => r.allowed)).toHaveLength(LIMIT);
+       |                                            ^
+     35|     expect(burst.find((r) => !r.allowed)?.retryAfter).toBe(420);
+     36|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  22:39:35
+   Duration  518ms (transform 74ms, setup 0ms, import 151ms, tests 167ms, environment 0ms)
+

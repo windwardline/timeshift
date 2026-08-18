@@ -233,8 +233,10 @@ HTTP-only — a paid HTTPS plan is recommended for production.
 
 ## Data layer
 
-Five tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for auth) and a
-standalone `FlightQueryCache` (the flight-search TTL cache) — defined in
+Seven tables — `User 1→* Trip 1→* FlightSegment` plus `User 1→* Session` (for auth),
+`LoginToken` (single-use magic-link tokens), and two standalone caches/counters:
+`FlightQueryCache` (the flight-search TTL cache) and `RateLimit` (the fixed-window
+counters below) — defined in
 [`prisma/schema.prisma`](prisma/schema.prisma) and migrated into PostgreSQL
 (`prisma/migrations/`). Sign-in is passwordless — a single-use magic-link token —
 and sessions are opaque DB-backed tokens in an httpOnly cookie; every trip query is
@@ -262,6 +264,44 @@ deliberately not set; it would strip the owner's bypass and 500 every route.
 [`security-rls.test.ts`](security-rls.test.ts) contract-tests this the way
 `security-headers.test.ts` contract-tests the headers: a model added to
 `schema.prisma` without its `ENABLE ROW LEVEL SECURITY` line fails CI.
+
+### Rate limiting the open endpoints
+
+Three endpoints take unauthenticated input and spend money on a third party:
+`/api/coach` and the showcase branch of `/api/trips/[id]/advice` each cost a
+Gemini call, and `/api/auth/request-link` sends mail through Resend to any
+address supplied. All three are open deliberately — the coach and the showcase
+trip are the demo, and sign-in cannot require a session — so the bound has to be
+on rate rather than on identity.
+
+[`lib/ratelimit/`](lib/ratelimit/) is a fixed-window counter: the window
+arithmetic is pure and unit-tested, and the counter is a row in Postgres, because
+Vercel is serverless and an in-memory count would be per-instance and reset on
+every cold start. The increment is one `INSERT … ON CONFLICT DO UPDATE …
+RETURNING`, so the returned count is the caller's own position in the window —
+verified against a live database: 40 simultaneous requests against a limit of 5
+admit exactly 5. Magic-link sends are limited per recipient as well as per
+caller, since the inbox being filled belongs to someone other than the caller.
+Subjects are hashed into the key rather than stored, so the counter table never
+becomes a second list of email addresses — including addresses of people who
+never signed up, since anyone can type one into the sign-in form. The limiter
+only compares keys for equality, so a digest serves it identically.
+
+That second limit is a genuine trade and is recorded as one: keying on the
+supplied address stops a flood aimed at one inbox, but it also lets someone who
+knows an address spend that address's allowance and delay its owner's sign-in for
+the rest of the hour. The allowance sits well above normal use to keep that
+expensive rather than free; `lib/ratelimit/config.ts` records the option for
+removing the edge entirely, which changes sign-in behaviour and so is an owner
+decision.
+
+**It fails closed.** If the counter cannot be read, the request is refused rather
+than allowed. A limiter that degrades to "unlimited" when the database is
+unreachable hands an attacker the bypass — knock it over, then spend freely. The
+refusal is logged with the likely cause, so it is never silent. The practical
+consequence is a deployment-order requirement: **apply migrations before or with
+the code that depends on them**, or these three endpoints will 429 until the
+`RateLimit` table exists. The log says exactly that when it happens.
 
 The migration only takes effect where it is applied. Production and preview
 migrate separately, so `prisma migrate deploy` must be run against **both**

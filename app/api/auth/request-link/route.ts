@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { validateEmail } from '@/lib/auth/credentials';
 import { createLoginToken } from '@/lib/auth/magic';
 import { sendMagicLink } from '@/lib/auth/email';
+import { consume } from '@/lib/ratelimit/limit';
+import { LIMITS, clientIp } from '@/lib/ratelimit/config';
+import { tooManyRequests } from '@/lib/ratelimit/response';
 
 // US-A2 (passwordless): email a one-time sign-in link. The response is generic
 // either way so it never reveals whether an account exists.
@@ -20,6 +23,26 @@ export async function POST(request: Request) {
     console.error('[auth] APP_URL is not configured — refusing to send a magic link.');
     return NextResponse.json({ error: 'Server misconfigured.' }, { status: 500 });
   }
+
+  // Limited twice, because there are two victims (#71). Per caller blunts a
+  // scripted loop; per recipient protects the person whose inbox the mail lands
+  // in, which is the abuse that actually hurts someone else -- so it is stricter.
+  // That second limit cuts both ways: it also lets someone who knows an address
+  // spend its allowance and delay that person's sign-in. See lib/ratelimit/config.ts,
+  // where the trade-off and the option for removing it are recorded.
+  // Both are counted after validation and after the config check, and before any
+  // token is minted or mail sent, so a refusal costs neither a row nor a send --
+  // and a request this server was never going to honour (preview leaves APP_URL
+  // unset by design) costs the caller no allowance and the database no write.
+  const ipRate = await consume({
+    bucket: 'magicLinkIp', subject: clientIp(request), ...LIMITS.magicLinkIp,
+  });
+  if (!ipRate.allowed) return tooManyRequests(ipRate.retryAfter);
+
+  const emailRate = await consume({
+    bucket: 'magicLinkEmail', subject: valid.email, ...LIMITS.magicLinkEmail,
+  });
+  if (!emailRate.allowed) return tooManyRequests(emailRate.retryAfter);
 
   const token = await createLoginToken(valid.email);
   const link = `${base}/api/auth/verify?token=${token}`;

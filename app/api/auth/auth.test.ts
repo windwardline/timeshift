@@ -21,6 +21,12 @@ vi.mock('@/lib/auth/email', () => ({ sendMagicLink: mocks.sendMagicLink }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { upsert: mocks.upsert } } }));
 vi.mock('@/lib/auth/session', () => ({ createSession: mocks.createSession }));
 vi.mock('@/lib/auth/current-user', () => ({ setSessionCookie: mocks.setCookie }));
+// The rate limiter (#71) is mocked open here: this file tests the route's own
+// logic, and the limiter has its own units in lib/ratelimit/ plus its
+// route-level behaviour in app/api/ratelimit-routes.test.ts.
+vi.mock('@/lib/ratelimit/limit', () => ({
+  consume: vi.fn(async () => ({ allowed: true, retryAfter: 0 })),
+}));
 
 import { POST as requestLink } from './request-link/route';
 import { GET as verify } from './verify/route';

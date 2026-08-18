@@ -12,6 +12,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/db/trips', () => ({ getTripWithOwner: mocks.getTripWithOwner }));
 vi.mock('@/lib/auth/current-user', () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock('@/lib/ai/client', () => ({ createGeminiClient: () => ({ complete: mocks.complete }) }));
+// The rate limiter (#71) is mocked open here: this file tests the route's own
+// logic, and the limiter has its own units in lib/ratelimit/ plus its
+// route-level behaviour in app/api/ratelimit-routes.test.ts.
+vi.mock('@/lib/ratelimit/limit', () => ({
+  consume: vi.fn(async () => ({ allowed: true, retryAfter: 0 })),
+}));
 
 import { POST } from './route';
 

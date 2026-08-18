@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ratelimit/config.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ lib/ratelimit/config.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ratelimit/config.test.ts [ lib/ratelimit/config.test.ts ]
+Error: Cannot find module './config' imported from /home/user/timeshift/lib/ratelimit/config.test.ts
+ ❯ lib/ratelimit/config.test.ts:2:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { LIMITS, clientIp } from './config';
+       | ^
+      3|
+      4| // The limits themselves, plus how a caller is identified. Both are po…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:16:01
+   Duration  268ms (transform 49ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ratelimit/config.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  21:16:20
+   Duration  329ms (transform 59ms, setup 0ms, import 77ms, tests 59ms, environment 0ms)
+

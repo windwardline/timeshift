@@ -23,6 +23,7 @@ export default defineConfig({
         'lib/auth/credentials.ts',
         'lib/auth/magic.ts',
         'lib/auth/email-template.ts',
+        'lib/ratelimit/**',
       ],
     },
   },

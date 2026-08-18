@@ -1,0 +1,57 @@
+
+> timeshift@0.1.0 test:run
+> vitest run security-rls.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ security-rls.test.ts (17 tests | 2 failed) 23ms
+     × catches the lockdown block copied with REVOKE swapped for GRANT 7ms
+     × catches a grant whose TO clause wraps to the next line 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  security-rls.test.ts > negative matchers > catches the lockdown block copied with REVOKE swapped for GRANT
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ security-rls.test.ts:168:84
+    166|
+    167|   it('catches the lockdown block copied with REVOKE swapped for GRANT'…
+    168|     expect(grants(`EXECUTE format('GRANT ALL ON TABLE %s TO %I', obj.i…
+       |                                                                                    ^
+    169|   });
+    170|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  security-rls.test.ts > negative matchers > catches a grant whose TO clause wraps to the next line
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ security-rls.test.ts:176:58
+    174|
+    175|   it('catches a grant whose TO clause wraps to the next line', () => {
+    176|     expect(grants('GRANT SELECT ON "User"\n  TO anon;')).toBe(true);
+       |                                                          ^
+    177|   });
+    178|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 passed (17)
+   Start at  22:03:35
+   Duration  313ms (transform 82ms, setup 0ms, import 98ms, tests 23ms, environment 0ms)
+
