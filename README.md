@@ -303,9 +303,19 @@ consequence is a deployment-order requirement: **apply migrations before or with
 the code that depends on them**, or these three endpoints will 429 until the
 `RateLimit` table exists. The log says exactly that when it happens.
 
-The migration only takes effect where it is applied. Production and preview
-migrate separately, so `prisma migrate deploy` must be run against **both**
-Supabase projects.
+The migration only takes effect where it is applied, and production and preview
+migrate separately by hand. `scripts/secure-database.sh` does the whole job for
+one project — preflight checks, `migrate deploy`, verification, and rotating the
+credentials the exposure made readable:
+
+```bash
+./scripts/secure-database.sh "<connection string>"   # once per project
+./scripts/secure-database.sh "<connection string>" --verify-only   # read-only check
+```
+
+It refuses the transaction pooler (port 6543, which cannot run migrations), names
+which project the URL points at before touching it, and stops if the local Prisma
+is not the pinned major. Re-running is safe.
 
 ## End-to-end verification
 
