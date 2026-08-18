@@ -43,15 +43,31 @@ describe('public-schema lockdown (prisma/migrations)', () => {
 
   it('revokes the PostgREST grants anon and authenticated ride on', () => {
     const sql = migrationSql();
-    expect(sql).toContain("ARRAY['anon', 'authenticated']");
-    expect(sql).toContain('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I');
+    // Matched on the contract -- both roles named, table grants revoked -- not on
+    // the DO block's formatting, so a whitespace rewrite does not go red.
+    for (const role of ['anon', 'authenticated']) expect(sql).toContain(role);
+    expect(sql).toMatch(/REVOKE\s+ALL\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public/i);
   });
 
   it('revokes default privileges so a future table is not auto-granted', () => {
     // Without this, the next `prisma migrate` silently hands `anon` a fresh
     // publicly-readable table -- the exact regression this suite exists to stop.
-    expect(migrationSql()).toContain(
-      'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I',
+    expect(migrationSql()).toMatch(
+      /ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+public\s+REVOKE\s+ALL\s+ON\s+TABLES/i,
+    );
+  });
+
+  it('never turns the lockdown back off in a later migration', () => {
+    // The checks above concatenate every migration and match on presence, so on
+    // their own they are append-only: a later migration that DISABLEs RLS or
+    // re-GRANTs to anon leaves the original ENABLE text in place and stays green.
+    // This is the likelier regression -- someone unblocking a local RLS problem.
+    const sql = migrationSql();
+    expect(sql, 'a later migration disables RLS').not.toMatch(
+      /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i,
+    );
+    expect(sql, 're-granted to a PostgREST role').not.toMatch(
+      /\bGRANT\b[^;\n]*\bTO\s+(?:"?anon"?|"?authenticated"?)\b/i,
     );
   });
 

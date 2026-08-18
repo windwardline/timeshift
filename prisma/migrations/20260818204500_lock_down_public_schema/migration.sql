@@ -29,8 +29,10 @@
 -- `service_role` is intentionally left alone: it is reachable only with the
 -- secret service key, never ships to a browser, and carries BYPASSRLS by design.
 --
--- Every statement below is idempotent and guarded, so this migration is a no-op
--- on a plain local/CI Postgres where the Supabase roles do not exist.
+-- Every statement below is idempotent and guarded -- by role existence, and in
+-- block 1b by table ownership -- so this migration is a no-op on a plain local/CI
+-- Postgres where the Supabase roles do not exist, and cannot abort on a table it
+-- does not own.
 
 -- 1a. RLS on each modelled table. These lines are contract-tested against
 --     schema.prisma by security-rls.test.ts: adding a model without adding its
@@ -45,6 +47,13 @@ ALTER TABLE "FlightQueryCache" ENABLE ROW LEVEL SECURITY;
 -- 1b. Safety net for anything in `public` that schema.prisma does not model --
 --     notably Prisma's own `_prisma_migrations` bookkeeping table, which is
 --     equally exposed and leaks the schema history.
+--
+--     The pg_has_role guard is load-bearing: ALTER TABLE requires ownership, so a
+--     table in `public` owned by another role (an extension installed there, or
+--     anything created by another tool) would raise `must be owner of table`,
+--     abort the migration, and leave Prisma's history wedged on a live database.
+--     Tables that fail the guard are skipped because they could never have been
+--     altered from here anyway; they are not Prisma's and hold none of our data.
 DO $$
 DECLARE t regclass;
 BEGIN
@@ -53,6 +62,7 @@ BEGIN
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity
+      AND pg_catalog.pg_has_role(current_user, c.relowner, 'USAGE')
   LOOP
     EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t);
   END LOOP;
@@ -69,6 +79,13 @@ BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
       EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r);
       EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r);
+      -- Removes the role's DIRECT schema grant only. `anon` still holds USAGE
+      -- on `public` through the PUBLIC pseudo-role, which Postgres grants by
+      -- default (PG15 revoked CREATE from PUBLIC; USAGE stayed). So this line is
+      -- belt-and-braces, not load-bearing -- the table-level revoke below and
+      -- the RLS above are what actually close the door. Revoking USAGE from
+      -- PUBLIC outright would shut it fully but has a far wider blast radius
+      -- across Supabase's own roles; that is an owner decision (AGENTS.md §11).
       EXECUTE format('REVOKE ALL ON SCHEMA public FROM %I', r);
       EXECUTE format(
         'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
