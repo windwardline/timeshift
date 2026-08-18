@@ -67,6 +67,13 @@ silently.
   **separately and manually**: nothing in `vercel.json` or the build scripts runs
   `prisma migrate deploy`, so a merge applies no migration anywhere. Any schema or
   grant change has to be deployed to **both** projects by hand, or they drift.
+- Endpoints that are open by design **and** spend on a third party (Gemini, Resend) are
+  rate-limited through `lib/ratelimit/` — currently `/api/coach`, the showcase branch of
+  `/api/trips/[id]/advice`, and `/api/auth/request-link`. The limiter **fails closed**: if
+  the counter cannot be read the request is refused, because degrading to unlimited would
+  make knocking the database over the cheapest way to spend the owner's money. That makes
+  migration order load-bearing — ship the migration before or with the code, or those
+  routes 429 until the `RateLimit` table exists (the server log names this cause).
 - Because Supabase publishes the `public` schema through PostgREST, every table needs
   row-level security and the `anon`/`authenticated` grants revoked. Prisma models
   neither, so both live in a hand-written migration

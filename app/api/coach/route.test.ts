@@ -16,6 +16,12 @@ vi.mock('@/lib/ai/coach', async (orig) => ({
 vi.mock('@/lib/rag/corpus', () => ({ loadCorpus: mocks.loadCorpus }));
 vi.mock('@/lib/rag/embed', () => ({ embedQuery: mocks.embedQuery, EMBED_MODEL: 'm', EMBED_DIM: 1 }));
 vi.mock('@/lib/ai/client', () => ({ createGeminiClient: () => ({ complete: vi.fn() }) }));
+// The rate limiter (#71) is mocked open here: this file tests the route's own
+// logic, and the limiter has its own units in lib/ratelimit/ plus its
+// route-level behaviour in app/api/ratelimit-routes.test.ts.
+vi.mock('@/lib/ratelimit/limit', () => ({
+  consume: vi.fn(async () => ({ allowed: true, retryAfter: 0 })),
+}));
 
 import { POST } from './route';
 

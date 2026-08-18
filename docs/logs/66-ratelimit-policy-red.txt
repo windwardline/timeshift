@@ -1,0 +1,28 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ratelimit/policy.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ lib/ratelimit/policy.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ratelimit/policy.test.ts [ lib/ratelimit/policy.test.ts ]
+Error: Cannot find module './policy' imported from /home/user/timeshift/lib/ratelimit/policy.test.ts
+ ❯ lib/ratelimit/policy.test.ts:2:1
+      1| import { describe, it, expect } from 'vitest';
+      2| import { buildKey, windowExpiry, retryAfterSeconds } from './policy';
+       | ^
+      3|
+      4| // Pure window arithmetic for the fixed-window limiter (#71). No DB, n…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:13:31
+   Duration  312ms (transform 50ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

@@ -1,0 +1,26 @@
+
+> timeshift@0.1.0 test:coverage
+> vitest run --coverage
+
+
+ RUN  v4.1.10 /home/user/timeshift
+      Coverage enabled with v8
+
+
+ Test Files  48 passed (48)
+      Tests  247 passed (247)
+   Start at  21:21:53
+   Duration  6.74s (transform 1.59s, setup 0ms, import 5.21s, tests 1.23s, environment 999ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 433/433 )
+Branches     : 100% ( 224/224 )
+Functions    : 100% ( 91/91 )
+Lines        : 100% ( 394/394 )
+================================================================================

@@ -74,3 +74,16 @@ model FlightSegment {
 
   @@unique([tripId, sequence])
 }
+
+// Fixed-window counters for the endpoints that are open by design and spend money
+// on a third party (Gemini, Resend) — see lib/ratelimit/. `key` is the primary key
+// so the counter can be incremented by one atomic INSERT ... ON CONFLICT. Rows are
+// disposable: every key embeds its window, and expired ones are swept when a new
+// window opens.
+model RateLimit {
+  key       String   @id // "<bucket>:<subject>:<windowIndex>"
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}

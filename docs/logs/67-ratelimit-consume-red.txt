@@ -1,0 +1,29 @@
+
+> timeshift@0.1.0 test:run
+> vitest run lib/ratelimit/limit.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ lib/ratelimit/limit.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/ratelimit/limit.test.ts [ lib/ratelimit/limit.test.ts ]
+Error: Cannot find module '/lib/ratelimit/limit' imported from /home/user/timeshift/lib/ratelimit/limit.test.ts
+ ❯ lib/ratelimit/limit.test.ts:12:1
+     10| }));
+     11|
+     12| import { consume } from './limit';
+       | ^
+     13|
+     14| const NOW = new Date('2026-08-18T12:03:00Z');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:14:27
+   Duration  297ms (transform 62ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+

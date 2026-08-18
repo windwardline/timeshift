@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run app/api/ratelimit-routes.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  21:17:40
+   Duration  820ms (transform 334ms, setup 0ms, import 547ms, tests 84ms, environment 0ms)
+

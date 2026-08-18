@@ -7,6 +7,9 @@ import { loadCorpus } from '@/lib/rag/corpus';
 import { embedQuery } from '@/lib/rag/embed';
 import { createGeminiClient } from '@/lib/ai/client';
 import { makeCoachGenerate } from '@/lib/ai/coach-generate';
+import { consume } from '@/lib/ratelimit/limit';
+import { LIMITS, clientIp } from '@/lib/ratelimit/config';
+import { tooManyRequests } from '@/lib/ratelimit/response';
 
 // Server-only grounded coach endpoint (US-R, CLAUDE.md §13). The API key is read
 // here, server-side, and never reaches the browser. Retrieval is semantic when a
@@ -31,6 +34,12 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'A non-empty question is required' }, { status: 400 });
   }
+
+  // This route takes no session by design, and every answer costs an embedding
+  // plus a generation on the owner's GCP project (#71). Counted after validation
+  // so a malformed body cannot burn a caller's allowance.
+  const rate = await consume({ bucket: 'coach', subject: clientIp(request), ...LIMITS.coach });
+  if (!rate.allowed) return tooManyRequests(rate.retryAfter);
 
   const deps: CoachDeps = {
     embedQuery,
