@@ -17,7 +17,13 @@ import { describe, expect, it } from 'vitest';
 // still passes -- the original ENABLE line remains in the concatenation while the
 // recreated table has RLS off. It also reads SQL as text, so a grant assembled
 // from pieces at runtime (concatenating the word GRANT, or naming the role
-// through a variable rather than a `format()` placeholder) is beyond it. The lockdown's second layer covers that case (the
+// through a variable rather than a `format()` placeholder) is beyond it.
+//
+// It errs the other way too: because `%s` is in the alternation, ANY dynamic
+// grant trips it -- including a legitimate `format('GRANT USAGE ON SCHEMA public
+// TO %I', 'postgres')`, which would fail as "re-granted to a PostgREST role" and
+// so misdescribe itself. Safe direction to be wrong in, but read the message with
+// that in mind. The lockdown's second layer covers that case (the
 // ALTER DEFAULT PRIVILEGES revoke is persistent server state, so the recreated
 // table gets no anon grant), but the diff would be down to one layer. Only a live
 // check against the database itself could catch it here.
@@ -93,6 +99,23 @@ function migrationSql(): string {
   return stripSqlComments(raw);
 }
 
+// The two matchers that decide whether the lockdown has been undone. Module
+// constants rather than inline literals so they can be probed directly: asserted
+// only against the real migrations -- which contain no GRANT at all -- nothing
+// would distinguish a working matcher from a broken one, and deleting `%I|%s` or
+// narrowing `[^;]*` back to `[^;\n]*` would leave the suite green.
+//
+// `[^;]*` rather than `[^;\n]*` because SQL wraps, and a GRANT whose TO clause
+// sits on the next line re-opens the door just as wide. PUBLIC counts as a
+// PostgREST role because `anon` inherits everything granted to it. `%I` and `%s`
+// are in the alternation because the lockdown migration does all of its privilege
+// work dynamically -- `format('REVOKE ALL ON TABLE %s FROM %I', obj.ident, r)` --
+// so the likeliest re-grant is that block copied with REVOKE swapped for GRANT,
+// where no role name appears literally at all.
+const DISABLES_RLS = /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i;
+const RE_GRANTS_TO_POSTGREST_ROLE =
+  /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC|%I|%s)\b/i;
+
 // The stripper is the single point of failure for every assertion below: if it
 // ever blanked a real statement, all four negatives would pass on empty text and
 // this guard would go silently green. It is a hand-written state machine living in
@@ -135,6 +158,39 @@ describe('stripSqlComments', () => {
   });
 });
 
+// The matchers encode the security contract; the stripper only prepares their
+// input. Verifying the input path and not the decision path would leave the
+// guard's most load-bearing lines unpinned, so these exercise the regexes directly.
+describe('negative matchers', () => {
+  const grants = (sql: string) => RE_GRANTS_TO_POSTGREST_ROLE.test(sql);
+
+  it('catches the lockdown block copied with REVOKE swapped for GRANT', () => {
+    expect(grants(`EXECUTE format('GRANT ALL ON TABLE %s TO %I', obj.ident, r);`)).toBe(true);
+  });
+
+  it('catches a dynamic grant naming a PostgREST role literally', () => {
+    expect(grants(`EXECUTE format('GRANT SELECT ON %s TO anon', obj.ident);`)).toBe(true);
+  });
+
+  it('catches a grant whose TO clause wraps to the next line', () => {
+    expect(grants('GRANT SELECT ON "User"\n  TO anon;')).toBe(true);
+  });
+
+  it('catches a grant to PUBLIC, which anon inherits', () => {
+    expect(grants('GRANT SELECT ON "User" TO PUBLIC;')).toBe(true);
+  });
+
+  it('leaves the REVOKE idiom the migrations actually use alone', () => {
+    expect(grants(`EXECUTE format('REVOKE ALL ON TABLE %s FROM %I', obj.ident, r);`)).toBe(false);
+  });
+
+  it('catches RLS being disabled, and does not confuse it with enabling', () => {
+    expect(DISABLES_RLS.test('ALTER TABLE "S" DISABLE ROW LEVEL SECURITY;')).toBe(true);
+    expect(DISABLES_RLS.test('ALTER TABLE "S"\n  DISABLE ROW\n  LEVEL SECURITY;')).toBe(true);
+    expect(DISABLES_RLS.test('ALTER TABLE "S" ENABLE ROW LEVEL SECURITY;')).toBe(false);
+  });
+});
+
 describe('public-schema lockdown (prisma/migrations)', () => {
   it('enables row-level security on every modelled table', () => {
     const sql = migrationSql();
@@ -172,20 +228,8 @@ describe('public-schema lockdown (prisma/migrations)', () => {
     // re-GRANTs to anon leaves the original ENABLE text in place and stays green.
     // This is the likelier regression -- someone unblocking a local RLS problem.
     const sql = migrationSql();
-    expect(sql, 'a later migration disables RLS').not.toMatch(
-      /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i,
-    );
-    // `[^;]*` rather than `[^;\n]*`: SQL wraps, and a GRANT whose TO clause sits
-    // on the next line re-opens the door just as wide. PUBLIC counts as a
-    // PostgREST role here because `anon` inherits everything granted to it.
-    // `%I` and `%s` are in the alternation because the lockdown migration does all
-    // of its privilege work dynamically -- `format('REVOKE ALL ON TABLE %s FROM %I',
-    // obj.ident, r)` -- so the likeliest re-grant is that block copied with REVOKE
-    // swapped for GRANT. The role never appears literally there, and a matcher that
-    // only knows literal role names would pass a migration re-opening every table.
-    expect(sql, 're-granted to a PostgREST role').not.toMatch(
-      /\bGRANT\b[^;]*\bTO\s+(?:"?anon"?|"?authenticated"?|PUBLIC|%I|%s)\b/i,
-    );
+    expect(sql, 'a later migration disables RLS').not.toMatch(DISABLES_RLS);
+    expect(sql, 're-granted to a PostgREST role').not.toMatch(RE_GRANTS_TO_POSTGREST_ROLE);
   });
 
   it('never forces RLS on the owner, which would lock the app out', () => {

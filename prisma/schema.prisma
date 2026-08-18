@@ -78,9 +78,11 @@ model FlightSegment {
 // on a third party (Gemini, Resend) — see lib/ratelimit/. `key` is the primary key
 // so the counter can be incremented by one atomic INSERT ... ON CONFLICT. Rows are
 // disposable: every key embeds its window, and expired ones are swept when a new
-// window opens.
+// window opens. The subject (an IP, or the address a magic link was requested for)
+// is hashed into the key rather than stored, so this table never becomes a second
+// list of email addresses.
 model RateLimit {
-  key       String   @id // "<bucket>:<subject>:<windowIndex>"
+  key       String   @id // "<bucket>:<sha256 of subject>:<windowIndex>" — see lib/ratelimit/policy.ts
   count     Int      @default(0)
   expiresAt DateTime
 
