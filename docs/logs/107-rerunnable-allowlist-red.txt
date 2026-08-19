@@ -1,0 +1,57 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (13 tests | 2 failed) 195ms
+     × refuses DDL that collides on a second run 8ms
+     × fails closed: refuses a statement it has never heard of 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > refuses DDL that collides on a second run
+AssertionError: DROP INDEX "Foo_bar_idx";: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:66:62
+     64|       'CREATE EXTENSION pgcrypto;',
+     65|     ]) {
+     66|       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/…
+       |                                                              ^
+     67|     }
+     68|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > fails closed: refuses a statement it has never heard of
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:75:85
+     73|     // replaced -- absence is not an error, just absence -- and it wou…
+     74|     // wearing the file's "safe to run twice" header while it happened.
+     75|     expect(() => assertRerunnable('20990101_x', 'CLUSTER "Foo" USING "…
+       |                                                                                     ^
+     76|       /20990101_x/,
+     77|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 11 passed (13)
+   Start at  00:06:37
+   Duration  553ms (transform 123ms, setup 0ms, import 158ms, tests 195ms, environment 0ms)
+

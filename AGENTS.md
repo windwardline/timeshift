@@ -86,7 +86,18 @@ silently.
   `ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;` line in a migration** — without it
   the table is readable by anyone holding the project's publishable key. Never set
   `FORCE ROW LEVEL SECURITY`: the app connects as the table owner and relies on the
-  owner's RLS bypass.
+  owner's RLS bypass. Functions need the same thought and a different statement:
+  Postgres grants `EXECUTE` on every new function to `PUBLIC`, which `anon` belongs to,
+  and that is revoked database-wide by `20260819001500` — the schema-qualified spelling
+  of that revoke silently does nothing, so do not "tidy" it.
+- **Every migration from `20260818204500` onward must be safe to run twice**, security
+  work or not. `docs/supabase-lockdown.sql` carries all of them and promises exactly
+  that, so `scripts/rerunnable.mjs` refuses to generate the file otherwise and CI goes
+  red. It judges against an allowlist, so an unfamiliar statement is refused rather than
+  waved through. In practice: `CREATE TABLE IF NOT EXISTS`, `DROP … IF EXISTS`, and for
+  the forms with no idempotent spelling — `ADD CONSTRAINT` most likely, since the schema
+  already has relations — a `DO` block that checks the catalog first. The error names the
+  migration and the fix.
 
 ## 6. Secrets & environment
 

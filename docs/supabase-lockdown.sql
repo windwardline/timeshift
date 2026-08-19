@@ -293,6 +293,85 @@ WHERE NOT EXISTS (
 
 
 -- ===========================================================================
+-- 20260819001500_revoke_public_function_execute
+-- ===========================================================================
+-- Close the PostgREST RPC surface the previous migration only claimed to close.
+--
+-- `20260818233000` revoked default privileges ON FUNCTIONS from `anon` and
+-- `authenticated` by name. That does not stop the exposure it was written for.
+-- Postgres grants EXECUTE on every newly created function to the `PUBLIC`
+-- pseudo-role as a built-in default, `anon` is a member of `PUBLIC`, and `anon`
+-- keeps USAGE on this schema through `PUBLIC` as well -- `20260818204500` says
+-- so in its own comment. Supabase publishes a `public` function as an RPC
+-- endpoint, so the two together are a callable API.
+--
+-- Measured, not assumed. On a database with every earlier lockdown migration
+-- applied, a SECURITY DEFINER function created in `public` returned a user's
+-- email address to `anon`. SECURITY DEFINER runs as its owner, so RLS -- which
+-- the owner bypasses -- is not a second line of defence here. That is the
+-- ordinary shape of a helper function, not a contrived one.
+--
+-- 1. Future functions: stop the built-in default before it is ever applied.
+--
+--    NOT schema-qualified, and that is the whole point. The obvious spelling --
+--    `ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM
+--    PUBLIC` -- writes no `pg_default_acl` row and changes nothing: a new
+--    function still comes out with `proacl` NULL and `anon` still holds EXECUTE.
+--    Verified on Postgres 16.13. A schema-scoped default-ACL entry is layered on
+--    TOP of the built-in defaults; the built-in PUBLIC grant is database-wide, so
+--    only a database-wide revoke can subtract it. The database-wide form does
+--    write the entry (`{postgres=X/postgres}`, `defaclnamespace = 0`) and a
+--    function created afterwards reports `anon` EXECUTE as false.
+--
+--    Database-wide sounds broader than it is: like every ALTER DEFAULT
+--    PRIVILEGES, it governs only objects created by the role running it. This
+--    app creates objects in `public` and nowhere else; Supabase's own schemas are
+--    created by its internal roles, which this does not touch.
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
+-- 2. Functions that already exist. None ship with this app today, so this is for
+--    anything created before the line above landed.
+--
+--    Guarded twice. Ownership, because a blanket revoke aborts on the first
+--    object the migrating role does not own, which would fail the migration on a
+--    live database. And extension membership, because revoking EXECUTE from
+--    PUBLIC on an extension's functions (pgcrypto, uuid-ossp and friends, which
+--    Supabase may install into `public`) would break every other role that calls
+--    them -- a far wider blast radius than this migration is entitled to.
+--
+--    The owner keeps EXECUTE regardless: REVOKE ... FROM PUBLIC does not touch
+--    the owner's own privileges, so the app, which connects as the owner, is
+--    unaffected.
+DO $$
+DECLARE fn record;
+BEGIN
+  FOR fn IN
+    SELECT p.oid::regprocedure AS ident
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND pg_catalog.pg_has_role(current_user, p.proowner, 'USAGE')
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.objid = p.oid AND d.classid = 'pg_proc'::regclass AND d.deptype = 'e'
+      )
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', fn.ident);
+  END LOOP;
+END
+$$;
+
+-- Record it the way `prisma migrate deploy` would, so the CLI does not try to
+-- apply it again later.
+INSERT INTO "_prisma_migrations"
+  ("id", "checksum", "finished_at", "migration_name", "logs", "rolled_back_at", "started_at", "applied_steps_count")
+SELECT gen_random_uuid()::text, '0e2eb2974198378b56b09545b0de1602f7b2f718eea6dd6bdf74d179e62495f5', now(), '20260819001500_revoke_public_function_execute', NULL, NULL, now(), 1
+WHERE NOT EXISTS (
+  SELECT 1 FROM "_prisma_migrations" WHERE "migration_name" = '20260819001500_revoke_public_function_execute'
+);
+
+
+-- ===========================================================================
 -- Rotate the credentials the exposure made readable
 -- ===========================================================================
 -- NOTE, and the one place this file is NOT the same as scripts/secure-database.sh:
@@ -367,14 +446,38 @@ SELECT 2,
               WHEN 'f' THEN 'functions' WHEN 'T' THEN 'types'
               ELSE d.defaclobjtype::text END
          || ' owned by ' || pg_get_userbyid(d.defaclrole)
-         || ' grant ' || string_agg(DISTINCT r.rolname, ' + '),
+         || ' grant ' || string_agg(DISTINCT COALESCE(r.rolname, 'PUBLIC'), ' + '),
        CASE WHEN pg_get_userbyid(d.defaclrole) = current_user
             THEN 'PROBLEM - governs the objects your migrations create'
             ELSE 'OK - Supabase internal role, never governs your objects' END
 FROM pg_default_acl d
-JOIN pg_namespace n ON n.oid = d.defaclnamespace
+LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
-JOIN pg_roles r ON r.oid = a.grantee
-WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
+LEFT JOIN pg_roles r ON r.oid = a.grantee
+WHERE (n.nspname = 'public' OR d.defaclnamespace = 0)
+  AND (r.rolname IN ('anon', 'authenticated') OR a.grantee = 0)
 GROUP BY d.defaclrole, d.defaclobjtype
+UNION ALL
+-- Row 3 is checked positively, because its failure state is the ABSENCE of a
+-- row. Postgres grants EXECUTE on every new function to PUBLIC as a built-in
+-- default and anon is a member of PUBLIC, but nothing records that default in
+-- pg_default_acl -- so a query hunting for a bad row finds none and reports
+-- clean while a future SECURITY DEFINER function in public (which runs as its
+-- owner, and so is not stopped by RLS) is callable by anyone holding the
+-- publishable key. What IS recorded is the revoke. Its presence is the control.
+SELECT 3,
+       'future functions',
+       'EXECUTE on new functions, which Postgres grants to PUBLIC by default',
+       CASE WHEN EXISTS (
+              SELECT 1 FROM pg_default_acl d
+              WHERE d.defaclrole = current_user::regrole
+                AND d.defaclobjtype = 'f'
+                AND d.defaclnamespace = 0
+                AND NOT EXISTS (
+                  SELECT 1 FROM aclexplode(d.defaclacl) a
+                  WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+                )
+            )
+            THEN 'OK'
+            ELSE 'PROBLEM - a function created here would be a public RPC' END
 ORDER BY 1;

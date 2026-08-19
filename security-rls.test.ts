@@ -268,6 +268,33 @@ describe('public-schema lockdown (prisma/migrations)', () => {
     }
   });
 
+  it('revokes EXECUTE on future functions from PUBLIC, not just the named roles', () => {
+    // Revoking from anon and authenticated by name does NOT close this. Postgres
+    // grants EXECUTE on every new function to PUBLIC as a built-in default, anon
+    // is a member of PUBLIC, and anon keeps USAGE on the schema through PUBLIC
+    // too (20260818204500 says so itself). PostgREST publishes a public function
+    // as an RPC endpoint, so the next SECURITY DEFINER helper -- which runs as
+    // its owner and therefore bypasses RLS -- would return rows to anyone holding
+    // the publishable key. Measured on a fully locked-down local database before
+    // this line existed: anon could call it and read a user's email address.
+    //
+    // Asserted WITHOUT `IN SCHEMA`, which is the part that is easy to get wrong
+    // and impossible to notice: the schema-qualified spelling writes no
+    // pg_default_acl row and changes nothing, because a schema-scoped entry is
+    // layered on top of the built-in defaults rather than able to subtract from
+    // them. Only the database-wide form takes effect. Both were run on Postgres
+    // 16.13 before this was written.
+    expect(migrationSql()).toMatch(
+      /ALTER\s+DEFAULT\s+PRIVILEGES\s+REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+PUBLIC/i,
+    );
+    expect(
+      migrationSql(),
+      'IN SCHEMA public silently does nothing for the built-in PUBLIC default',
+    ).not.toMatch(
+      /ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+\w+\s+REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+PUBLIC/i,
+    );
+  });
+
   it('never turns the lockdown back off in a later migration', () => {
 
     // The checks above concatenate every migration and match on presence, so on

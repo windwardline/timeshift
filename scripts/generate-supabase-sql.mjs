@@ -147,16 +147,40 @@ SELECT 2,
               WHEN 'f' THEN 'functions' WHEN 'T' THEN 'types'
               ELSE d.defaclobjtype::text END
          || ' owned by ' || pg_get_userbyid(d.defaclrole)
-         || ' grant ' || string_agg(DISTINCT r.rolname, ' + '),
+         || ' grant ' || string_agg(DISTINCT COALESCE(r.rolname, 'PUBLIC'), ' + '),
        CASE WHEN pg_get_userbyid(d.defaclrole) = current_user
             THEN 'PROBLEM - governs the objects your migrations create'
             ELSE 'OK - Supabase internal role, never governs your objects' END
 FROM pg_default_acl d
-JOIN pg_namespace n ON n.oid = d.defaclnamespace
+LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
 CROSS JOIN LATERAL aclexplode(d.defaclacl) a
-JOIN pg_roles r ON r.oid = a.grantee
-WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
+LEFT JOIN pg_roles r ON r.oid = a.grantee
+WHERE (n.nspname = 'public' OR d.defaclnamespace = 0)
+  AND (r.rolname IN ('anon', 'authenticated') OR a.grantee = 0)
 GROUP BY d.defaclrole, d.defaclobjtype
+UNION ALL
+-- Row 3 is checked positively, because its failure state is the ABSENCE of a
+-- row. Postgres grants EXECUTE on every new function to PUBLIC as a built-in
+-- default and anon is a member of PUBLIC, but nothing records that default in
+-- pg_default_acl -- so a query hunting for a bad row finds none and reports
+-- clean while a future SECURITY DEFINER function in public (which runs as its
+-- owner, and so is not stopped by RLS) is callable by anyone holding the
+-- publishable key. What IS recorded is the revoke. Its presence is the control.
+SELECT 3,
+       'future functions',
+       'EXECUTE on new functions, which Postgres grants to PUBLIC by default',
+       CASE WHEN EXISTS (
+              SELECT 1 FROM pg_default_acl d
+              WHERE d.defaclrole = current_user::regrole
+                AND d.defaclobjtype = 'f'
+                AND d.defaclnamespace = 0
+                AND NOT EXISTS (
+                  SELECT 1 FROM aclexplode(d.defaclacl) a
+                  WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+                )
+            )
+            THEN 'OK'
+            ELSE 'PROBLEM - a function created here would be a public RPC' END
 ORDER BY 1;
 `);
 

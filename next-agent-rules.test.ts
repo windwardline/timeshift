@@ -32,6 +32,28 @@ describe('next dev must not edit tracked files', () => {
     expect(read('next.config.mjs')).toMatch(/agentRules:\s*false/);
   });
 
+  it('still finds the switch in the installed Next, not just in our config', () => {
+    // The assertion above guards our own refactor. It cannot guard Next's.
+    // `agentRules` is young and effectively undocumented -- establishing it
+    // exists meant reading the package -- and Next only WARNS on an unrecognised
+    // config key, so a release that renames or drops it leaves next.config.mjs
+    // saying `agentRules: false`, every check green, and `next dev` quietly
+    // appending to the operating contract again.
+    //
+    // That is a live path, not a hypothetical: `next` is pinned `^16.3.0`,
+    // dependabot opens grouped production-dependency PRs weekly, and
+    // dependabot-auto-merge.yml arms auto-merge on green CI. Asserting against
+    // the installed package turns that into a red dependency PR, which is the
+    // one moment somebody is already looking at the upgrade.
+    const pkg = 'node_modules/next/dist/server';
+    expect(read(`${pkg}/config-shared.d.ts`), 'Next no longer declares agentRules').toMatch(
+      /agentRules\?:\s*boolean/,
+    );
+    expect(read(`${pkg}/lib/start-server.js`), 'Next no longer reads agentRules').toContain(
+      'agentRules !== false',
+    );
+  });
+
   it('has no injected block in the operating contract', () => {
     for (const file of ['AGENTS.md', 'CLAUDE.md']) {
       expect(read(file), `${file} carries Next's managed block`).not.toContain(INJECTED_BLOCK);
@@ -47,6 +69,10 @@ describe('next dev must not edit tracked files', () => {
     // Untracking it is only safe because typecheck no longer depends on the file
     // being in the checkout. CI runs typecheck BEFORE build, so without this the
     // very first CI step fails on a fresh clone.
+    // Note this guards `npm run typecheck`, not a bare `tsc --noEmit`. On a
+    // fresh clone the latter now silently loses the `next` type references until
+    // something has generated them; tsconfig.json's `include` still lists
+    // next-env.d.ts, which is correct once typegen has run and inert before.
     const scripts = JSON.parse(read('package.json')).scripts;
     expect(scripts.typecheck, 'typecheck must generate the types it needs').toContain(
       'next typegen',

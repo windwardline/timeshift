@@ -1,0 +1,335 @@
+
+> timeshift@0.1.0 test:run
+> vitest run security-rls.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ security-rls.test.ts (24 tests | 1 failed) 35ms
+     × revokes EXECUTE on future functions from PUBLIC, not just the named roles 11ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  security-rls.test.ts > public-schema lockdown (prisma/migrations) > revokes EXECUTE on future functions from PUBLIC, not just the named roles
+AssertionError: expected '\nCREATE TABLE "User" (\n    "id" TEX…' to match /ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+…/i
+
+- Expected:
+/ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+public\s+REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+PUBLIC/i
+
++ Received:
+"
+CREATE TABLE \"User\" (
+    \"id\" TEXT NOT NULL,
+    \"email\" TEXT NOT NULL,
+    \"passwordHash\" TEXT NOT NULL,
+    \"homeTimeZone\" TEXT NOT NULL,
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"User_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE TABLE \"Trip\" (
+    \"id\" TEXT NOT NULL,
+    \"name\" TEXT NOT NULL,
+    \"destination\" TEXT NOT NULL,
+    \"userId\" TEXT NOT NULL,
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"Trip_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE TABLE \"FlightSegment\" (
+    \"id\" TEXT NOT NULL,
+    \"tripId\" TEXT NOT NULL,
+    \"sequence\" INTEGER NOT NULL,
+    \"departureAirport\" TEXT NOT NULL,
+    \"arrivalAirport\" TEXT NOT NULL,
+    \"departureTime\" TIMESTAMP(3) NOT NULL,
+    \"arrivalTime\" TIMESTAMP(3) NOT NULL,
+    \"departureTz\" TEXT NOT NULL,
+    \"arrivalTz\" TEXT NOT NULL,
+    \"departureLat\" DOUBLE PRECISION,
+    \"departureLng\" DOUBLE PRECISION,
+    \"arrivalLat\" DOUBLE PRECISION,
+    \"arrivalLng\" DOUBLE PRECISION,
+
+    CONSTRAINT \"FlightSegment_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"User_email_key\" ON \"User\"(\"email\");
+
+
+CREATE UNIQUE INDEX \"FlightSegment_tripId_sequence_key\" ON \"FlightSegment\"(\"tripId\", \"sequence\");
+
+
+ALTER TABLE \"Trip\" ADD CONSTRAINT \"Trip_userId_fkey\" FOREIGN KEY (\"userId\") REFERENCES \"User\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+ALTER TABLE \"FlightSegment\" ADD CONSTRAINT \"FlightSegment_tripId_fkey\" FOREIGN KEY (\"tripId\") REFERENCES \"Trip\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+CREATE TABLE \"Session\" (
+    \"id\" TEXT NOT NULL,
+    \"token\" TEXT NOT NULL,
+    \"userId\" TEXT NOT NULL,
+    \"expiresAt\" TIMESTAMP(3) NOT NULL,
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"Session_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"Session_token_key\" ON \"Session\"(\"token\");
+
+
+ALTER TABLE \"Session\" ADD CONSTRAINT \"Session_userId_fkey\" FOREIGN KEY (\"userId\") REFERENCES \"User\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+ALTER TABLE \"User\" ALTER COLUMN \"passwordHash\" DROP NOT NULL;
+
+
+CREATE TABLE \"LoginToken\" (
+    \"id\" TEXT NOT NULL,
+    \"token\" TEXT NOT NULL,
+    \"email\" TEXT NOT NULL,
+    \"expiresAt\" TIMESTAMP(3) NOT NULL,
+    \"usedAt\" TIMESTAMP(3),
+    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"LoginToken_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"LoginToken_token_key\" ON \"LoginToken\"(\"token\");
+
+
+ALTER TABLE \"FlightSegment\" ADD COLUMN     \"flightNumber\" TEXT;
+
+
+CREATE TABLE \"FlightQueryCache\" (
+    \"id\" TEXT NOT NULL,
+    \"queryKey\" TEXT NOT NULL,
+    \"payload\" JSONB NOT NULL,
+    \"fetchedAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT \"FlightQueryCache_pkey\" PRIMARY KEY (\"id\")
+);
+
+
+CREATE UNIQUE INDEX \"FlightQueryCache_queryKey_key\" ON \"FlightQueryCache\"(\"queryKey\");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ALTER TABLE \"User\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"LoginToken\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"Session\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"Trip\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"FlightSegment\" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE \"FlightQueryCache\" ENABLE ROW LEVEL SECURITY;
+
+
+
+
+
+
+
+
+
+
+
+DO $$
+DECLARE t regclass;
+BEGIN
+  FOR t IN
+    SELECT c.oid::regclass
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity
+      AND pg_catalog.pg_has_role(current_user, c.relowner, 'USAGE')
+  LOOP
+    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END
+$$;
+
+
+
+
+DO $$
+DECLARE r text; obj record;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      
+      
+      
+      
+      
+      FOR obj IN
+        SELECT c.oid::regclass AS ident, c.relkind AS kind
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+          AND pg_catalog.pg_has_role(current_user, c.relowner, 'USAGE')
+      LOOP
+        IF obj.kind = 'S' THEN
+          EXECUTE format('REVOKE ALL ON SEQUENCE %s FROM %I', obj.ident, r);
+        ELSE
+          EXECUTE format('REVOKE ALL ON TABLE %s FROM %I', obj.ident, r);
+        END IF;
+      END LOOP;
+      
+      
+      
+      
+      
+      
+      
+      EXECUTE format('REVOKE ALL ON SCHEMA public FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', r);
+    END IF;
+  END LOOP;
+END
+$$;
+
+
+CREATE TABLE \"RateLimit\" (
+    \"key\" TEXT NOT NULL,
+    \"count\" INTEGER NOT NULL DEFAULT 0,
+    \"expiresAt\" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT \"RateLimit_pkey\" PRIMARY KEY (\"key\")
+);
+
+
+CREATE INDEX \"RateLimit_expiresAt_idx\" ON \"RateLimit\"(\"expiresAt\");
+
+
+
+
+
+
+ALTER TABLE \"RateLimit\" ENABLE ROW LEVEL SECURITY;
+
+
+
+ALTER TABLE \"User\" DROP COLUMN \"passwordHash\";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DO $$
+DECLARE r text;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM %I', r);
+      EXECUTE format(
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TYPES FROM %I', r);
+    END IF;
+  END LOOP;
+END
+$$;
+"
+
+ ❯ security-rls.test.ts:284:28
+    282|     // in pg_default_acl at all, so there is nothing to report on; the…
+    283|     // the whole control, which is why it is asserted here.
+    284|     expect(migrationSql()).toMatch(
+       |                            ^
+    285|       /ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+public\s+REVOKE\s+…
+    286|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 23 passed (24)
+   Start at  00:02:32
+   Duration  390ms (transform 141ms, setup 0ms, import 163ms, tests 35ms, environment 0ms)
+

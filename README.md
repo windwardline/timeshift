@@ -346,7 +346,18 @@ Run; the SQL Editor is a scratch buffer, so that is not hand-editing the committ
 file.
 
 `pg_default_acl` holds a row per object class, so the revoke covers all of them —
-`TABLES`, `SEQUENCES`, `FUNCTIONS`, `TYPES`. Covering only tables and sequences
+`TABLES`, `SEQUENCES`, `FUNCTIONS`, `TYPES`. Functions need a second statement on
+top of that: Postgres grants `EXECUTE` on every new function to `PUBLIC`, `anon`
+is a member of `PUBLIC`, and that built-in default is recorded nowhere, so
+revoking from `anon` by name leaves it standing. Measured before it was fixed — a
+`SECURITY DEFINER` function in `public` (which runs as its owner, so RLS is no
+help) returned a user's email address to `anon`, and both verifiers still said
+`OK`. It is revoked **database-wide** by `20260819001500`, because the
+schema-qualified spelling writes no row and changes nothing. Both tools now check
+that revoke positively, since its failure state is an absent row rather than a
+bad one.
+
+ Covering only tables and sequences
 left the functions row standing, which is both an exposure (default `EXECUTE` to
 `anon` on a future `public` function is a live PostgREST RPC endpoint) and an
 operational trap: the verifier read that row as a failure, and a failed

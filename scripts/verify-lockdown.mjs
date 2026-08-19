@@ -77,12 +77,13 @@ try {
            CASE d.defaclobjtype WHEN 'r' THEN 'tables'    WHEN 'S' THEN 'sequences'
                                 WHEN 'f' THEN 'functions' WHEN 'T' THEN 'types'
                                 ELSE d.defaclobjtype::text END AS class,
-           string_agg(DISTINCT r.rolname, ', ') AS roles
+           string_agg(DISTINCT COALESCE(r.rolname, 'PUBLIC'), ', ') AS roles
     FROM pg_default_acl d
-    JOIN pg_namespace n ON n.oid = d.defaclnamespace
+    LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
     CROSS JOIN LATERAL aclexplode(d.defaclacl) a
-    JOIN pg_roles r ON r.oid = a.grantee
-    WHERE n.nspname = 'public' AND r.rolname IN ('anon', 'authenticated')
+    LEFT JOIN pg_roles r ON r.oid = a.grantee
+    WHERE (n.nspname = 'public' OR d.defaclnamespace = 0)
+      AND (r.rolname IN ('anon', 'authenticated') OR a.grantee = 0)
     GROUP BY d.defaclrole, d.defaclobjtype
   `);
   const ours = defaults.filter((d) => d.is_ours);
@@ -101,6 +102,34 @@ try {
       `  note: ${d.owner} still grants ${d.roles} on ${d.class} IT creates — not ours, not a failure`,
     );
   }
+
+  // Checked positively, because its failure state is the ABSENCE of a row.
+  // Postgres grants EXECUTE on every new function to PUBLIC as a built-in
+  // default, and `anon` is a member of PUBLIC. Nothing records that default in
+  // pg_default_acl, so a query looking for a bad row finds nothing and reports
+  // clean while a future SECURITY DEFINER function in `public` -- which runs as
+  // its owner and so bypasses RLS -- would be callable by anyone with the
+  // publishable key, over PostgREST's RPC surface. What IS recorded is the
+  // revoke: a database-wide (defaclnamespace = 0) entry for this role that does
+  // not grant EXECUTE to PUBLIC. Its presence is the control.
+  const fnDefaults = await prisma.$queryRawUnsafe(`
+    SELECT EXISTS (
+      SELECT 1 FROM pg_default_acl d
+      WHERE d.defaclrole = current_user::regrole
+        AND d.defaclobjtype = 'f'
+        AND d.defaclnamespace = 0
+        AND NOT EXISTS (
+          SELECT 1 FROM aclexplode(d.defaclacl) a
+          WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+        )
+    ) AS revoked
+  `);
+  if (!fnDefaults[0].revoked) bad += 1;
+  console.log(
+    `EXECUTE on future functions, granted to PUBLIC by default: ${
+      fnDefaults[0].revoked ? 'revoked' : 'STILL GRANTED <-- a future function is a public RPC'
+    }`,
+  );
 
   // A database that has never been migrated has no _prisma_migrations table at
   // all. That is a legitimate state to report -- "nothing applied yet" -- not an

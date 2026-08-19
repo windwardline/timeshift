@@ -53,9 +53,29 @@ describe('rerunnable guard', () => {
       'ALTER TABLE "Foo" ADD CONSTRAINT "fk" FOREIGN KEY ("b") REFERENCES "Bar"("id");',
       'CREATE TYPE "Mood" AS ENUM (\'ok\');',
       'ALTER TABLE "Foo" DROP COLUMN "b";',
+      // Stock `prisma migrate dev` output, not exotica: these two are what
+      // removing an @@index and removing a relation produce.
+      'DROP INDEX "Foo_bar_idx";',
+      'ALTER TABLE "Foo" DROP CONSTRAINT "Foo_barId_fkey";',
+      // And the rest of what this schema could plausibly grow into.
+      "ALTER TYPE \"Mood\" ADD VALUE 'meh';",
+      'CREATE POLICY "p" ON "Foo" USING (true);',
+      'CREATE TRIGGER "t" BEFORE INSERT ON "Foo" EXECUTE FUNCTION f();',
+      'CREATE EXTENSION pgcrypto;',
     ]) {
       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
     }
+  });
+
+  it('fails closed: refuses a statement it has never heard of', () => {
+    // The point of inverting the denylist. A guard that only knows the shapes
+    // someone thought of has the same failure as the hardcoded migration list it
+    // replaced -- absence is not an error, just absence -- and it would be
+    // wearing the file's "safe to run twice" header while it happened.
+    expect(() => assertRerunnable('20990101_x', 'CLUSTER "Foo" USING "Foo_pkey";')).toThrow(
+      /20990101_x/,
+    );
+    expect(() => assertRerunnable('20990101_x', 'REINDEX TABLE "Foo";')).toThrow(/20990101_x/);
   });
 
   it('does not trip on DDL that only appears in a comment', () => {
