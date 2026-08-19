@@ -1,0 +1,99 @@
+
+> timeshift@0.1.0 test:run
+> vitest run next-agent-rules.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ next-agent-rules.test.ts (4 tests | 3 failed) 17ms
+     × turns the agent-rules injection off in next.config 9ms
+     × does not track next-env.d.ts, which dev and build disagree about 2ms
+     × regenerates next-env.d.ts before typechecking 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  next-agent-rules.test.ts > next dev must not edit tracked files > turns the agent-rules injection off in next.config
+AssertionError: expected '/** @type {import(\'next\').NextConfi…' to match /agentRules:\s*false/
+
+- Expected:
+/agentRules:\s*false/
+
++ Received:
+"/** @type {import('next').NextConfig} */
+const nextConfig = {};
+
+export default nextConfig;
+"
+
+ ❯ next-agent-rules.test.ts:32:37
+     30|     // defaulting to true, and start-server.js only calls the writer w…
+     31|     // not false. Not a hack around the behaviour — the switch Next pr…
+     32|     expect(read('next.config.mjs')).toMatch(/agentRules:\s*false/);
+       |                                     ^
+     33|   });
+     34|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  next-agent-rules.test.ts > next dev must not edit tracked files > does not track next-env.d.ts, which dev and build disagree about
+AssertionError: expected '# dependencies\n/node_modules\n# next…' to match /^next-env\.d\.ts$/m
+
+- Expected:
+/^next-env\.d\.ts$/m
+
++ Received:
+"# dependencies
+/node_modules
+# next.js
+/.next/
+/out/
+/build
+# env (never commit real secrets)
+.env
+.env*.local
+# vitest / coverage
+/coverage
+# playwright (e2e artifacts; the spec + committed screenshots are evidence)
+/test-results
+/playwright-report
+# typescript
+*.tsbuildinfo
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel
+"
+
+ ❯ next-agent-rules.test.ts:43:32
+     41|   it('does not track next-env.d.ts, which dev and build disagree about…
+     42|     // create-next-app's own .gitignore lists it for this reason.
+     43|     expect(read('.gitignore')).toMatch(/^next-env\.d\.ts$/m);
+       |                                ^
+     44|   });
+     45|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  next-agent-rules.test.ts > next dev must not edit tracked files > regenerates next-env.d.ts before typechecking
+AssertionError: typecheck must generate the types it needs: expected 'tsc --noEmit' to contain 'next typegen'
+
+Expected: "next typegen"
+Received: "tsc --noEmit"
+
+ ❯ next-agent-rules.test.ts:51:77
+     49|     // very first CI step fails on a fresh clone.
+     50|     const scripts = JSON.parse(read('package.json')).scripts;
+     51|     expect(scripts.typecheck, 'typecheck must generate the types it ne…
+       |                                                                             ^
+     52|       'next typegen',
+     53|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed (4)
+   Start at  23:59:17
+   Duration  324ms (transform 48ms, setup 0ms, import 68ms, tests 17ms, environment 0ms)
+
