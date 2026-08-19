@@ -203,8 +203,20 @@ describe('docs/supabase-lockdown.sql', () => {
     // checksum in lockstep with the file, so both move together and agree. Only
     // a pin outside the generator's reach notices. Adding a NEW migration is
     // always fine; this is about editing an old one.
-    const lock = JSON.parse(readFileSync(join(root, 'prisma/migrations/shipped.lock.json'), 'utf8'));
-    for (const [name, checksum] of Object.entries(lock)) {
+    // Stored in sha256sum's own format ("<hash>  <path>"), so it verifies with
+    // `sha256sum -c shipped.sha256` and needs no bespoke tooling. Not JSON: a
+    // "name": "<64 hex>" pair reads as a key assignment to gitleaks' generic
+    // API-key rule, which failed the secret scan on a public checksum.
+    const pinned = new Map(
+      readFileSync(join(root, 'prisma/migrations/shipped.sha256'), 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const [checksum, path] = line.split(/\s+/);
+          return [path.replace('/migration.sql', ''), checksum];
+        }),
+    );
+    for (const [name, checksum] of pinned) {
       const raw = readFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'utf8');
       expect(
         createHash('sha256').update(raw).digest('hex'),
@@ -214,7 +226,7 @@ describe('docs/supabase-lockdown.sql', () => {
     // And the pin has to cover everything the paste file carries, or a migration
     // could ship, get applied, and then be edited freely.
     for (const name of shippedMigrations()) {
-      expect(lock, `${name} missing from shipped.lock.json`).toHaveProperty(name);
+      expect([...pinned.keys()], `${name} missing from shipped.sha256`).toContain(name);
     }
   });
 

@@ -1,6 +1,11 @@
-# shipped.lock.json
+# shipped.sha256
 
 Pins the SHA-256 of every migration `docs/supabase-lockdown.sql` carries.
+
+Written in `sha256sum`'s own format, so `sha256sum -c shipped.sha256` verifies it
+from this directory with no bespoke tooling. It is deliberately not JSON: a
+`"name": "<64 hex>"` pair reads as a key assignment to gitleaks' generic API-key
+rule, which failed the secret scan on a public checksum.
 
 Those checksums are written into `_prisma_migrations` on any database fixed
 through the browser path. Editing a shipped migration — even only its comments —

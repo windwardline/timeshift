@@ -1,13 +1,26 @@
 
-> timeshift@0.1.0 test:run
-> vitest run supabase-lockdown-sql.test.ts
+> timeshift@0.1.0 test:coverage
+> vitest run --coverage
 
 
  RUN  v4.1.10 /home/user/timeshift
+      Coverage enabled with v8
 
 
- Test Files  1 passed (1)
-      Tests  16 passed (16)
-   Start at  00:30:30
-   Duration  544ms (transform 108ms, setup 0ms, import 143ms, tests 185ms, environment 0ms)
+ Test Files  50 passed (50)
+      Tests  294 passed (294)
+   Start at  00:33:35
+   Duration  7.23s (transform 1.57s, setup 0ms, import 5.32s, tests 1.59s, environment 987ms)
 
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 434/434 )
+Branches     : 100% ( 224/224 )
+Functions    : 100% ( 92/92 )
+Lines        : 100% ( 395/395 )
+================================================================================
