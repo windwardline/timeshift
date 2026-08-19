@@ -64,11 +64,9 @@ function tableNames(): string[] {
 // negative one ("we no longer grant SELECT on this table to anon" is English, not
 // a re-grant).
 //
-// The stripper is quote-aware rather than a regex, and that is the load-bearing
-// part. A regex stripper treats the `--` inside `'a--b'` as a comment and blanks
-// the rest of that line -- which would hide a real re-GRANT sitting after it and
-// leave the guard silently green. Tracking string literals is what makes removing
-// comments safe enough to be the single source for both directions.
+// Why it is quote-aware rather than a regex, and the rest of the reasoning, lives
+// with the implementation in scripts/sql-text.mjs -- shared with the paste-file
+// generator, which reads the same migrations.
 
 function migrationSql(): string {
   const dir = join(root, 'prisma/migrations');

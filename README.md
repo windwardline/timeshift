@@ -357,10 +357,8 @@ schema-qualified spelling writes no row and changes nothing. Both tools now chec
 that revoke positively, since its failure state is an absent row rather than a
 bad one.
 
- Covering only tables and sequences
-left the functions row standing, which is both an exposure (default `EXECUTE` to
-`anon` on a future `public` function is a live PostgREST RPC endpoint) and an
-operational trap: the verifier read that row as a failure, and a failed
+Covering only tables and sequences was also an operational trap, not just a gap:
+the verifier read the surviving functions row as a failure, and a failed
 verification is what makes `secure-database.sh` skip credential rotation.
 `security-rls.test.ts` asserts each class by name.
 

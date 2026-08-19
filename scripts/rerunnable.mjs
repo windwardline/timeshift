@@ -109,10 +109,24 @@ export function assertRerunnable(name, sql) {
           'twice. Add it to SAFE with the pattern its re-runnable form must match.',
       );
     }
-    for (const rule of entry.sub ?? [{ find: null, safe: entry.safe, fix: entry.fix }]) {
-      if (rule.find && !rule.find.test(statement)) continue;
+    const rules = entry.sub ?? [{ find: null, safe: entry.safe, fix: entry.fix }];
+    const matched = rules.filter((rule) => !rule.find || rule.find.test(statement));
+    if (entry.sub && matched.length === 0) {
+      // The allowlist has to hold one level down too. Without this the verb
+      // matched, no sub-rule did, and the statement was waved through -- so
+      // ALTER INDEX ... RENAME was refused while ALTER TABLE ... RENAME TO,
+      // RENAME COLUMN, RENAME CONSTRAINT and an unnamed ADD PRIMARY KEY all
+      // sailed past, none of them re-runnable.
+      throw new Error(
+        `${name}: ${JSON.stringify(preview(statement))} uses an ALTER TABLE subcommand ` +
+          'scripts/rerunnable.mjs does not know how to judge, and docs/supabase-lockdown.sql ' +
+          'promises it is safe to run twice. Add it to the sub list in SAFE with the pattern ' +
+          'its re-runnable form must match.',
+      );
+    }
+    for (const rule of matched) {
       if (rule.safe && rule.safe.test(statement)) continue;
-      if (rule.safe === null || !rule.safe.test(statement)) {
+      {
         throw new Error(
           `${name}: ${JSON.stringify(preview(statement))} aborts if ` +
             'docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to ' +

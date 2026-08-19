@@ -67,6 +67,21 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('fails closed inside ALTER TABLE too, not just at the leading verb', () => {
+    // The allowlist held at the verb -- ALTER INDEX ... RENAME was refused --
+    // but ALTER TABLE carries sub-rules that each skip when their pattern does
+    // not match, so an unlisted subcommand fell off the end and was accepted.
+    // None of these survive a second run, and all are one schema edit away.
+    for (const ddl of [
+      'ALTER TABLE "Foo" RENAME TO "Bar";',
+      'ALTER TABLE "Foo" RENAME COLUMN "a" TO "b";',
+      'ALTER TABLE "Foo" RENAME CONSTRAINT "c1" TO "c2";',
+      'ALTER TABLE "Foo" ADD PRIMARY KEY ("id");',
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+  });
+
   it('fails closed: refuses a statement it has never heard of', () => {
     // The point of inverting the denylist. A guard that only knows the shapes
     // someone thought of has the same failure as the hardcoded migration list it

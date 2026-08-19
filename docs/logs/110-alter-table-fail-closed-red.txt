@@ -1,0 +1,37 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (14 tests | 1 failed) 184ms
+     × fails closed inside ALTER TABLE too, not just at the leading verb 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > fails closed inside ALTER TABLE too, not just at the leading verb
+AssertionError: ALTER TABLE "Foo" RENAME TO "Bar";: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:81:62
+     79|       'ALTER TABLE "Foo" ADD PRIMARY KEY ("id");',
+     80|     ]) {
+     81|       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/…
+       |                                                              ^
+     82|     }
+     83|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  00:19:33
+   Duration  540ms (transform 137ms, setup 0ms, import 169ms, tests 184ms, environment 0ms)
+
