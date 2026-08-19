@@ -231,11 +231,12 @@ function matches(safe, statement) {
  * does not read the column being written. `SET "n" = "n" + 1` climbs on every
  * run; `SET "expiresAt" = now()` does not.
  *
- * Reads the clause by parenthesis depth rather than by splitting on commas and
- * cutting at keywords. Both commas and keywords appear INSIDE value expressions
- * -- `least(100, "n" + 1)`, `extract(epoch FROM "ts")` -- and a scanner that
- * treats them as structure loses whatever follows, which is how the plainest
- * self-reference hid behind either one.
+ * Literal contents are masked before anything is scanned. Three separate bugs
+ * came from scanning raw text -- a WHERE, then a FROM, then a dollar-quoted
+ * body, each read as structure because it sat inside a value. Teaching the
+ * scanner one more keyword each time was treating the symptom; a literal simply
+ * must not be readable as structure, so its contents are blanked positionally
+ * and every index-based scan runs on the mask while slices come from the original.
  *
  * Refuses -- rather than accepting -- anything it cannot decompose. Returning
  * `true` on "I could not parse this" is how a guard that reads as an allowlist
@@ -244,32 +245,40 @@ function matches(safe, statement) {
  * @param {string} statement
  */
 function noSelfReferencingAssignment(statement) {
+  const mask = maskLiterals(statement);
+  if (mask === null) return false; // unterminated literal
   // Every SET clause, not just the first: an upsert carries its increment in
   // `ON CONFLICT ... DO UPDATE SET`, which is where this shape usually appears.
-  const clauses = [...statement.matchAll(/\bSET\b/gi)].map((m) =>
-    sliceSetClause(statement, m.index + m[0].length),
+  // Matched on the mask, so the word SET inside a literal is not one.
+  const clauses = [...mask.matchAll(/\bSET\b/gi)].map((m) =>
+    sliceSetClause(statement, mask, m.index + m[0].length),
   );
   if (clauses.length === 0) return false;
   for (const clause of clauses) {
     if (clause === null) return false; // unbalanced, or cut inside an expression
     const assignments = splitTopLevel(clause);
     if (assignments.length === 0) return false;
-    for (const assignment of assignments) {
-      const eq = assignment.indexOf('=');
+    for (const { text, mask: assignmentMask } of assignments) {
+      const eq = assignmentMask.indexOf('=');
       if (eq === -1) return false;
-      const column = assignment.slice(0, eq).trim().replace(/^"|"$/g, '');
-      if (!/^[A-Za-z_][\w$]*$/.test(column)) return false; // not a plain column
+      const lhs = text.slice(0, eq).trim();
+      // Both the single-column form and the multi-column `("a","b") = (1, 2)`.
+      const columns = /^\(.*\)$/s.test(lhs)
+        ? identifiers(lhs)
+        : [lhs.replace(/^"|"$/g, '')].filter((c) => /^[A-Za-z_][\w$]*$/.test(c));
+      if (columns.length === 0) return false; // not a shape this can judge
       // EXCLUDED.<col> is the proposed row, not the stored one, so an upsert
       // written `SET x = EXCLUDED.x` is re-runnable. Dropped before the test so
       // it cannot look like a self-reference -- and dropped only here, so a real
       // self-reference sitting beside it is still seen.
-      const value = assignment.slice(eq + 1).replace(/\bexcluded\s*\.\s*"?[\w$]+"?/gi, '');
+      const value = text.slice(eq + 1).replace(/\bexcluded\s*\.\s*"?[\w$]+"?/gi, '');
       // Compared as tokens rather than through a regex built from the column
       // name. A constructed pattern is a ReDoS surface, and it needs the column
       // escaped or a `$` in an identifier becomes an end-of-input anchor and the
       // reference silently never matches -- which is exactly how this check was
       // broken once already. String equality has neither failure mode.
-      if (identifiers(value).some((id) => id.toLowerCase() === column.toLowerCase())) return false;
+      const read = identifiers(value).map((id) => id.toLowerCase());
+      if (columns.some((c) => read.includes(c.toLowerCase()))) return false;
     }
   }
   return true;
@@ -285,59 +294,93 @@ function identifiers(expression) {
 }
 
 /**
- * The text of one SET clause: from `from` up to the first terminator that is
- * NOT inside parentheses or a string literal. Returns `null` when the clause
- * cannot be delimited -- unbalanced parentheses, or an unterminated literal.
- * @param {string} statement
- * @param {number} from index just past the SET keyword
+ * A copy of `sql` with the CONTENTS of every string literal replaced by spaces,
+ * so positions still line up with the original but nothing inside a literal can
+ * be read as syntax. Handles `'…'` (with `''` escapes) and `$tag$…$tag$`.
+ * Returns `null` when a literal is never closed.
+ * @param {string} sql
  * @returns {string | null}
  */
-function sliceSetClause(statement, from) {
-  const rest = statement.slice(from);
-  let depth = 0;
-  for (let i = 0; i < rest.length; i += 1) {
-    if (rest[i] === "'") {
-      const close = rest.indexOf("'", i + 1);
+function maskLiterals(sql) {
+  let out = '';
+  for (let i = 0; i < sql.length; ) {
+    const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))?.[0];
+    if (tag) {
+      const close = sql.indexOf(tag, i + tag.length);
       if (close === -1) return null;
-      i = close;
-      continue;
-    }
-    if (rest[i] === '(') depth += 1;
-    else if (rest[i] === ')') {
-      depth -= 1;
-      if (depth < 0) return rest.slice(0, i);
-    } else if (depth === 0) {
-      if (rest[i] === ';') return rest.slice(0, i);
-      const word = /^(?:WHERE|RETURNING|FROM)\b/i.exec(rest.slice(i));
-      if (word && (i === 0 || /\s/.test(rest[i - 1]))) return rest.slice(0, i);
+      out += tag + ' '.repeat(close - i - tag.length) + tag;
+      i = close + tag.length;
+    } else if (sql[i] === "'") {
+      let j = i + 1;
+      for (;;) {
+        if (j >= sql.length) return null;
+        if (sql[j] === "'" && sql[j + 1] === "'") j += 2;
+        else if (sql[j] === "'") break;
+        else j += 1;
+      }
+      out += `'${' '.repeat(j - i - 1)}'`;
+      i = j + 1;
+    } else {
+      out += sql[i];
+      i += 1;
     }
   }
-  return depth === 0 ? rest : null;
+  return out;
 }
 
 /**
- * Splits an assignment list on commas at parenthesis depth zero, so a comma
- * inside a call stays part of its value.
- * @param {string} clause
- * @returns {string[]}
+ * One SET clause: from `from` up to the first terminator that is not nested.
+ * Scans the mask, slices the original. Returns `null` when the clause cannot be
+ * delimited -- unbalanced brackets, or a stray closer meaning the scan lost the
+ * plot, which is not a terminator in any valid statement.
+ * @param {string} statement
+ * @param {string} mask
+ * @param {number} from index just past the SET keyword
+ * @returns {{ text: string, mask: string } | null}
+ */
+function sliceSetClause(statement, mask, from) {
+  let depth = 0;
+  for (let i = from; i < mask.length; i += 1) {
+    const c = mask[i];
+    if (c === '(' || c === '[') depth += 1;
+    else if (c === ')' || c === ']') {
+      depth -= 1;
+      if (depth < 0) return null;
+    } else if (depth === 0) {
+      if (c === ';') return cut(statement, mask, from, i);
+      const word = /^(?:WHERE|RETURNING|FROM)\b/i.exec(mask.slice(i));
+      if (word && (i === from || /\s/.test(mask[i - 1]))) return cut(statement, mask, from, i);
+    }
+  }
+  return depth === 0 ? cut(statement, mask, from, mask.length) : null;
+}
+
+/** @returns {{ text: string, mask: string }} */
+function cut(statement, mask, from, to) {
+  return { text: statement.slice(from, to), mask: mask.slice(from, to) };
+}
+
+/**
+ * Splits an assignment list on commas that are not nested, so a comma inside a
+ * call or an array literal stays part of its value.
+ * @param {{ text: string, mask: string }} clause
+ * @returns {{ text: string, mask: string }[]}
  */
 function splitTopLevel(clause) {
   const out = [];
   let depth = 0;
   let start = 0;
-  for (let i = 0; i < clause.length; i += 1) {
-    if (clause[i] === "'") {
-      const close = clause.indexOf("'", i + 1);
-      i = close === -1 ? clause.length : close;
-    } else if (clause[i] === '(') depth += 1;
-    else if (clause[i] === ')') depth -= 1;
-    else if (clause[i] === ',' && depth === 0) {
-      out.push(clause.slice(start, i));
+  for (let i = 0; i < clause.mask.length; i += 1) {
+    const c = clause.mask[i];
+    if (c === '(' || c === '[') depth += 1;
+    else if (c === ')' || c === ']') depth -= 1;
+    else if (c === ',' && depth === 0) {
+      out.push(cut(clause.text, clause.mask, start, i));
       start = i + 1;
     }
   }
-  out.push(clause.slice(start));
-  return out.map((s) => s.trim()).filter(Boolean);
+  out.push(cut(clause.text, clause.mask, start, clause.mask.length));
+  return out.filter((a) => a.text.trim().length > 0);
 }
 
 /** First line of a statement, for an error message that fits on a screen. */

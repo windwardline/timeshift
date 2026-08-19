@@ -137,6 +137,42 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('never reads the inside of a literal as structure', () => {
+    // Third time this class of bug appeared: WHERE, then FROM, now the contents
+    // of a dollar quote. Each earlier fix taught the scanner one more keyword
+    // instead of stopping it from reading literals at all. Literal contents are
+    // now masked before anything is scanned, so no keyword, comma, paren or
+    // bracket inside one can be mistaken for structure.
+    for (const ddl of [
+      `UPDATE "T" SET "a" = $$ WHERE $$, "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = $$ ) $$, "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = ' WHERE ', "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = ARRAY[1,2], "n" = "n" + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+  });
+
+  it('accepts statements it previously refused only because it could not parse them', () => {
+    // These are all re-runnable. Refusing them was fail-closed, so not a
+    // soundness problem, but the error named a remedy -- wrap it in a DO block --
+    // that does not apply to a statement which is already fine.
+    for (const ok of [
+      // The word SET inside a literal is not the start of a SET clause.
+      `INSERT INTO "Log" ("msg") VALUES ('please SET the flag') ON CONFLICT ("k") DO UPDATE SET "msg" = EXCLUDED."msg";`,
+      // Multi-column assignment.
+      `UPDATE "T" SET ("a","b") = (1, 2);`,
+      // A bracketed array is one value, not two assignments.
+      `UPDATE "T" SET "a" = ARRAY[1,2];`,
+    ]) {
+      expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+    }
+    // and the multi-column form still catches a self-reference
+    expect(() => assertRerunnable('20990101_x', `UPDATE "T" SET ("a","n") = (1, "n" + 1);`)).toThrow(
+      /20990101_x/,
+    );
+  });
+
   it('accepts the canonical upsert, which reads EXCLUDED rather than the row', () => {
     // SET x = EXCLUDED.x is the standard spelling and is perfectly re-runnable:
     // EXCLUDED is the proposed row, not the stored one. Refusing it sent authors
