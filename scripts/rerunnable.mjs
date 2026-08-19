@@ -264,11 +264,24 @@ function noSelfReferencingAssignment(statement) {
       // it cannot look like a self-reference -- and dropped only here, so a real
       // self-reference sitting beside it is still seen.
       const value = assignment.slice(eq + 1).replace(/\bexcluded\s*\.\s*"?[\w$]+"?/gi, '');
-      const quoted = column.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      if (new RegExp(`"?\\b${quoted}\\b"?`).test(value)) return false;
+      // Compared as tokens rather than through a regex built from the column
+      // name. A constructed pattern is a ReDoS surface, and it needs the column
+      // escaped or a `$` in an identifier becomes an end-of-input anchor and the
+      // reference silently never matches -- which is exactly how this check was
+      // broken once already. String equality has neither failure mode.
+      if (identifiers(value).some((id) => id.toLowerCase() === column.toLowerCase())) return false;
     }
   }
   return true;
+}
+
+/**
+ * Every identifier in an expression, quoted or bare.
+ * @param {string} expression
+ * @returns {string[]}
+ */
+function identifiers(expression) {
+  return [...expression.matchAll(/"([^"]*)"|([A-Za-z_][\w$]*)/g)].map((m) => m[1] ?? m[2]);
 }
 
 /**
