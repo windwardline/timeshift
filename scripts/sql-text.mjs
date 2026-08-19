@@ -42,6 +42,14 @@ export function stripSqlComments(sql) {
         inString = false;
       }
       i += 1;
+    } else if (c === '"') {
+      // A quoted identifier is a name, copied through whole. Without this a `--`
+      // or a `$tag$` inside one is read as syntax -- `"a--b"` would lose its tail
+      // to the comment stripper.
+      const close = sql.indexOf('"', i + 1);
+      const end = close === -1 ? sql.length : close + 1;
+      out += sql.slice(i, end);
+      i = end;
     } else if (c === "'") {
       inString = true;
       out += c;

@@ -153,6 +153,47 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('treats a quoted identifier as a name, not as text to parse', () => {
+    // Postgres allows $ in an identifier -- this file already asserts that for
+    // "n$x" -- but the masker did not skip quoted identifiers, so "p$x$" opened a
+    // phantom dollar quote that closed at the next one and BLANKED everything
+    // between. That is the one direction that hides a defect rather than
+    // corrupting the parse: every other special character in an identifier
+    // (a semicolon, a quote, a paren, a comma, a keyword) leaves an unparseable
+    // fragment and refuses.
+    expect(() =>
+      assertRerunnable('20990101_x', `UPDATE "T" SET "a" = "p$x$", "n" = "n" + 1, "q$x$" = 2;`),
+    ).toThrow(/20990101_x/);
+    // and the fail-closed face: a valid statement reported as malformed
+    expect(() => assertRerunnable('m', `UPDATE "T" SET "price$usd$" = 0;`)).not.toThrow();
+  });
+
+  it('says it could not parse a clause rather than inventing a reason', () => {
+    // A quoted identifier with a space is legal Postgres. It is refused because
+    // the guard cannot decompose it, which is the right call -- but the message
+    // asserted a self-reference, of a statement assigning a constant.
+    let message = '';
+    try {
+      assertRerunnable(
+        'm',
+        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "sort order" = 1;`,
+      );
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).not.toMatch(/reads the column it writes/i);
+    expect(message).toMatch(/could not (read|decompose)/i);
+
+    // the real self-reference still names itself
+    let selfRef = '';
+    try {
+      assertRerunnable('m', `UPDATE "T" SET "n" = "n" + 1;`);
+    } catch (error) {
+      selfRef = (error as Error).message;
+    }
+    expect(selfRef).toMatch(/reads the column it writes/i);
+  });
+
   it('names the actual defect when it refuses an upsert', () => {
     // Two distinct reasons an INSERT is refused, and one canned remedy for both:
     // an upsert whose DO UPDATE increments a column was told to add ON CONFLICT

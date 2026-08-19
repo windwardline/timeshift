@@ -68,7 +68,7 @@ const SAFE = [
     safe: (statement, mask) =>
       (/\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(mask) &&
         !/\bDO\s+UPDATE\b/i.test(mask)) ||
-      (/\bDO\s+UPDATE\b/i.test(mask) && noSelfReferencingAssignment(statement, mask)),
+      (/\bDO\s+UPDATE\b/i.test(mask) && setClauseVerdict(statement, mask) === SAFE_CLAUSE),
     // Two different defects reach this entry, so the remedy is chosen per reason
     // rather than canned: a missing conflict clause needs one adding, while an
     // upsert that increments a column needs the increment rewritten. Telling the
@@ -76,8 +76,7 @@ const SAFE = [
     // REWRITES, which is a per-migration needle map, sends them two wrong ways.
     fix: (statement, mask) =>
       /\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(mask)
-        ? 'Its DO UPDATE assigns a value that reads the column it writes, so the row climbs ' +
-          'on every paste. Assign a fixed value, or use EXCLUDED.<column>.'
+        ? explain(setClauseVerdict(statement, mask))
         : 'Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into ' +
           '"INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)".',
   },
@@ -86,7 +85,11 @@ const SAFE = [
   // matching a predicate. An UPDATE is NOT re-runnable when the new value is
   // derived from the old one (SET "n" = "n" + 1 climbs on every paste), which is
   // what a self-reference in the SET clause shows and a WHERE clause cannot.
-  { verb: /^UPDATE\b/i, safe: noSelfReferencingAssignment, fix: null },
+  {
+    verb: /^UPDATE\b/i,
+    safe: (statement, mask) => setClauseVerdict(statement, mask) === SAFE_CLAUSE,
+    fix: (statement, mask) => explain(setClauseVerdict(statement, mask)),
+  },
   { verb: /^DELETE\b/i, safe: /.*/ },
   { verb: /^CREATE\s+OR\s+REPLACE\b/i, safe: /.*/ },
 
@@ -211,6 +214,13 @@ function statements(sql) {
     // `;` inside a literal would otherwise split one statement into two, and the
     // tail fragment lands on a verb the allowlist does not know -- so it failed
     // closed rather than open, but on the wrong reason.
+    if (sql[i] === '"') {
+      const close = sql.indexOf('"', i + 1);
+      const end = close === -1 ? sql.length : close + 1;
+      buf += sql.slice(i, end);
+      i = end;
+      continue;
+    }
     if (sql[i] === "'") {
       let j = i + 1;
       while (j < sql.length) {
@@ -253,8 +263,21 @@ function matches(safe, statement, mask) {
   return typeof safe === 'function' ? safe(statement, mask) : safe.test(mask);
 }
 
+/** The clause is re-runnable. */
+const SAFE_CLAUSE = null;
+/** An assignment reads the column it writes, so the value climbs on every run. */
+const SELF_REFERENCE = 'self-reference';
 /**
- * True when every assignment in the statement's SET clauses writes a value that
+ * The clause could not be decomposed. A distinct verdict from SELF_REFERENCE
+ * because it means something different to the author: the statement may be
+ * perfectly re-runnable and simply not a shape this can judge, so the message
+ * must say so rather than assert a defect that was never observed.
+ */
+const UNPARSEABLE = 'unparseable';
+
+/**
+ * Why a statement's SET clauses are not safe to run twice, or SAFE_CLAUSE when
+ * they are. Returns a reason rather than a boolean: every assignment writes a value that
  * does not read the column being written. `SET "n" = "n" + 1` climbs on every
  * run; `SET "expiresAt" = now()` does not.
  *
@@ -271,28 +294,29 @@ function matches(safe, statement, mask) {
  *
  * @param {string} statement
  * @param {string} mask same-length copy with literal contents blanked
+ * @returns {null | 'self-reference' | 'unparseable'}
  */
-function noSelfReferencingAssignment(statement, mask) {
+function setClauseVerdict(statement, mask) {
   // Every SET clause, not just the first: an upsert carries its increment in
   // `ON CONFLICT ... DO UPDATE SET`, which is where this shape usually appears.
   // Matched on the mask, so the word SET inside a literal is not one.
   const clauses = [...mask.matchAll(/\bSET\b/gi)].map((m) =>
     sliceSetClause(statement, mask, m.index + m[0].length),
   );
-  if (clauses.length === 0) return false;
+  if (clauses.length === 0) return UNPARSEABLE;
   for (const clause of clauses) {
-    if (clause === null) return false; // unbalanced, or cut inside an expression
+    if (clause === null) return UNPARSEABLE; // unbalanced, or cut inside an expression
     const assignments = splitTopLevel(clause);
-    if (assignments.length === 0) return false;
+    if (assignments.length === 0) return UNPARSEABLE;
     for (const { text, mask: assignmentMask } of assignments) {
       const eq = assignmentMask.indexOf('=');
-      if (eq === -1) return false;
+      if (eq === -1) return UNPARSEABLE;
       const lhs = text.slice(0, eq).trim();
       // Both the single-column form and the multi-column `("a","b") = (1, 2)`.
       const columns = /^\(.*\)$/s.test(lhs)
         ? identifiers(lhs)
         : [lhs.replace(/^"|"$/g, '')].filter((c) => /^[A-Za-z_][\w$]*$/.test(c));
-      if (columns.length === 0) return false; // not a shape this can judge
+      if (columns.length === 0) return UNPARSEABLE; // not a shape this can judge
       // EXCLUDED.<col> is the proposed row, not the stored one, so an upsert
       // written `SET x = EXCLUDED.x` is re-runnable. Dropped before the test so
       // it cannot look like a self-reference -- and dropped only here, so a real
@@ -309,10 +333,10 @@ function noSelfReferencingAssignment(statement, mask) {
       // reference silently never matches -- which is exactly how this check was
       // broken once already. String equality has neither failure mode.
       const read = identifiers(value).map((id) => id.toLowerCase());
-      if (columns.some((c) => read.includes(c.toLowerCase()))) return false;
+      if (columns.some((c) => read.includes(c.toLowerCase()))) return SELF_REFERENCE;
     }
   }
-  return true;
+  return SAFE_CLAUSE;
 }
 
 /**
@@ -335,6 +359,19 @@ function identifiers(expression) {
 function maskLiterals(sql) {
   let out = '';
   for (let i = 0; i < sql.length; ) {
+    // A quoted identifier is a NAME, copied through untouched. Checked first, and
+    // this ordering is the whole point: Postgres allows $ in an identifier, so
+    // "p$x$" would otherwise open a dollar quote that closes at the next one and
+    // blank everything between -- erasing a self-reference rather than corrupting
+    // the parse, which is the one direction that can make the verdict cleaner
+    // than the truth.
+    if (sql[i] === '"') {
+      const close = sql.indexOf('"', i + 1);
+      if (close === -1) return null;
+      out += sql.slice(i, close + 1);
+      i = close + 1;
+      continue;
+    }
     const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))?.[0];
     if (tag) {
       const close = sql.indexOf(tag, i + tag.length);
@@ -412,6 +449,21 @@ function splitTopLevel(clause) {
   }
   out.push(cut(clause.text, clause.mask, start, clause.mask.length));
   return out.filter((a) => a.text.trim().length > 0);
+}
+
+/**
+ * The sentence for a SET-clause verdict. Kept distinct because "this is unsafe"
+ * and "I could not read this" mean different things to whoever hits it: the
+ * second may well be a statement that is fine, and telling that author to fix a
+ * self-reference they did not write sends them looking for nothing.
+ * @param {null | 'self-reference' | 'unparseable'} verdict
+ */
+function explain(verdict) {
+  return verdict === SELF_REFERENCE
+    ? 'Its SET clause assigns a value that reads the column it writes, so the row climbs on ' +
+        'every paste. Assign a fixed value, or use EXCLUDED.<column>.'
+    : 'scripts/rerunnable.mjs could not read that SET clause, so it refuses rather than ' +
+        'guessing. If the statement is re-runnable, teach the parser the shape it uses.';
 }
 
 /**
