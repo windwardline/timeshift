@@ -69,7 +69,17 @@ const SAFE = [
       (/\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(mask) &&
         !/\bDO\s+UPDATE\b/i.test(mask)) ||
       (/\bDO\s+UPDATE\b/i.test(mask) && noSelfReferencingAssignment(statement, mask)),
-    fix: 'INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)',
+    // Two different defects reach this entry, so the remedy is chosen per reason
+    // rather than canned: a missing conflict clause needs one adding, while an
+    // upsert that increments a column needs the increment rewritten. Telling the
+    // second author to add ON CONFLICT -- which they already have -- and to edit
+    // REWRITES, which is a per-migration needle map, sends them two wrong ways.
+    fix: (statement, mask) =>
+      /\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(mask)
+        ? 'Its DO UPDATE assigns a value that reads the column it writes, so the row climbs ' +
+          'on every paste. Assign a fixed value, or use EXCLUDED.<column>.'
+        : 'Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into ' +
+          '"INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)".',
   },
   // UPDATE and DELETE are re-runnable when the change is idempotent -- setting a
   // column to a literal or a function of the row's identity, deleting rows
@@ -125,9 +135,15 @@ export function makeRerunnable(name, sql) {
  *
  * Comments are stripped first, because the lockdown migrations discuss the very
  * statements being scanned for and a scanner that reads its own prose refuses a
- * migration that is fine. String literals are deliberately NOT stripped:
- * `EXECUTE format('CREATE TABLE ...')` collides on a second run exactly like the
- * bare statement, so it has to stay visible.
+ * migration that is fine. Literal CONTENTS are then masked, so no keyword, comma
+ * or bracket inside a string can be read as structure.
+ *
+ * Known limit, recorded because an earlier version of this comment claimed the
+ * opposite: dynamic DDL is not judged. `EXECUTE format('CREATE TABLE ...')` does
+ * collide on a second run, and masking hides it -- but nothing caught it before
+ * masking either, because every such call in this repo sits inside a `DO $$ ...
+ * $$` block, and `DO` is unconditionally safe in SAFE. A DO block is trusted to
+ * do its own catalog checks; that is an assumption, not a verified property.
  * @param {string} name migration directory name, for the message
  * @param {string} sql the migration's SQL, after makeRerunnable
  */
@@ -174,10 +190,7 @@ export function assertRerunnable(name, sql) {
           `${name}: ${JSON.stringify(preview(statement))} aborts if ` +
             'docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to ' +
             'run twice. ' +
-            (rule.fix
-              ? `Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into "${rule.fix}".`
-              : 'This statement has no idempotent form — guard it in the migration with a DO ' +
-                'block that checks the catalog first.'),
+            remedy(rule.fix, statement, mask),
         );
       }
     }
@@ -399,6 +412,24 @@ function splitTopLevel(clause) {
   }
   out.push(cut(clause.text, clause.mask, start, clause.mask.length));
   return out.filter((a) => a.text.trim().length > 0);
+}
+
+/**
+ * The sentence telling an author what to do about a refusal. A string names the
+ * re-runnable spelling; a function returns the whole sentence, for entries where
+ * more than one defect lands on the same rule; `null` means there is no
+ * idempotent form at all.
+ * @param {string | null | ((statement: string, mask: string) => string)} fix
+ * @param {string} statement
+ * @param {string} mask
+ */
+function remedy(fix, statement, mask) {
+  if (typeof fix === 'function') return fix(statement, mask);
+  if (fix) return `Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into "${fix}".`;
+  return (
+    'This statement has no idempotent form — guard it in the migration with a DO block that ' +
+    'checks the catalog first.'
+  );
 }
 
 /** First line of a statement, for an error message that fits on a screen. */

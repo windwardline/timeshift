@@ -153,6 +153,34 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('names the actual defect when it refuses an upsert', () => {
+    // Two distinct reasons an INSERT is refused, and one canned remedy for both:
+    // an upsert whose DO UPDATE increments a column was told to add ON CONFLICT
+    // -- which it already has -- and to put it in REWRITES, which is a
+    // per-migration needle map and not where a self-reference gets resolved.
+    let message = '';
+    try {
+      assertRerunnable(
+        'm',
+        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "n" = "T"."n" + 1;`,
+      );
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).not.toContain('ON CONFLICT DO NOTHING');
+    expect(message).not.toContain('REWRITES');
+    expect(message).toMatch(/reads the column it writes|self-reference/i);
+
+    // and the missing-conflict-clause case keeps the advice that does apply
+    let bare = '';
+    try {
+      assertRerunnable('m', `INSERT INTO "T" VALUES (1);`);
+    } catch (error) {
+      bare = (error as Error).message;
+    }
+    expect(bare).toContain('ON CONFLICT DO NOTHING');
+  });
+
   it('does not let a literal supply the clause that makes a statement safe', () => {
     // The masking went into the SET parser but not into the INSERT predicate one
     // function up, so words inside a string still counted as syntax there. A bare
