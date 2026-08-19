@@ -65,10 +65,10 @@ const SAFE = [
     // makes the INSERT re-runnable, but DO UPDATE SET "n" = "n" + 1 climbs on
     // every paste just as the bare UPDATE would. SAFE.find returns this entry
     // first, so without this the UPDATE rule below never sees it.
-    safe: (statement) =>
-      (/\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(statement) &&
-        !/\bDO\s+UPDATE\b/i.test(statement)) ||
-      (/\bDO\s+UPDATE\b/i.test(statement) && noSelfReferencingAssignment(statement)),
+    safe: (statement, mask) =>
+      (/\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(mask) &&
+        !/\bDO\s+UPDATE\b/i.test(mask)) ||
+      (/\bDO\s+UPDATE\b/i.test(mask) && noSelfReferencingAssignment(statement, mask)),
     fix: 'INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)',
   },
   // UPDATE and DELETE are re-runnable when the change is idempotent -- setting a
@@ -133,7 +133,18 @@ export function makeRerunnable(name, sql) {
  */
 export function assertRerunnable(name, sql) {
   for (const statement of statements(stripSqlComments(sql))) {
-    const entry = SAFE.find((e) => e.verb.test(statement));
+    // Masked once here and threaded through every scan below. Each site that
+    // remembered to mask for itself was a site that could forget: the SET parser
+    // masked, the INSERT predicate did not, and a literal saying ON CONFLICT was
+    // read as a conflict clause. One mask, passed down, cannot drift apart.
+    const mask = maskLiterals(statement);
+    if (mask === null) {
+      throw new Error(
+        `${name}: ${JSON.stringify(preview(statement))} has an unterminated string literal, so ` +
+          'scripts/rerunnable.mjs cannot judge whether it is safe to run twice.',
+      );
+    }
+    const entry = SAFE.find((e) => e.verb.test(mask));
     if (!entry) {
       throw new Error(
         `${name}: ${JSON.stringify(preview(statement))} is a statement scripts/rerunnable.mjs ` +
@@ -142,7 +153,7 @@ export function assertRerunnable(name, sql) {
       );
     }
     const rules = entry.sub ?? [{ find: null, safe: entry.safe, fix: entry.fix }];
-    const matched = rules.filter((rule) => !rule.find || rule.find.test(statement));
+    const matched = rules.filter((rule) => !rule.find || rule.find.test(mask));
     if (entry.sub && matched.length === 0) {
       // The allowlist has to hold one level down too. Without this the verb
       // matched, no sub-rule did, and the statement was waved through -- so
@@ -157,7 +168,7 @@ export function assertRerunnable(name, sql) {
       );
     }
     for (const rule of matched) {
-      if (rule.safe && matches(rule.safe, statement)) continue;
+      if (rule.safe && matches(rule.safe, statement, mask)) continue;
       {
         throw new Error(
           `${name}: ${JSON.stringify(preview(statement))} aborts if ` +
@@ -219,11 +230,14 @@ function statements(sql) {
 
 /**
  * A `safe` entry is either a pattern the statement must match or a predicate.
- * @param {RegExp | ((statement: string) => boolean)} safe
+ * Regexes are tested against the MASK, so a keyword inside a string literal is
+ * never mistaken for syntax; predicates get both and decide.
+ * @param {RegExp | ((statement: string, mask: string) => boolean)} safe
  * @param {string} statement
+ * @param {string} mask
  */
-function matches(safe, statement) {
-  return typeof safe === 'function' ? safe(statement) : safe.test(statement);
+function matches(safe, statement, mask) {
+  return typeof safe === 'function' ? safe(statement, mask) : safe.test(mask);
 }
 
 /**
@@ -243,10 +257,9 @@ function matches(safe, statement) {
  * behaves like a denylist.
  *
  * @param {string} statement
+ * @param {string} mask same-length copy with literal contents blanked
  */
-function noSelfReferencingAssignment(statement) {
-  const mask = maskLiterals(statement);
-  if (mask === null) return false; // unterminated literal
+function noSelfReferencingAssignment(statement, mask) {
   // Every SET clause, not just the first: an upsert carries its increment in
   // `ON CONFLICT ... DO UPDATE SET`, which is where this shape usually appears.
   // Matched on the mask, so the word SET inside a literal is not one.
@@ -271,7 +284,12 @@ function noSelfReferencingAssignment(statement) {
       // written `SET x = EXCLUDED.x` is re-runnable. Dropped before the test so
       // it cannot look like a self-reference -- and dropped only here, so a real
       // self-reference sitting beside it is still seen.
-      const value = text.slice(eq + 1).replace(/\bexcluded\s*\.\s*"?[\w$]+"?/gi, '');
+      // Sliced from the mask, like every other scan. Reading the original here
+      // let identifiers() harvest words out of a literal, so a constant whose
+      // text happened to contain the column's own name looked like a
+      // self-reference. EXCLUDED."x" is code, not a literal, so it survives
+      // masking and the strip below still applies.
+      const value = assignmentMask.slice(eq + 1).replace(/\bexcluded\s*\.\s*"?[\w$]+"?/gi, '');
       // Compared as tokens rather than through a regex built from the column
       // name. A constructed pattern is a ReDoS surface, and it needs the column
       // escaped or a `$` in an identifier becomes an end-of-input anchor and the

@@ -153,6 +153,19 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('does not let a literal supply the clause that makes a statement safe', () => {
+    // The masking went into the SET parser but not into the INSERT predicate one
+    // function up, so words inside a string still counted as syntax there. A bare
+    // INSERT whose value merely mentions ON CONFLICT was accepted, and would
+    // duplicate the row -- or abort the transaction -- on a second paste.
+    expect(() =>
+      assertRerunnable('20990101_x', `INSERT INTO "Log" ("msg") VALUES ('ON CONFLICT is hard');`),
+    ).toThrow(/20990101_x/);
+    expect(() =>
+      assertRerunnable('20990101_x', `INSERT INTO "Log" ("msg") VALUES ($$WHERE NOT EXISTS$$);`),
+    ).toThrow(/20990101_x/);
+  });
+
   it('accepts statements it previously refused only because it could not parse them', () => {
     // These are all re-runnable. Refusing them was fail-closed, so not a
     // soundness problem, but the error named a remedy -- wrap it in a DO block --
@@ -164,6 +177,10 @@ describe('rerunnable guard', () => {
       `UPDATE "T" SET ("a","b") = (1, 2);`,
       // A bracketed array is one value, not two assignments.
       `UPDATE "T" SET "a" = ARRAY[1,2];`,
+      // DO UPDATE named inside a literal is not a DO UPDATE clause.
+      `INSERT INTO "T" ("msg") VALUES ('use DO UPDATE instead') ON CONFLICT DO NOTHING;`,
+      // A constant whose text happens to contain the column's own name.
+      `UPDATE "RateLimit" SET "key" = 'key:global';`,
     ]) {
       expect(() => assertRerunnable('m', ok), ok).not.toThrow();
     }
