@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  00:43:27
+   Duration  582ms (transform 143ms, setup 0ms, import 179ms, tests 208ms, environment 0ms)
+

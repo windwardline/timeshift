@@ -1,0 +1,30 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (16 tests | 1 failed) 189ms
+     × never changes a migration that has already been applied somewhere 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > docs/supabase-lockdown.sql > never changes a migration that has already been applied somewhere
+AssertionError: 20260620060847_init missing from shipped.sha256: expected [ …(5) ] to include '20260620060847_init'
+ ❯ supabase-lockdown-sql.test.ts:229:73
+    227|       .map((e) => e.name);
+    228|     for (const name of everyMigration) {
+    229|       expect([...pinned.keys()], `${name} missing from shipped.sha256`…
+       |                                                                         ^
+    230|     }
+    231|     for (const [name, checksum] of pinned) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  00:42:30
+   Duration  610ms (transform 172ms, setup 0ms, import 207ms, tests 189ms, environment 0ms)
+

@@ -10,7 +10,16 @@ rule, which failed the secret scan on a public checksum.
 Those checksums are written into `_prisma_migrations` on any database fixed
 through the browser path. Editing a shipped migration — even only its comments —
 changes its checksum, and the next `prisma migrate deploy` then fails on mismatch
-against a database that is in fact correct. That includes every Vercel build.
+against a database that is in fact correct.
+
+Not on a deploy, though — and that is the point. `build` is `next build`,
+`postinstall` is `prisma generate`, and `vercel.json` carries only headers, so
+nothing in a deploy runs `migrate deploy` or reads `_prisma_migrations`
+(AGENTS.md §5 says the same). The mismatch surfaces the next time a person runs
+`./scripts/secure-database.sh` against production or preview: at the
+`migrate deploy` step, before verification and before credential rotation. A
+worse moment to discover it than a red build, which is why this is pinned rather
+than left to a deploy to catch.
 
 The drift test cannot catch it: regenerating the paste file updates the recorded
 checksum in lockstep with the file, so the two move together and agree. This pin

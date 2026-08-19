@@ -56,7 +56,14 @@ const SAFE = [
   // spelling the generator already uses for its own _prisma_migrations row.
   {
     verb: /^INSERT\b/i,
-    safe: /\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i,
+    // An upsert has to clear the self-reference check too: ON CONFLICT alone
+    // makes the INSERT re-runnable, but DO UPDATE SET "n" = "n" + 1 climbs on
+    // every paste just as the bare UPDATE would. SAFE.find returns this entry
+    // first, so without this the UPDATE rule below never sees it.
+    safe: (statement) =>
+      (/\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(statement) &&
+        !/\bDO\s+UPDATE\b/i.test(statement)) ||
+      (/\bDO\s+UPDATE\b/i.test(statement) && noSelfReferencingAssignment(statement)),
     fix: 'INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)',
   },
   // UPDATE and DELETE are re-runnable when the change is idempotent -- setting a
@@ -215,16 +222,48 @@ function matches(safe, statement) {
 }
 
 /**
- * True when no assignment in the SET clause reads the column it writes.
- * `SET "n" = "n" + 1` climbs on every run; `SET "expiresAt" = now()` does not.
+ * True when every assignment in the statement's SET clauses writes a value that
+ * does not read the column being written. `SET "n" = "n" + 1` climbs on every
+ * run; `SET "expiresAt" = now()` does not.
+ *
+ * Refuses -- rather than accepting -- a clause it cannot decompose. Returning
+ * `true` on "I could not parse this" is how a guard that reads as an allowlist
+ * behaves like a denylist, which is the failure this module has already been
+ * bitten by twice.
+ *
  * @param {string} statement
  */
 function noSelfReferencingAssignment(statement) {
-  const set = /\bSET\b([\s\S]*?)(?:\bWHERE\b|$)/i.exec(statement)?.[1] ?? '';
-  for (const [, column, value] of set.matchAll(/"([^"]+)"\s*=\s*([^,]+)/g)) {
-    if (new RegExp(`"${column.replace(/[.*+?^$()|[\]\\]/g, '\\$&')}"`).test(value)) return false;
+  // Every SET clause, not just the first: an upsert carries its increment in
+  // `ON CONFLICT ... DO UPDATE SET`, which is where this shape usually appears.
+  const clauses = [...statement.matchAll(/\bSET\b/gi)].map((m) =>
+    sliceSetClause(statement, m.index + m[0].length),
+  );
+  if (clauses.length === 0) return false;
+  for (const clause of clauses) {
+    // A nested SELECT means the assignment list cannot be split on commas
+    // reliably, so it is not decided here.
+    if (/\bSELECT\b/i.test(clause)) return false;
+    const assignments = [...clause.matchAll(/("?)([A-Za-z_][\w$]*)\1\s*=\s*([^,]+)/g)];
+    if (assignments.length === 0) return false;
+    for (const [, , column, value] of assignments) {
+      // Matches the column quoted or bare, and qualified ("T"."n"), so an
+      // unquoted increment is caught like a quoted one.
+      if (new RegExp(`"?\\b${column}\\b"?`).test(value)) return false;
+    }
   }
   return true;
+}
+
+/**
+ * The text of one SET clause: from `from` up to the clause's terminator.
+ * @param {string} statement
+ * @param {number} from index just past the SET keyword
+ */
+function sliceSetClause(statement, from) {
+  const rest = statement.slice(from);
+  const end = /\bWHERE\b|\bRETURNING\b|\bFROM\b|;/i.exec(rest);
+  return end ? rest.slice(0, end.index) : rest;
 }
 
 /** First line of a statement, for an error message that fits on a screen. */

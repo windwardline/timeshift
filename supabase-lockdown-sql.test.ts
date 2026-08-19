@@ -92,6 +92,32 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('fails closed when it cannot decompose a SET clause', () => {
+    // The self-reference check exists for SET "n" = "n" + 1. Three ways past it,
+    // all silent accepts under a header that says anything unrecognised is
+    // refused -- the same denylist-wearing-an-allowlist's-header shape this
+    // module has now been bitten by at the verb level and inside ALTER TABLE.
+    for (const ddl of [
+      // The clause it was written for, on the statement where it actually turns
+      // up: INSERT matches first, so the predicate never ran.
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "n" = "T"."n" + 1;`,
+      // Unquoted identifiers produce zero matches, and zero matches read as safe.
+      `UPDATE "T" SET n = n + 1;`,
+      // A subquery's WHERE truncates the SET clause, hiding later assignments.
+      `UPDATE "T" SET "a" = (SELECT 1 FROM "U" WHERE "U"."id" = 1), "n" = "n" + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+    // And the honest spellings still pass.
+    for (const ok of [
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "n" = 0;`,
+      `INSERT INTO "T" VALUES (1) ON CONFLICT DO NOTHING;`,
+      `UPDATE "Session" SET "expiresAt" = now() WHERE "expiresAt" > now();`,
+    ]) {
+      expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+    }
+  });
+
   it('fails closed inside ALTER TABLE too, not just at the leading verb', () => {
     // The allowlist held at the verb -- ALTER INDEX ... RENAME was refused --
     // but ALTER TABLE carries sub-rules that each skip when their pattern does
@@ -197,7 +223,10 @@ describe('docs/supabase-lockdown.sql', () => {
     // database that took the browser path. Edit a shipped migration -- even just
     // its comments -- and the recorded checksum no longer matches the file, so
     // the next `prisma migrate deploy` fails on mismatch against a database that
-    // is actually correct. That includes every Vercel build.
+    // is actually correct. Not on a deploy -- nothing in the build runs
+    // migrate deploy -- but the next time someone runs scripts/secure-database.sh
+    // against production or preview, before verification and before rotation.
+    // prisma/migrations/SHIPPED.md carries the full reasoning.
     //
     // The drift test above cannot catch this: regenerating updates the recorded
     // checksum in lockstep with the file, so both move together and agree. Only
@@ -216,6 +245,18 @@ describe('docs/supabase-lockdown.sql', () => {
           return [path.replace('/migration.sql', ''), checksum];
         }),
     );
+    // Every migration directory, not just the ones the paste file carries. The
+    // pin's subject is "has been applied to a database somewhere", which is true
+    // of all ten: the five from the sprint are in _prisma_migrations on both
+    // projects exactly as the lockdown five are, and editing one breaks the same
+    // way. Scoping this to LOCKDOWN_FLOOR was inherited from the paste file's
+    // needs, which is the right list for the drift test and the wrong one here.
+    const everyMigration = readdirSync(join(root, 'prisma/migrations'), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    for (const name of everyMigration) {
+      expect([...pinned.keys()], `${name} missing from shipped.sha256`).toContain(name);
+    }
     for (const [name, checksum] of pinned) {
       const raw = readFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'utf8');
       expect(
@@ -223,11 +264,7 @@ describe('docs/supabase-lockdown.sql', () => {
         `${name} has been edited since it shipped — add a new migration instead`,
       ).toBe(checksum);
     }
-    // And the pin has to cover everything the paste file carries, or a migration
-    // could ship, get applied, and then be edited freely.
-    for (const name of shippedMigrations()) {
-      expect([...pinned.keys()], `${name} missing from shipped.sha256`).toContain(name);
-    }
+
   });
 
   it('records each migration under the checksum Prisma computes', () => {
