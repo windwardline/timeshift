@@ -1,0 +1,19 @@
+# One historical finding, ignored by exact fingerprint.
+#
+# Commit 0c12315 added prisma/migrations/shipped.lock.json, which pinned the
+# SHA-256 of each shipped migration as JSON. Gitleaks' generic-api-key rule reads
+# a "name": "<64 hex>" pair as a key assignment and flagged it at entropy 3.87.
+# It is a checksum of a file committed in the same repo -- public by construction,
+# and useless to an attacker.
+#
+# The file was replaced in 2a9f899 with prisma/migrations/shipped.sha256 in
+# sha256sum's own "<hash>  <path>" format, which is not an assignment and does not
+# match the rule. But the scan walks the pull request's commit range, so the
+# original commit is still read; deleting the file did not clear it, and history
+# is not rewritten here (AGENTS.md 7: do not force-push).
+#
+# Scoped to that one commit, that one file, that one line. No rule is disabled, no
+# path is exempted, and nothing future is covered -- a fingerprint names a commit
+# that already exists. There is deliberately no .gitleaks.toml: the scan keeps the
+# default ruleset, which the job log confirms on every run.
+0c12315cda458d76b6d7160afc2c60797cbd30f4:prisma/migrations/shipped.lock.json:generic-api-key:4
