@@ -118,6 +118,44 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('reads a SET clause by paren depth, not by the first comma or keyword', () => {
+    // The first attempt at this check split assignments on any comma and cut the
+    // clause at any FROM. Both appear INSIDE value expressions, so the plainest
+    // self-reference hid behind either one -- the same truncation the check was
+    // written to close, one level down. Regex cannot parse SQL expressions;
+    // tracking parenthesis depth can.
+    for (const ddl of [
+      // A comma inside a call ended the scan, and the increment sat past it.
+      `UPDATE "T" SET "n" = least(100, "n" + 1);`,
+      // FROM is part of extract()/substring()/trim(), not only a clause terminator.
+      `UPDATE "T" SET "a" = extract(epoch FROM "ts"), "n" = "n" + 1;`,
+      // Postgres allows $ in identifiers, and an unescaped $ in the built pattern
+      // is an end-of-input anchor -- so the reference could never match.
+      `UPDATE "T" SET "n$x" = "n$x" + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+  });
+
+  it('accepts the canonical upsert, which reads EXCLUDED rather than the row', () => {
+    // SET x = EXCLUDED.x is the standard spelling and is perfectly re-runnable:
+    // EXCLUDED is the proposed row, not the stored one. Refusing it sent authors
+    // to ON CONFLICT DO NOTHING, which is a different statement, not a rewrite.
+    for (const ok of [
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" = EXCLUDED."a";`,
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" = excluded.a;`,
+    ]) {
+      expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+    }
+    // But EXCLUDED does not launder a real self-reference sitting beside it.
+    expect(() =>
+      assertRerunnable(
+        '20990101_x',
+        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" = EXCLUDED."a", "n" = "n" + 1;`,
+      ),
+    ).toThrow(/20990101_x/);
+  });
+
   it('fails closed inside ALTER TABLE too, not just at the leading verb', () => {
     // The allowlist held at the verb -- ALTER INDEX ... RENAME was refused --
     // but ALTER TABLE carries sub-rules that each skip when their pattern does

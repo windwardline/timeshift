@@ -1,0 +1,57 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (19 tests | 2 failed) 231ms
+     × reads a SET clause by paren depth, not by the first comma or keyword 7ms
+     × accepts the canonical upsert, which reads EXCLUDED rather than the row 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > reads a SET clause by paren depth, not by the first comma or keyword
+AssertionError: UPDATE "T" SET "n" = least(100, "n" + 1);: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:136:62
+    134|       `UPDATE "T" SET "n$x" = "n$x" + 1;`,
+    135|     ]) {
+    136|       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/…
+       |                                                              ^
+    137|     }
+    138|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > accepts the canonical upsert, which reads EXCLUDED rather than the row
+AssertionError: INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" = EXCLUDED."a";: expected [Function] to not throw an error but 'Error: m: "INSERT INTO \"T\" VALUES (…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: m: \"INSERT INTO \\\"T\\\" VALUES (1) ON CONFLICT (\\\"k\\\") DO UPDATE SET \\\"a\\\" = EXCLUDED.\\\"a\\\"\" aborts if docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to run twice. Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into \"INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)\"."
+
+ ❯ supabase-lockdown-sql.test.ts:148:55
+    146|       `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" …
+    147|     ]) {
+    148|       expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+       |                                                       ^
+    149|     }
+    150|     // But EXCLUDED does not launder a real self-reference sitting bes…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 17 passed (19)
+   Start at  00:50:34
+   Duration  608ms (transform 146ms, setup 0ms, import 184ms, tests 231ms, environment 0ms)
+

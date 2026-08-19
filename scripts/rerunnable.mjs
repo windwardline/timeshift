@@ -15,6 +15,11 @@
 // Refusing to emit is the right failure. Some DDL has no idempotent form at all
 // (ADD CONSTRAINT), so this cannot rewrite its way out -- it has to make the
 // author decide.
+//
+// Note on coverage: vitest.config.ts scopes the 100% target to lib/**, so the
+// suite's coverage number says nothing about this file. Its branches are covered
+// only by the explicit cases in supabase-lockdown-sql.test.ts, which is why new
+// ones are added there whenever a hole is found rather than trusted to a number.
 import { stripSqlComments } from './sql-text.mjs';
 
 /** (needle -> replacement) per migration. Applied strictly; see makeRerunnable. */
@@ -226,10 +231,15 @@ function matches(safe, statement) {
  * does not read the column being written. `SET "n" = "n" + 1` climbs on every
  * run; `SET "expiresAt" = now()` does not.
  *
- * Refuses -- rather than accepting -- a clause it cannot decompose. Returning
+ * Reads the clause by parenthesis depth rather than by splitting on commas and
+ * cutting at keywords. Both commas and keywords appear INSIDE value expressions
+ * -- `least(100, "n" + 1)`, `extract(epoch FROM "ts")` -- and a scanner that
+ * treats them as structure loses whatever follows, which is how the plainest
+ * self-reference hid behind either one.
+ *
+ * Refuses -- rather than accepting -- anything it cannot decompose. Returning
  * `true` on "I could not parse this" is how a guard that reads as an allowlist
- * behaves like a denylist, which is the failure this module has already been
- * bitten by twice.
+ * behaves like a denylist.
  *
  * @param {string} statement
  */
@@ -241,29 +251,80 @@ function noSelfReferencingAssignment(statement) {
   );
   if (clauses.length === 0) return false;
   for (const clause of clauses) {
-    // A nested SELECT means the assignment list cannot be split on commas
-    // reliably, so it is not decided here.
-    if (/\bSELECT\b/i.test(clause)) return false;
-    const assignments = [...clause.matchAll(/("?)([A-Za-z_][\w$]*)\1\s*=\s*([^,]+)/g)];
+    if (clause === null) return false; // unbalanced, or cut inside an expression
+    const assignments = splitTopLevel(clause);
     if (assignments.length === 0) return false;
-    for (const [, , column, value] of assignments) {
-      // Matches the column quoted or bare, and qualified ("T"."n"), so an
-      // unquoted increment is caught like a quoted one.
-      if (new RegExp(`"?\\b${column}\\b"?`).test(value)) return false;
+    for (const assignment of assignments) {
+      const eq = assignment.indexOf('=');
+      if (eq === -1) return false;
+      const column = assignment.slice(0, eq).trim().replace(/^"|"$/g, '');
+      if (!/^[A-Za-z_][\w$]*$/.test(column)) return false; // not a plain column
+      // EXCLUDED.<col> is the proposed row, not the stored one, so an upsert
+      // written `SET x = EXCLUDED.x` is re-runnable. Dropped before the test so
+      // it cannot look like a self-reference -- and dropped only here, so a real
+      // self-reference sitting beside it is still seen.
+      const value = assignment.slice(eq + 1).replace(/\bexcluded\s*\.\s*"?[\w$]+"?/gi, '');
+      const quoted = column.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(`"?\\b${quoted}\\b"?`).test(value)) return false;
     }
   }
   return true;
 }
 
 /**
- * The text of one SET clause: from `from` up to the clause's terminator.
+ * The text of one SET clause: from `from` up to the first terminator that is
+ * NOT inside parentheses or a string literal. Returns `null` when the clause
+ * cannot be delimited -- unbalanced parentheses, or an unterminated literal.
  * @param {string} statement
  * @param {number} from index just past the SET keyword
+ * @returns {string | null}
  */
 function sliceSetClause(statement, from) {
   const rest = statement.slice(from);
-  const end = /\bWHERE\b|\bRETURNING\b|\bFROM\b|;/i.exec(rest);
-  return end ? rest.slice(0, end.index) : rest;
+  let depth = 0;
+  for (let i = 0; i < rest.length; i += 1) {
+    if (rest[i] === "'") {
+      const close = rest.indexOf("'", i + 1);
+      if (close === -1) return null;
+      i = close;
+      continue;
+    }
+    if (rest[i] === '(') depth += 1;
+    else if (rest[i] === ')') {
+      depth -= 1;
+      if (depth < 0) return rest.slice(0, i);
+    } else if (depth === 0) {
+      if (rest[i] === ';') return rest.slice(0, i);
+      const word = /^(?:WHERE|RETURNING|FROM)\b/i.exec(rest.slice(i));
+      if (word && (i === 0 || /\s/.test(rest[i - 1]))) return rest.slice(0, i);
+    }
+  }
+  return depth === 0 ? rest : null;
+}
+
+/**
+ * Splits an assignment list on commas at parenthesis depth zero, so a comma
+ * inside a call stays part of its value.
+ * @param {string} clause
+ * @returns {string[]}
+ */
+function splitTopLevel(clause) {
+  const out = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < clause.length; i += 1) {
+    if (clause[i] === "'") {
+      const close = clause.indexOf("'", i + 1);
+      i = close === -1 ? clause.length : close;
+    } else if (clause[i] === '(') depth += 1;
+    else if (clause[i] === ')') depth -= 1;
+    else if (clause[i] === ',' && depth === 0) {
+      out.push(clause.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(clause.slice(start));
+  return out.map((s) => s.trim()).filter(Boolean);
 }
 
 /** First line of a statement, for an error message that fits on a screen. */
