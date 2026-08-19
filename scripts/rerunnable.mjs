@@ -15,7 +15,12 @@
 // Refusing to emit is the right failure. Some DDL has no idempotent form at all
 // (ADD CONSTRAINT), so this cannot rewrite its way out -- it has to make the
 // author decide.
-import { stripSqlComments } from './sql-text.mjs';
+//
+// Note on coverage: vitest.config.ts scopes the 100% target to lib/**, so the
+// suite's coverage number says nothing about this file. Its branches are covered
+// only by the explicit cases in supabase-lockdown-sql.test.ts, which is why new
+// ones are added there whenever a hole is found rather than trusted to a number.
+import { dollarTagAt, stripSqlComments } from './sql-text.mjs';
 
 /** (needle -> replacement) per migration. Applied strictly; see makeRerunnable. */
 const REWRITES = {
@@ -56,15 +61,35 @@ const SAFE = [
   // spelling the generator already uses for its own _prisma_migrations row.
   {
     verb: /^INSERT\b/i,
-    safe: /\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i,
-    fix: 'INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)',
+    // An upsert has to clear the self-reference check too: ON CONFLICT alone
+    // makes the INSERT re-runnable, but DO UPDATE SET "n" = "n" + 1 climbs on
+    // every paste just as the bare UPDATE would. SAFE.find returns this entry
+    // first, so without this the UPDATE rule below never sees it.
+    safe: (statement, mask) =>
+      (/\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(mask) &&
+        !/\bDO\s+UPDATE\b/i.test(mask)) ||
+      (/\bDO\s+UPDATE\b/i.test(mask) && setClauseVerdict(statement, mask) === SAFE_CLAUSE),
+    // Two different defects reach this entry, so the remedy is chosen per reason
+    // rather than canned: a missing conflict clause needs one adding, while an
+    // upsert that increments a column needs the increment rewritten. Telling the
+    // second author to add ON CONFLICT -- which they already have -- and to edit
+    // REWRITES, which is a per-migration needle map, sends them two wrong ways.
+    fix: (statement, mask) =>
+      /\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i.test(mask)
+        ? explain(setClauseVerdict(statement, mask))
+        : 'Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into ' +
+          '"INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)".',
   },
   // UPDATE and DELETE are re-runnable when the change is idempotent -- setting a
   // column to a literal or a function of the row's identity, deleting rows
   // matching a predicate. An UPDATE is NOT re-runnable when the new value is
   // derived from the old one (SET "n" = "n" + 1 climbs on every paste), which is
   // what a self-reference in the SET clause shows and a WHERE clause cannot.
-  { verb: /^UPDATE\b/i, safe: noSelfReferencingAssignment, fix: null },
+  {
+    verb: /^UPDATE\b/i,
+    safe: (statement, mask) => setClauseVerdict(statement, mask) === SAFE_CLAUSE,
+    fix: (statement, mask) => explain(setClauseVerdict(statement, mask)),
+  },
   { verb: /^DELETE\b/i, safe: /.*/ },
   { verb: /^CREATE\s+OR\s+REPLACE\b/i, safe: /.*/ },
 
@@ -113,15 +138,32 @@ export function makeRerunnable(name, sql) {
  *
  * Comments are stripped first, because the lockdown migrations discuss the very
  * statements being scanned for and a scanner that reads its own prose refuses a
- * migration that is fine. String literals are deliberately NOT stripped:
- * `EXECUTE format('CREATE TABLE ...')` collides on a second run exactly like the
- * bare statement, so it has to stay visible.
+ * migration that is fine. Literal CONTENTS are then masked, so no keyword, comma
+ * or bracket inside a string can be read as structure.
+ *
+ * Known limit, recorded because an earlier version of this comment claimed the
+ * opposite: dynamic DDL is not judged. `EXECUTE format('CREATE TABLE ...')` does
+ * collide on a second run, and masking hides it -- but nothing caught it before
+ * masking either, because every such call in this repo sits inside a `DO $$ ...
+ * $$` block, and `DO` is unconditionally safe in SAFE. A DO block is trusted to
+ * do its own catalog checks; that is an assumption, not a verified property.
  * @param {string} name migration directory name, for the message
  * @param {string} sql the migration's SQL, after makeRerunnable
  */
 export function assertRerunnable(name, sql) {
   for (const statement of statements(stripSqlComments(sql))) {
-    const entry = SAFE.find((e) => e.verb.test(statement));
+    // Masked once here and threaded through every scan below. Each site that
+    // remembered to mask for itself was a site that could forget: the SET parser
+    // masked, the INSERT predicate did not, and a literal saying ON CONFLICT was
+    // read as a conflict clause. One mask, passed down, cannot drift apart.
+    const mask = maskLiterals(statement);
+    if (mask === UNCLOSED_IDENTIFIER || mask === UNCLOSED_LITERAL) {
+      throw new Error(
+        `${name}: ${JSON.stringify(preview(statement))} has an unterminated ${mask}, so ` +
+          'scripts/rerunnable.mjs cannot judge whether it is safe to run twice.',
+      );
+    }
+    const entry = SAFE.find((e) => e.verb.test(mask));
     if (!entry) {
       throw new Error(
         `${name}: ${JSON.stringify(preview(statement))} is a statement scripts/rerunnable.mjs ` +
@@ -130,7 +172,7 @@ export function assertRerunnable(name, sql) {
       );
     }
     const rules = entry.sub ?? [{ find: null, safe: entry.safe, fix: entry.fix }];
-    const matched = rules.filter((rule) => !rule.find || rule.find.test(statement));
+    const matched = rules.filter((rule) => !rule.find || rule.find.test(mask));
     if (entry.sub && matched.length === 0) {
       // The allowlist has to hold one level down too. Without this the verb
       // matched, no sub-rule did, and the statement was waved through -- so
@@ -145,16 +187,13 @@ export function assertRerunnable(name, sql) {
       );
     }
     for (const rule of matched) {
-      if (rule.safe && matches(rule.safe, statement)) continue;
+      if (rule.safe && matches(rule.safe, statement, mask)) continue;
       {
         throw new Error(
           `${name}: ${JSON.stringify(preview(statement))} aborts if ` +
             'docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to ' +
             'run twice. ' +
-            (rule.fix
-              ? `Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into "${rule.fix}".`
-              : 'This statement has no idempotent form — guard it in the migration with a DO ' +
-                'block that checks the catalog first.'),
+            remedy(rule.fix, statement, mask),
         );
       }
     }
@@ -175,6 +214,13 @@ function statements(sql) {
     // `;` inside a literal would otherwise split one statement into two, and the
     // tail fragment lands on a verb the allowlist does not know -- so it failed
     // closed rather than open, but on the wrong reason.
+    if (sql[i] === '"') {
+      const close = sql.indexOf('"', i + 1);
+      const end = close === -1 ? sql.length : close + 1;
+      buf += sql.slice(i, end);
+      i = end;
+      continue;
+    }
     if (sql[i] === "'") {
       let j = i + 1;
       while (j < sql.length) {
@@ -186,7 +232,7 @@ function statements(sql) {
       i = j + 1;
       continue;
     }
-    const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))?.[0];
+    const tag = dollarTagAt(sql, i);
     if (tag) {
       const close = sql.indexOf(tag, i + tag.length);
       const end = close === -1 ? sql.length : close + tag.length;
@@ -207,24 +253,265 @@ function statements(sql) {
 
 /**
  * A `safe` entry is either a pattern the statement must match or a predicate.
- * @param {RegExp | ((statement: string) => boolean)} safe
+ * Regexes are tested against the MASK, so a keyword inside a string literal is
+ * never mistaken for syntax; predicates get both and decide.
+ * @param {RegExp | ((statement: string, mask: string) => boolean)} safe
  * @param {string} statement
+ * @param {string} mask
  */
-function matches(safe, statement) {
-  return typeof safe === 'function' ? safe(statement) : safe.test(statement);
+function matches(safe, statement, mask) {
+  return typeof safe === 'function' ? safe(statement, mask) : safe.test(mask);
+}
+
+/** maskLiterals could not finish: a `"…"` name never closed. */
+const UNCLOSED_IDENTIFIER = 'quoted identifier';
+/** maskLiterals could not finish: a `'…'` or `$tag$…$tag$` literal never closed. */
+const UNCLOSED_LITERAL = 'string literal';
+
+/** The clause is re-runnable. */
+const SAFE_CLAUSE = null;
+/** An assignment reads the column it writes, so the value climbs on every run. */
+const SELF_REFERENCE = 'self-reference';
+/**
+ * The clause could not be decomposed. A distinct verdict from SELF_REFERENCE
+ * because it means something different to the author: the statement may be
+ * perfectly re-runnable and simply not a shape this can judge, so the message
+ * must say so rather than assert a defect that was never observed.
+ */
+const UNPARSEABLE = 'unparseable';
+
+/**
+ * Why a statement's SET clauses are not safe to run twice, or SAFE_CLAUSE when
+ * they are. Returns a reason rather than a boolean: every assignment writes a value that
+ * does not read the column being written. `SET "n" = "n" + 1` climbs on every
+ * run; `SET "expiresAt" = now()` does not.
+ *
+ * Literal contents are masked before anything is scanned. Three separate bugs
+ * came from scanning raw text -- a WHERE, then a FROM, then a dollar-quoted
+ * body, each read as structure because it sat inside a value. Teaching the
+ * scanner one more keyword each time was treating the symptom; a literal simply
+ * must not be readable as structure, so its contents are blanked positionally
+ * and every index-based scan runs on the mask while slices come from the original.
+ *
+ * Refuses -- rather than accepting -- anything it cannot decompose. Returning
+ * `true` on "I could not parse this" is how a guard that reads as an allowlist
+ * behaves like a denylist.
+ *
+ * @param {string} statement
+ * @param {string} mask same-length copy with literal contents blanked
+ * @returns {null | 'self-reference' | 'unparseable'}
+ */
+function setClauseVerdict(statement, mask) {
+  // Every SET clause, not just the first: an upsert carries its increment in
+  // `ON CONFLICT ... DO UPDATE SET`, which is where this shape usually appears.
+  // Matched on the mask, so the word SET inside a literal is not one.
+  const clauses = [...mask.matchAll(/\bSET\b/gi)].map((m) =>
+    sliceSetClause(statement, mask, m.index + m[0].length),
+  );
+  if (clauses.length === 0) return UNPARSEABLE;
+  for (const clause of clauses) {
+    if (clause === null) return UNPARSEABLE; // unbalanced, or cut inside an expression
+    const assignments = splitTopLevel(clause);
+    if (assignments.length === 0) return UNPARSEABLE;
+    for (const { text, mask: assignmentMask } of assignments) {
+      const eq = assignmentMask.indexOf('=');
+      if (eq === -1) return UNPARSEABLE;
+      const lhs = text.slice(0, eq).trim();
+      // Both the single-column form and the multi-column `("a","b") = (1, 2)`.
+      // A quoted name means whatever is between the quotes, whatever it contains
+      // -- "sort order" and "sort;order" are both legal columns. Only a BARE
+      // name has to look like an identifier; anything else is a shape this
+      // cannot judge, and says so rather than guessing.
+      const quoted = /^"([^"]*)"$/.exec(lhs);
+      const columns = /^\(.*\)$/s.test(lhs)
+        ? identifiers(lhs)
+        : quoted
+          ? [quoted[1]]
+          : [lhs].filter((c) => /^[A-Za-z_][\w$]*$/.test(c));
+      if (columns.length === 0) return UNPARSEABLE; // not a shape this can judge
+      // EXCLUDED.<col> is the proposed row, not the stored one, so an upsert
+      // written `SET x = EXCLUDED.x` is re-runnable. Dropped before the test so
+      // it cannot look like a self-reference -- and dropped only here, so a real
+      // self-reference sitting beside it is still seen.
+      // Sliced from the mask, like every other scan. Reading the original here
+      // let identifiers() harvest words out of a literal, so a constant whose
+      // text happened to contain the column's own name looked like a
+      // self-reference. EXCLUDED."x" is code, not a literal, so it survives
+      // masking and the strip below still applies.
+      const value = assignmentMask.slice(eq + 1).replace(/\bexcluded\s*\.\s*"?[\w$]+"?/gi, '');
+      // Compared as tokens rather than through a regex built from the column
+      // name. A constructed pattern is a ReDoS surface, and it needs the column
+      // escaped or a `$` in an identifier becomes an end-of-input anchor and the
+      // reference silently never matches -- which is exactly how this check was
+      // broken once already. String equality has neither failure mode.
+      const read = identifiers(value).map((id) => id.toLowerCase());
+      if (columns.some((c) => read.includes(c.toLowerCase()))) return SELF_REFERENCE;
+    }
+  }
+  return SAFE_CLAUSE;
 }
 
 /**
- * True when no assignment in the SET clause reads the column it writes.
- * `SET "n" = "n" + 1` climbs on every run; `SET "expiresAt" = now()` does not.
- * @param {string} statement
+ * Every identifier in an expression, quoted or bare.
+ * @param {string} expression
+ * @returns {string[]}
  */
-function noSelfReferencingAssignment(statement) {
-  const set = /\bSET\b([\s\S]*?)(?:\bWHERE\b|$)/i.exec(statement)?.[1] ?? '';
-  for (const [, column, value] of set.matchAll(/"([^"]+)"\s*=\s*([^,]+)/g)) {
-    if (new RegExp(`"${column.replace(/[.*+?^$()|[\]\\]/g, '\\$&')}"`).test(value)) return false;
+function identifiers(expression) {
+  return [...expression.matchAll(/"([^"]*)"|([A-Za-z_][\w$]*)/g)].map((m) => m[1] ?? m[2]);
+}
+
+/**
+ * A copy of `sql` with the CONTENTS of every string literal replaced by spaces,
+ * so positions still line up with the original but nothing inside a literal can
+ * be read as syntax. Handles `'…'` (with `''` escapes) and `$tag$…$tag$`.
+ * Returns UNCLOSED_IDENTIFIER or UNCLOSED_LITERAL when one never closes, so the
+ * message can name the kind that did rather than guess -- an unterminated `"`
+ * was previously reported as a string literal, of statements containing none.
+ * @param {string} sql
+ * @returns {string}
+ */
+function maskLiterals(sql) {
+  let out = '';
+  for (let i = 0; i < sql.length; ) {
+    // A quoted identifier is a NAME, copied through untouched. Checked first, and
+    // this ordering is the whole point: Postgres allows $ in an identifier, so
+    // "p$x$" would otherwise open a dollar quote that closes at the next one and
+    // blank everything between -- erasing a self-reference rather than corrupting
+    // the parse, which is the one direction that can make the verdict cleaner
+    // than the truth.
+    if (sql[i] === '"') {
+      const close = sql.indexOf('"', i + 1);
+      if (close === -1) return UNCLOSED_IDENTIFIER;
+      out += sql.slice(i, close + 1);
+      i = close + 1;
+      continue;
+    }
+    const tag = dollarTagAt(sql, i);
+    if (tag) {
+      const close = sql.indexOf(tag, i + tag.length);
+      if (close === -1) return UNCLOSED_LITERAL;
+      out += tag + ' '.repeat(close - i - tag.length) + tag;
+      i = close + tag.length;
+    } else if (sql[i] === "'") {
+      let j = i + 1;
+      for (;;) {
+        if (j >= sql.length) return UNCLOSED_LITERAL;
+        if (sql[j] === "'" && sql[j + 1] === "'") j += 2;
+        else if (sql[j] === "'") break;
+        else j += 1;
+      }
+      out += `'${' '.repeat(j - i - 1)}'`;
+      i = j + 1;
+    } else {
+      out += sql[i];
+      i += 1;
+    }
   }
-  return true;
+  return out;
+}
+
+/**
+ * One SET clause: from `from` up to the first terminator that is not nested.
+ * Scans the mask, slices the original. Returns `null` when the clause cannot be
+ * delimited -- unbalanced brackets, or a stray closer meaning the scan lost the
+ * plot, which is not a terminator in any valid statement.
+ * @param {string} statement
+ * @param {string} mask
+ * @param {number} from index just past the SET keyword
+ * @returns {{ text: string, mask: string } | null}
+ */
+function sliceSetClause(statement, mask, from) {
+  let depth = 0;
+  for (let i = from; i < mask.length; i += 1) {
+    const c = mask[i];
+    // A quoted name is jumped, not walked into. maskLiterals copies its span
+    // through verbatim -- it must, since identifiers() reads the value off the
+    // mask -- so its contents would otherwise sit at depth 0 like structure, and
+    // a `;` or a WHERE inside a name would cut the clause short.
+    if (c === '"') {
+      const close = mask.indexOf('"', i + 1);
+      if (close === -1) return null;
+      i = close;
+      continue;
+    }
+    if (c === '(' || c === '[') depth += 1;
+    else if (c === ')' || c === ']') {
+      depth -= 1;
+      if (depth < 0) return null;
+    } else if (depth === 0) {
+      if (c === ';') return cut(statement, mask, from, i);
+      const word = /^(?:WHERE|RETURNING|FROM)\b/i.exec(mask.slice(i));
+      if (word && (i === from || /\s/.test(mask[i - 1]))) return cut(statement, mask, from, i);
+    }
+  }
+  return depth === 0 ? cut(statement, mask, from, mask.length) : null;
+}
+
+/** @returns {{ text: string, mask: string }} */
+function cut(statement, mask, from, to) {
+  return { text: statement.slice(from, to), mask: mask.slice(from, to) };
+}
+
+/**
+ * Splits an assignment list on commas that are not nested, so a comma inside a
+ * call or an array literal stays part of its value.
+ * @param {{ text: string, mask: string }} clause
+ * @returns {{ text: string, mask: string }[]}
+ */
+function splitTopLevel(clause) {
+  const out = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < clause.mask.length; i += 1) {
+    const c = clause.mask[i];
+    if (c === '"') {
+      const close = clause.mask.indexOf('"', i + 1);
+      if (close === -1) break;
+      i = close;
+      continue;
+    }
+    if (c === '(' || c === '[') depth += 1;
+    else if (c === ')' || c === ']') depth -= 1;
+    else if (c === ',' && depth === 0) {
+      out.push(cut(clause.text, clause.mask, start, i));
+      start = i + 1;
+    }
+  }
+  out.push(cut(clause.text, clause.mask, start, clause.mask.length));
+  return out.filter((a) => a.text.trim().length > 0);
+}
+
+/**
+ * The sentence for a SET-clause verdict. Kept distinct because "this is unsafe"
+ * and "I could not read this" mean different things to whoever hits it: the
+ * second may well be a statement that is fine, and telling that author to fix a
+ * self-reference they did not write sends them looking for nothing.
+ * @param {null | 'self-reference' | 'unparseable'} verdict
+ */
+function explain(verdict) {
+  return verdict === SELF_REFERENCE
+    ? 'Its SET clause assigns a value that reads the column it writes, so the row climbs on ' +
+        'every paste. Assign a fixed value, or use EXCLUDED.<column>.'
+    : 'scripts/rerunnable.mjs could not read that SET clause, so it refuses rather than ' +
+        'guessing. If the statement is re-runnable, teach the parser the shape it uses.';
+}
+
+/**
+ * The sentence telling an author what to do about a refusal. A string names the
+ * re-runnable spelling; a function returns the whole sentence, for entries where
+ * more than one defect lands on the same rule; `null` means there is no
+ * idempotent form at all.
+ * @param {string | null | ((statement: string, mask: string) => string)} fix
+ * @param {string} statement
+ * @param {string} mask
+ */
+function remedy(fix, statement, mask) {
+  if (typeof fix === 'function') return fix(statement, mask);
+  if (fix) return `Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into "${fix}".`;
+  return (
+    'This statement has no idempotent form — guard it in the migration with a DO block that ' +
+    'checks the catalog first.'
+  );
 }
 
 /** First line of a statement, for an error message that fits on a screen. */

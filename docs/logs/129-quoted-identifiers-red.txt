@@ -1,0 +1,57 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (25 tests | 2 failed) 203ms
+     × treats a quoted identifier as a name, not as text to parse 7ms
+     × says it could not parse a clause rather than inventing a reason 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > treats a quoted identifier as a name, not as text to parse
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:166:7
+    164|     expect(() =>
+    165|       assertRerunnable('20990101_x', `UPDATE "T" SET "a" = "p$x$", "n"…
+    166|     ).toThrow(/20990101_x/);
+       |       ^
+    167|     // and the fail-closed face: a valid statement reported as malform…
+    168|     expect(() => assertRerunnable('m', `UPDATE "T" SET "price$usd$" = …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > says it could not parse a clause rather than inventing a reason
+AssertionError: expected 'm: "INSERT INTO \"T\" VALUES (1) ON C…' not to match /reads the column it writes/i
+
+- Expected:
+/reads the column it writes/i
+
++ Received:
+"m: \"INSERT INTO \\\"T\\\" VALUES (1) ON CONFLICT (\\\"k\\\") DO UPDATE SET \\\"sort order\\\" = 1\" aborts if docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to run twice. Its DO UPDATE assigns a value that reads the column it writes, so the row climbs on every paste. Assign a fixed value, or use EXCLUDED.<column>."
+
+ ❯ supabase-lockdown-sql.test.ts:184:25
+    182|       message = (error as Error).message;
+    183|     }
+    184|     expect(message).not.toMatch(/reads the column it writes/i);
+       |                         ^
+    185|     expect(message).toMatch(/could not (read|decompose)/i);
+    186|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 23 passed (25)
+   Start at  01:26:04
+   Duration  563ms (transform 125ms, setup 0ms, import 161ms, tests 203ms, environment 0ms)
+

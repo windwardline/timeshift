@@ -100,6 +100,13 @@ silently.
   `DROP … IF EXISTS`, `INSERT … ON CONFLICT`, and for the forms with no idempotent
   spelling — `ADD CONSTRAINT` most likely, since the schema already has relations — a
   `DO` block that checks the catalog first. The error names the migration and the fix.
+- **A migration is listed in `prisma/migrations/shipped.sha256` in the same commit that
+  adds it, and is never edited afterwards** — not even its comments. The checksum is
+  recorded in `_prisma_migrations` on every database the migration has been applied to,
+  so changing the file makes `prisma migrate deploy` fail on mismatch against a database
+  that is correct. No deploy runs `migrate deploy`, so that surfaces the next time
+  someone runs `scripts/secure-database.sh` — before verification, before rotation. The
+  only remedy is another migration. `prisma/migrations/SHIPPED.md` has the detail.
 
 ## 6. Secrets & environment
 

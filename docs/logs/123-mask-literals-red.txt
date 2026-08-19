@@ -1,0 +1,57 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (21 tests | 2 failed) 189ms
+     × never reads the inside of a literal as structure 7ms
+     × accepts statements it previously refused only because it could not parse them 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > never reads the inside of a literal as structure
+AssertionError: UPDATE "T" SET "a" = $$ WHERE $$, "n" = "n" + 1;: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:152:62
+    150|       `UPDATE "T" SET "a" = ARRAY[1,2], "n" = "n" + 1;`,
+    151|     ]) {
+    152|       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/…
+       |                                                              ^
+    153|     }
+    154|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > accepts statements it previously refused only because it could not parse them
+AssertionError: INSERT INTO "Log" ("msg") VALUES ('please SET the flag') ON CONFLICT ("k") DO UPDATE SET "msg" = EXCLUDED."msg";: expected [Function] to not throw an error but 'Error: m: "INSERT INTO \"Log\" (\"msg…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: m: \"INSERT INTO \\\"Log\\\" (\\\"msg\\\") VALUES ('please SET the flag') ON CONFLICT (\\\"k\\\") DO...\" aborts if docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to run twice. Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into \"INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)\"."
+
+ ❯ supabase-lockdown-sql.test.ts:168:55
+    166|       `UPDATE "T" SET "a" = ARRAY[1,2];`,
+    167|     ]) {
+    168|       expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+       |                                                       ^
+    169|     }
+    170|     // and the multi-column form still catches a self-reference
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 19 passed (21)
+   Start at  01:00:24
+   Duration  612ms (transform 190ms, setup 0ms, import 225ms, tests 189ms, environment 0ms)
+

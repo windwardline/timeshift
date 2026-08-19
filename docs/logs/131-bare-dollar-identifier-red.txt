@@ -1,0 +1,37 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (26 tests | 1 failed) 228ms
+     × opens a dollar quote only where Postgres would 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > opens a dollar quote only where Postgres would
+AssertionError: UPDATE "T" SET a = p$x$, n = n + 1, q$x$ = 2;: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:183:62
+    181|       `UPDATE "T" SET a = p$x$;\nUPDATE "U" SET n = n + 1;\nUPDATE "V"…
+    182|     ]) {
+    183|       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/…
+       |                                                              ^
+    184|     }
+    185|     // and the fail-closed twin: a valid statement called malformed
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 25 passed (26)
+   Start at  01:34:14
+   Duration  667ms (transform 170ms, setup 0ms, import 216ms, tests 228ms, environment 0ms)
+

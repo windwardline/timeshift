@@ -1,3 +1,22 @@
+/**
+ * Where a dollar-quoted string actually starts.
+ *
+ * `$tag$` opens a literal only when the `$` is not continuing an identifier:
+ * Postgres's ident_cont is [A-Za-z_0-9$], and longest-match lexes `p$x$` as ONE
+ * identifier, quoted or not. Reading that `$` as a tag opens a phantom literal
+ * that closes at the next one and ERASES everything between -- which is the one
+ * direction that can make a scan's verdict cleaner than the truth, so all three
+ * scanners in this repo ask here rather than each carrying the rule.
+ *
+ * @param {string} sql
+ * @param {number} i index of the candidate `$`
+ * @returns {string | null} the tag, or null when this `$` is part of a name
+ */
+export function dollarTagAt(sql, i) {
+  if (i > 0 && /[A-Za-z_0-9$]/.test(sql[i - 1])) return null;
+  return /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))?.[0] ?? null;
+}
+
 // Shared by security-rls.test.ts (which reads migrations to enforce the RLS
 // contract) and scripts/generate-supabase-sql.mjs (which reads the same
 // migrations to build the paste file). One implementation, because a second
@@ -42,12 +61,20 @@ export function stripSqlComments(sql) {
         inString = false;
       }
       i += 1;
+    } else if (c === '"') {
+      // A quoted identifier is a name, copied through whole. Without this a `--`
+      // or a `$tag$` inside one is read as syntax -- `"a--b"` would lose its tail
+      // to the comment stripper.
+      const close = sql.indexOf('"', i + 1);
+      const end = close === -1 ? sql.length : close + 1;
+      out += sql.slice(i, end);
+      i = end;
     } else if (c === "'") {
       inString = true;
       out += c;
       i += 1;
-    } else if (c === '$' && /^\$[A-Za-z_0-9]*\$/.test(sql.slice(i))) {
-      const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))[0];
+    } else if (c === '$' && dollarTagAt(sql, i)) {
+      const tag = dollarTagAt(sql, i);
       const close = sql.indexOf(tag, i + tag.length);
       const bodyEnd = close === -1 ? sql.length : close;
       const body = sql.slice(i + tag.length, bodyEnd);

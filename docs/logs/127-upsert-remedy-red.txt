@@ -1,0 +1,34 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (23 tests | 1 failed) 202ms
+     × names the actual defect when it refuses an upsert 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > names the actual defect when it refuses an upsert
+AssertionError: expected 'm: "INSERT INTO \"T\" VALUES (1) ON C…' not to contain 'ON CONFLICT DO NOTHING'
+
+Expected: "ON CONFLICT DO NOTHING"
+Received: "m: "INSERT INTO \"T\" VALUES (1) ON CONFLICT (\"k\") DO UPDATE SET \"n\" = \"T\".\"n\" + 1" aborts if docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to run twice. Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into "INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)"."
+
+ ❯ supabase-lockdown-sql.test.ts:170:25
+    168|       message = (error as Error).message;
+    169|     }
+    170|     expect(message).not.toContain('ON CONFLICT DO NOTHING');
+       |                         ^
+    171|     expect(message).not.toContain('REWRITES');
+    172|     expect(message).toMatch(/reads the column it writes|self-reference…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 passed (23)
+   Start at  01:16:53
+   Duration  594ms (transform 166ms, setup 0ms, import 202ms, tests 202ms, environment 0ms)
+

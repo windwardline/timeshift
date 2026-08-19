@@ -1,0 +1,57 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (22 tests | 2 failed) 202ms
+     × does not let a literal supply the clause that makes a statement safe 7ms
+     × accepts statements it previously refused only because it could not parse them 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > does not let a literal supply the clause that makes a statement safe
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:163:7
+    161|     expect(() =>
+    162|       assertRerunnable('20990101_x', `INSERT INTO "Log" ("msg") VALUES…
+    163|     ).toThrow(/20990101_x/);
+       |       ^
+    164|     expect(() =>
+    165|       assertRerunnable('20990101_x', `INSERT INTO "Log" ("msg") VALUES…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > accepts statements it previously refused only because it could not parse them
+AssertionError: INSERT INTO "T" ("msg") VALUES ('use DO UPDATE instead') ON CONFLICT DO NOTHING;: expected [Function] to not throw an error but 'Error: m: "INSERT INTO \"T\" (\"msg\"…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: m: \"INSERT INTO \\\"T\\\" (\\\"msg\\\") VALUES ('use DO UPDATE instead') ON CONFLICT DO NOTHING\" aborts if docs/supabase-lockdown.sql is pasted twice, and that file promises it is safe to run twice. Add a rewrite to REWRITES in scripts/rerunnable.mjs turning it into \"INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)\"."
+
+ ❯ supabase-lockdown-sql.test.ts:185:55
+    183|       `UPDATE "RateLimit" SET "key" = 'key:global';`,
+    184|     ]) {
+    185|       expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+       |                                                       ^
+    186|     }
+    187|     // and the multi-column form still catches a self-reference
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 20 passed (22)
+   Start at  01:07:27
+   Duration  623ms (transform 167ms, setup 0ms, import 206ms, tests 202ms, environment 0ms)
+

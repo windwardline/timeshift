@@ -92,6 +92,257 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('fails closed when it cannot decompose a SET clause', () => {
+    // The self-reference check exists for SET "n" = "n" + 1. Three ways past it,
+    // all silent accepts under a header that says anything unrecognised is
+    // refused -- the same denylist-wearing-an-allowlist's-header shape this
+    // module has now been bitten by at the verb level and inside ALTER TABLE.
+    for (const ddl of [
+      // The clause it was written for, on the statement where it actually turns
+      // up: INSERT matches first, so the predicate never ran.
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "n" = "T"."n" + 1;`,
+      // Unquoted identifiers produce zero matches, and zero matches read as safe.
+      `UPDATE "T" SET n = n + 1;`,
+      // A subquery's WHERE truncates the SET clause, hiding later assignments.
+      `UPDATE "T" SET "a" = (SELECT 1 FROM "U" WHERE "U"."id" = 1), "n" = "n" + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+    // And the honest spellings still pass.
+    for (const ok of [
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "n" = 0;`,
+      `INSERT INTO "T" VALUES (1) ON CONFLICT DO NOTHING;`,
+      `UPDATE "Session" SET "expiresAt" = now() WHERE "expiresAt" > now();`,
+    ]) {
+      expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+    }
+  });
+
+  it('reads a SET clause by paren depth, not by the first comma or keyword', () => {
+    // The first attempt at this check split assignments on any comma and cut the
+    // clause at any FROM. Both appear INSIDE value expressions, so the plainest
+    // self-reference hid behind either one -- the same truncation the check was
+    // written to close, one level down. Regex cannot parse SQL expressions;
+    // tracking parenthesis depth can.
+    for (const ddl of [
+      // A comma inside a call ended the scan, and the increment sat past it.
+      `UPDATE "T" SET "n" = least(100, "n" + 1);`,
+      // FROM is part of extract()/substring()/trim(), not only a clause terminator.
+      `UPDATE "T" SET "a" = extract(epoch FROM "ts"), "n" = "n" + 1;`,
+      // Postgres allows $ in identifiers, and an unescaped $ in the built pattern
+      // is an end-of-input anchor -- so the reference could never match.
+      `UPDATE "T" SET "n$x" = "n$x" + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+  });
+
+  it('never reads the inside of a literal as structure', () => {
+    // Third time this class of bug appeared: WHERE, then FROM, now the contents
+    // of a dollar quote. Each earlier fix taught the scanner one more keyword
+    // instead of stopping it from reading literals at all. Literal contents are
+    // now masked before anything is scanned, so no keyword, comma, paren or
+    // bracket inside one can be mistaken for structure.
+    for (const ddl of [
+      `UPDATE "T" SET "a" = $$ WHERE $$, "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = $$ ) $$, "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = ' WHERE ', "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = ARRAY[1,2], "n" = "n" + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+  });
+
+  it('treats a quoted identifier as a name, not as text to parse', () => {
+    // Postgres allows $ in an identifier -- this file already asserts that for
+    // "n$x" -- but the masker did not skip quoted identifiers, so "p$x$" opened a
+    // phantom dollar quote that closed at the next one and BLANKED everything
+    // between. That is the one direction that hides a defect rather than
+    // corrupting the parse. A paren or a comma inside a name did leave an
+    // unparseable fragment and refuse; a semicolon and a keyword did NOT, which
+    // this comment previously claimed and the test below now pins.
+    expect(() =>
+      assertRerunnable('20990101_x', `UPDATE "T" SET "a" = "p$x$", "n" = "n" + 1, "q$x$" = 2;`),
+    ).toThrow(/20990101_x/);
+    // and the fail-closed face: a valid statement reported as malformed
+    expect(() => assertRerunnable('m', `UPDATE "T" SET "price$usd$" = 0;`)).not.toThrow();
+  });
+
+  it('opens a dollar quote only where Postgres would', () => {
+    // The quoted half of this was fixed one commit ago and the bare half left
+    // open, which is the same bug wearing different clothes: Postgres's
+    // ident_cont is [A-Za-z_0-9$], so `p$x$` lexes as ONE identifier whether or
+    // not it is quoted. A `$` that continues a name is not a tag opener.
+    for (const ddl of [
+      // erases the increment between two phantom tags
+      `UPDATE "T" SET a = p$x$, n = n + 1, q$x$ = 2;`,
+      // worse in the splitter: the tag spans statements and swallows the middle
+      // one whole, so nothing ever judges it
+      `UPDATE "T" SET a = p$x$;\nUPDATE "U" SET n = n + 1;\nUPDATE "V" SET b = q$x$;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+    // and the fail-closed twin: a valid statement called malformed
+    expect(() => assertRerunnable('m', `UPDATE "T" SET price$usd$ = 0;`)).not.toThrow();
+    // a real dollar-quoted body still masks, because $$ follows a space there
+    expect(() =>
+      assertRerunnable('20990101_x', `UPDATE "T" SET a = $$ WHERE $$, n = n + 1;`),
+    ).toThrow(/20990101_x/);
+  });
+
+  it('does not read the inside of a quoted name as structure either', () => {
+    // Skipping quoted spans in the statement splitter removed an accidental
+    // refusal without adding a real one: the `;` inside "b;c" used to split the
+    // statement and strand the tail on an unknown verb. Now it stays one
+    // statement -- correct -- and the clause parser walks into the name and cuts
+    // there instead, hiding the increment past it. A name is a name in every
+    // scanner or it is a name in none.
+    for (const ddl of [
+      `UPDATE "T" SET "a" = "b;c", "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = "b WHERE c", "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = "b,c", "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = "b)c", "n" = "n" + 1;`,
+      // a subquery that reads the column being written is still a self-reference
+      `UPDATE "T" SET "n" = (SELECT max("n") FROM "T") + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+    // a name carrying those characters is still legal on its own
+    expect(() => assertRerunnable('m', `UPDATE "T" SET "sort;order" = 1;`)).not.toThrow();
+  });
+
+  it('names the kind of thing that did not close', () => {
+    // maskLiterals refuses an unterminated quoted identifier and an unterminated
+    // string literal alike, and called both a string literal. The statement below
+    // contains no literal at all.
+    let message = '';
+    try {
+      assertRerunnable('m', `UPDATE "T" SET "a = 1;`);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/quoted identifier/i);
+    expect(message).not.toMatch(/string literal/i);
+  });
+
+  it('says it could not parse a clause rather than inventing a reason', () => {
+    // A left-hand side that is not one name is a shape this cannot judge, so it
+    // refuses -- the right call. The message used to assert a self-reference of
+    // a statement that has none.
+    //
+    // (A quoted name with a space used to land here too. It no longer does: a
+    // quoted name means whatever is inside the quotes, so "sort order" is simply
+    // a column and the statement is accepted, asserted below.)
+    let message = '';
+    try {
+      assertRerunnable(
+        'm',
+        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a"."b" = 1;`,
+      );
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).not.toMatch(/reads the column it writes/i);
+    expect(message).toMatch(/could not (read|decompose)/i);
+
+    // the real self-reference still names itself
+    let selfRef = '';
+    try {
+      assertRerunnable('m', `UPDATE "T" SET "n" = "n" + 1;`);
+    } catch (error) {
+      selfRef = (error as Error).message;
+    }
+    expect(selfRef).toMatch(/reads the column it writes/i);
+  });
+
+  it('names the actual defect when it refuses an upsert', () => {
+    // Two distinct reasons an INSERT is refused, and one canned remedy for both:
+    // an upsert whose DO UPDATE increments a column was told to add ON CONFLICT
+    // -- which it already has -- and to put it in REWRITES, which is a
+    // per-migration needle map and not where a self-reference gets resolved.
+    let message = '';
+    try {
+      assertRerunnable(
+        'm',
+        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "n" = "T"."n" + 1;`,
+      );
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).not.toContain('ON CONFLICT DO NOTHING');
+    expect(message).not.toContain('REWRITES');
+    expect(message).toMatch(/reads the column it writes|self-reference/i);
+
+    // and the missing-conflict-clause case keeps the advice that does apply
+    let bare = '';
+    try {
+      assertRerunnable('m', `INSERT INTO "T" VALUES (1);`);
+    } catch (error) {
+      bare = (error as Error).message;
+    }
+    expect(bare).toContain('ON CONFLICT DO NOTHING');
+  });
+
+  it('does not let a literal supply the clause that makes a statement safe', () => {
+    // The masking went into the SET parser but not into the INSERT predicate one
+    // function up, so words inside a string still counted as syntax there. A bare
+    // INSERT whose value merely mentions ON CONFLICT was accepted, and would
+    // duplicate the row -- or abort the transaction -- on a second paste.
+    expect(() =>
+      assertRerunnable('20990101_x', `INSERT INTO "Log" ("msg") VALUES ('ON CONFLICT is hard');`),
+    ).toThrow(/20990101_x/);
+    expect(() =>
+      assertRerunnable('20990101_x', `INSERT INTO "Log" ("msg") VALUES ($$WHERE NOT EXISTS$$);`),
+    ).toThrow(/20990101_x/);
+  });
+
+  it('accepts statements it previously refused only because it could not parse them', () => {
+    // These are all re-runnable. Refusing them was fail-closed, so not a
+    // soundness problem, but the error named a remedy -- wrap it in a DO block --
+    // that does not apply to a statement which is already fine.
+    for (const ok of [
+      // The word SET inside a literal is not the start of a SET clause.
+      `INSERT INTO "Log" ("msg") VALUES ('please SET the flag') ON CONFLICT ("k") DO UPDATE SET "msg" = EXCLUDED."msg";`,
+      // Multi-column assignment.
+      `UPDATE "T" SET ("a","b") = (1, 2);`,
+      // A bracketed array is one value, not two assignments.
+      `UPDATE "T" SET "a" = ARRAY[1,2];`,
+      // A subquery is judged on what it reads, not refused for being one.
+      `UPDATE "T" SET "a" = (SELECT 1 FROM "U");`,
+      // DO UPDATE named inside a literal is not a DO UPDATE clause.
+      `INSERT INTO "T" ("msg") VALUES ('use DO UPDATE instead') ON CONFLICT DO NOTHING;`,
+      // A constant whose text happens to contain the column's own name.
+      `UPDATE "RateLimit" SET "key" = 'key:global';`,
+      // A quoted name means what is between the quotes, spaces and all.
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "sort order" = 1;`,
+    ]) {
+      expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+    }
+    // and the multi-column form still catches a self-reference
+    expect(() => assertRerunnable('20990101_x', `UPDATE "T" SET ("a","n") = (1, "n" + 1);`)).toThrow(
+      /20990101_x/,
+    );
+  });
+
+  it('accepts the canonical upsert, which reads EXCLUDED rather than the row', () => {
+    // SET x = EXCLUDED.x is the standard spelling and is perfectly re-runnable:
+    // EXCLUDED is the proposed row, not the stored one. Refusing it sent authors
+    // to ON CONFLICT DO NOTHING, which is a different statement, not a rewrite.
+    for (const ok of [
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" = EXCLUDED."a";`,
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" = excluded.a;`,
+    ]) {
+      expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+    }
+    // But EXCLUDED does not launder a real self-reference sitting beside it.
+    expect(() =>
+      assertRerunnable(
+        '20990101_x',
+        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a" = EXCLUDED."a", "n" = "n" + 1;`,
+      ),
+    ).toThrow(/20990101_x/);
+  });
+
   it('fails closed inside ALTER TABLE too, not just at the leading verb', () => {
     // The allowlist held at the verb -- ALTER INDEX ... RENAME was refused --
     // but ALTER TABLE carries sub-rules that each skip when their pattern does
@@ -197,7 +448,10 @@ describe('docs/supabase-lockdown.sql', () => {
     // database that took the browser path. Edit a shipped migration -- even just
     // its comments -- and the recorded checksum no longer matches the file, so
     // the next `prisma migrate deploy` fails on mismatch against a database that
-    // is actually correct. That includes every Vercel build.
+    // is actually correct. Not on a deploy -- nothing in the build runs
+    // migrate deploy -- but the next time someone runs scripts/secure-database.sh
+    // against production or preview, before verification and before rotation.
+    // prisma/migrations/SHIPPED.md carries the full reasoning.
     //
     // The drift test above cannot catch this: regenerating updates the recorded
     // checksum in lockstep with the file, so both move together and agree. Only
@@ -216,6 +470,18 @@ describe('docs/supabase-lockdown.sql', () => {
           return [path.replace('/migration.sql', ''), checksum];
         }),
     );
+    // Every migration directory, not just the ones the paste file carries. The
+    // pin's subject is "has been applied to a database somewhere", which is true
+    // of all ten: the five from the sprint are in _prisma_migrations on both
+    // projects exactly as the lockdown five are, and editing one breaks the same
+    // way. Scoping this to LOCKDOWN_FLOOR was inherited from the paste file's
+    // needs, which is the right list for the drift test and the wrong one here.
+    const everyMigration = readdirSync(join(root, 'prisma/migrations'), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    for (const name of everyMigration) {
+      expect([...pinned.keys()], `${name} missing from shipped.sha256`).toContain(name);
+    }
     for (const [name, checksum] of pinned) {
       const raw = readFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'utf8');
       expect(
@@ -223,11 +489,7 @@ describe('docs/supabase-lockdown.sql', () => {
         `${name} has been edited since it shipped — add a new migration instead`,
       ).toBe(checksum);
     }
-    // And the pin has to cover everything the paste file carries, or a migration
-    // could ship, get applied, and then be edited freely.
-    for (const name of shippedMigrations()) {
-      expect([...pinned.keys()], `${name} missing from shipped.sha256`).toContain(name);
-    }
+
   });
 
   it('records each migration under the checksum Prisma computes', () => {

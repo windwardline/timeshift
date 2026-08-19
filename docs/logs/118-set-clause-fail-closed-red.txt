@@ -1,0 +1,37 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (17 tests | 1 failed) 201ms
+     × fails closed when it cannot decompose a SET clause 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > fails closed when it cannot decompose a SET clause
+AssertionError: INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "n" = "T"."n" + 1;: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:109:62
+    107|       `UPDATE "T" SET "a" = (SELECT 1 FROM "U" WHERE "U"."id" = 1), "n…
+    108|     ]) {
+    109|       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/…
+       |                                                              ^
+    110|     }
+    111|     // And the honest spellings still pass.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  00:43:02
+   Duration  635ms (transform 186ms, setup 0ms, import 221ms, tests 201ms, environment 0ms)
+
