@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+
+ Test Files  49 passed (49)
+      Tests  279 passed (279)
+   Start at  23:34:18
+   Duration  5.57s (transform 1.73s, setup 0ms, import 4.87s, tests 1.32s, environment 937ms)
+

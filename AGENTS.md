@@ -67,6 +67,11 @@ silently.
   **separately and manually**: nothing in `vercel.json` or the build scripts runs
   `prisma migrate deploy`, so a merge applies no migration anywhere. Any schema or
   grant change has to be deployed to **both** projects by hand, or they drift.
+  `scripts/secure-database.sh` is that procedure with the footguns removed — it
+  prompts for the connection string, names which project it points at before
+  acting, refuses the transaction pooler, verifies afterwards, and offers the
+  second project. `docs/supabase-lockdown.sql` is the same work for a browser and
+  the Supabase SQL Editor, with no clone or toolchain.
 - Endpoints that are open by design **and** spend on a third party (Gemini, Resend) are
   rate-limited through `lib/ratelimit/` — currently `/api/coach`, the showcase branch of
   `/api/trips/[id]/advice`, and `/api/auth/request-link`. The limiter **fails closed**: if
@@ -81,7 +86,20 @@ silently.
   `ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;` line in a migration** — without it
   the table is readable by anyone holding the project's publishable key. Never set
   `FORCE ROW LEVEL SECURITY`: the app connects as the table owner and relies on the
-  owner's RLS bypass.
+  owner's RLS bypass. Functions need the same thought and a different statement:
+  Postgres grants `EXECUTE` on every new function to `PUBLIC`, which `anon` belongs to,
+  and that is revoked database-wide by `20260819001500` — the schema-qualified spelling
+  of that revoke silently does nothing, so do not "tidy" it.
+- **Every migration from `20260818204500` onward must be safe to run twice**, security
+  work or not. `docs/supabase-lockdown.sql` carries all of them and promises exactly
+  that, so `scripts/rerunnable.mjs` refuses to generate the file otherwise and CI goes
+  red. It judges against an allowlist, so an unfamiliar statement is refused rather than
+  waved through, which means the first refusal is often a statement that is already
+  re-runnable and simply unlisted (`ALTER COLUMN … SET NOT NULL`, say) — that one just
+  needs adding to `SAFE`, not rewriting. Otherwise: `CREATE TABLE IF NOT EXISTS`,
+  `DROP … IF EXISTS`, `INSERT … ON CONFLICT`, and for the forms with no idempotent
+  spelling — `ADD CONSTRAINT` most likely, since the schema already has relations — a
+  `DO` block that checks the catalog first. The error names the migration and the fix.
 
 ## 6. Secrets & environment
 

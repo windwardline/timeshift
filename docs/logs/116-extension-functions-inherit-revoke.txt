@@ -1,0 +1,30 @@
+=== Does the database-wide FUNCTIONS revoke reach extension functions? Measured. ===
+
+20260819001500 block 2 guards its sweep of EXISTING functions against
+extension members, and says why: revoking EXECUTE from PUBLIC on pgcrypto
+and friends would break every other role that calls them. Block 1 -- the
+default-privileges revoke -- admits no such carve-out, because the
+schema-qualified spelling that could target one schema is the spelling that
+does nothing. So: do extension functions created LATER inherit it?
+
+On the Supabase-shaped database from log 112, with all migrations applied:
+  CREATE EXTENSION pgcrypto;
+ proname  |                    proacl                     | anon | service_role | owner 
+----------+-----------------------------------------------+------+--------------+-------
+ crypt    | {postgres=X/postgres,service_role=X/postgres} | f    | t            | t
+ digest   | {postgres=X/postgres,service_role=X/postgres} | f    | t            | t
+ digest   | {postgres=X/postgres,service_role=X/postgres} | f    | t            | t
+ gen_salt | {postgres=X/postgres,service_role=X/postgres} | f    | t            | t
+(4 rows)
+
+Yes -- they inherit it. The owner and service_role keep EXECUTE; anon and
+authenticated do not.
+
+For this app that is the wanted direction: nothing here calls PostgREST, the
+app connects as the owner, and an extension function reachable by anon is
+precisely the RPC surface this migration closes. Recorded because it is a
+real consequence with an unbounded window -- an operator enabling an
+extension from the dashboard months from now would otherwise see
+'permission denied for function ...' with nothing pointing back here. The
+remedy is an explicit GRANT EXECUTE on the functions they mean to publish,
+not reopening the default.

@@ -17,7 +17,7 @@
     "postinstall": "prisma generate",
     "seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON prisma/seed.ts",
     "embed:kb": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/embed-kb.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "ratelimit:check": "vitest run --config vitest.live.config.ts"
   },
   "dependencies": {

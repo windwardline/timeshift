@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { stripSqlComments } from './scripts/sql-text.mjs';
+
 // Supabase publishes every table in the `public` schema through PostgREST and
 // grants the `anon` role (the one behind a project's publishable key) access to
 // each new table Prisma creates. Prisma models neither RLS nor grants, so the
@@ -62,75 +64,9 @@ function tableNames(): string[] {
 // negative one ("we no longer grant SELECT on this table to anon" is English, not
 // a re-grant).
 //
-// The stripper is quote-aware rather than a regex, and that is the load-bearing
-// part. A regex stripper treats the `--` inside `'a--b'` as a comment and blanks
-// the rest of that line -- which would hide a real re-GRANT sitting after it and
-// leave the guard silently green. Tracking string literals is what makes removing
-// comments safe enough to be the single source for both directions.
-/**
- * Remove SQL comments, leaving anything inside a string literal untouched.
- *
- * Postgres has two string syntaxes and both matter here. `'…'` is the obvious
- * one. Dollar quoting (`$$…$$`, `$tag$…$tag$`) is the other, and it is used two
- * ways in these migrations, which the same rule cannot serve:
- *
- *   - as a DATA literal — `VALUES ($t$a--b$t$)` — where the `--` is content, and
- *     treating it as a comment would blank the rest of the line and take any
- *     statement after it out of the matchers' sight. Silently green, the exact
- *     defect the `'…'` handling exists to prevent.
- *   - as a CODE body — `DO $$ … $$` — where the lockdown migration explains
- *     itself at length in plpgsql `--` comments. Those must still be stripped:
- *     that prose discusses GRANT, anon and PUBLIC, and letting it reach the
- *     matchers is what made the guard prose-sensitive two rounds ago.
- *
- * The two are indistinguishable from the delimiter alone, so the opener decides:
- * a dollar quote introduced by `DO` or `AS` is a code body and its contents are
- * stripped recursively; any other is data and is copied out verbatim. That covers
- * how Postgres actually spells these — recorded as limit 4, since a code body
- * introduced some other way would be treated as data.
- */
-function stripSqlComments(sql: string): string {
-  let out = '';
-  let inString = false;
-  for (let i = 0; i < sql.length; ) {
-    const c = sql[i];
-    const next = sql[i + 1];
-    if (inString) {
-      out += c;
-      if (c === "'") {
-        if (next === "'") {
-          out += next; // '' is an escaped quote, not the end of the literal
-          i += 2;
-          continue;
-        }
-        inString = false;
-      }
-      i += 1;
-    } else if (c === "'") {
-      inString = true;
-      out += c;
-      i += 1;
-    } else if (c === '$' && /^\$[A-Za-z_0-9]*\$/.test(sql.slice(i))) {
-      const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))![0];
-      const close = sql.indexOf(tag, i + tag.length);
-      const bodyEnd = close === -1 ? sql.length : close;
-      const body = sql.slice(i + tag.length, bodyEnd);
-      const isCodeBody = /\b(?:DO|AS)\s*$/i.test(out);
-      out += tag + (isCodeBody ? stripSqlComments(body) : body) + (close === -1 ? '' : tag);
-      i = close === -1 ? sql.length : close + tag.length;
-    } else if (c === '-' && next === '-') {
-      while (i < sql.length && sql[i] !== '\n') i += 1; // to end of line
-    } else if (c === '/' && next === '*') {
-      i += 2;
-      while (i < sql.length && !(sql[i] === '*' && sql[i + 1] === '/')) i += 1;
-      i += 2;
-    } else {
-      out += c;
-      i += 1;
-    }
-  }
-  return out;
-}
+// Why it is quote-aware rather than a regex, and the rest of the reasoning, lives
+// with the implementation in scripts/sql-text.mjs -- shared with the paste-file
+// generator, which reads the same migrations.
 
 function migrationSql(): string {
   const dir = join(root, 'prisma/migrations');
@@ -305,6 +241,55 @@ describe('public-schema lockdown (prisma/migrations)', () => {
     // publicly-readable table -- the exact regression this suite exists to stop.
     expect(migrationSql()).toMatch(
       /ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+public\s+REVOKE\s+ALL\s+ON\s+TABLES/i,
+    );
+  });
+
+  it('revokes default privileges on every object class pg_default_acl can hold', () => {
+    // pg_default_acl stores one row per (role, schema, object class). Covering
+    // only TABLES and SEQUENCES leaves the FUNCTIONS and TYPES rows standing,
+    // and both tools that read pg_default_acl then report a correctly locked
+    // database as exposed -- secure-database.sh treats that as a hard failure
+    // and skips credential rotation, and the paste file's one result grid says
+    // PROBLEM. Revoking the whole surface is also the better answer on its own
+    // terms: default EXECUTE to anon on a future public function is a live
+    // PostgREST RPC endpoint. (Object class 'n', schemas, is stored with no
+    // namespace, so an IN SCHEMA public sweep never sees it.)
+    const sql = migrationSql();
+    for (const objectClass of ['TABLES', 'SEQUENCES', 'FUNCTIONS', 'TYPES']) {
+      expect(sql, `default privileges on ${objectClass} never revoked`).toMatch(
+        new RegExp(
+          String.raw`ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+public\s+REVOKE\s+ALL\s+ON\s+` +
+            objectClass,
+          'i',
+        ),
+      );
+    }
+  });
+
+  it('revokes EXECUTE on future functions from PUBLIC, not just the named roles', () => {
+    // Revoking from anon and authenticated by name does NOT close this. Postgres
+    // grants EXECUTE on every new function to PUBLIC as a built-in default, anon
+    // is a member of PUBLIC, and anon keeps USAGE on the schema through PUBLIC
+    // too (20260818204500 says so itself). PostgREST publishes a public function
+    // as an RPC endpoint, so the next SECURITY DEFINER helper -- which runs as
+    // its owner and therefore bypasses RLS -- would return rows to anyone holding
+    // the publishable key. Measured on a fully locked-down local database before
+    // this line existed: anon could call it and read a user's email address.
+    //
+    // Asserted WITHOUT `IN SCHEMA`, which is the part that is easy to get wrong
+    // and impossible to notice: the schema-qualified spelling writes no
+    // pg_default_acl row and changes nothing, because a schema-scoped entry is
+    // layered on top of the built-in defaults rather than able to subtract from
+    // them. Only the database-wide form takes effect. Both were run on Postgres
+    // 16.13 before this was written.
+    expect(migrationSql()).toMatch(
+      /ALTER\s+DEFAULT\s+PRIVILEGES\s+REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+PUBLIC/i,
+    );
+    expect(
+      migrationSql(),
+      'IN SCHEMA public silently does nothing for the built-in PUBLIC default',
+    ).not.toMatch(
+      /ALTER\s+DEFAULT\s+PRIVILEGES\s+IN\s+SCHEMA\s+\w+\s+REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+PUBLIC/i,
     );
   });
 

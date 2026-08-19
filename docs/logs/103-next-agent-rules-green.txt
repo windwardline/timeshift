@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run next-agent-rules.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  23:59:43
+   Duration  261ms (transform 41ms, setup 0ms, import 58ms, tests 6ms, environment 0ms)
+

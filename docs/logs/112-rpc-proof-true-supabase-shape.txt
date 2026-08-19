@@ -1,0 +1,57 @@
+=== The RPC hole, measured on a TRUE Supabase-shaped database ===
+
+The earlier proof (log 109) seeded default privileges for anon and
+authenticated only. Real Supabase also grants to postgres and service_role,
+and 20260818204500 deliberately leaves service_role alone -- so the
+schema-scoped pg_default_acl row SURVIVES our revokes. The question is
+whether the database-wide revoke still governs when it does. Reseeded with
+Supabase's actual bootstrap on all four object classes:
+
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON <CLASS>
+    TO postgres, anon, authenticated, service_role;
+
+--- WITHOUT 20260819001500 (every other lockdown migration applied) ---
+                          proacl                           | anon_execute 
+-----------------------------------------------------------+--------------
+ {=X/postgres,postgres=X/postgres,service_role=X/postgres} | t
+(1 row)
+
+  the bare =X/postgres term IS PUBLIC EXECUTE. As anon:
+  anon_got  
+------------
+ secret-row
+
+--- WITH it, same seed ---
+                    proacl                     | anon_execute | service_role_execute 
+-----------------------------------------------+--------------+----------------------
+ {postgres=X/postgres,service_role=X/postgres} | f            | t
+(1 row)
+
+  ERROR:  permission denied for function leak_probe_def
+
+  So the surviving schema-scoped entry does NOT re-supply PUBLIC EXECUTE.
+  It never carried a PUBLIC term: the =X came from the built-in default,
+  which is database-wide, and which the database-wide revoke removes.
+  service_role keeps EXECUTE, which is intended -- it is Supabase's own
+  server-side role, deliberately left alone since 20260818204500.
+
+--- default-ACL rows on the fixed database ---
+  owner   |      scope      | class |                         defaclacl                         
+----------+-----------------+-------+-----------------------------------------------------------
+ postgres | (database-wide) | f     | {postgres=X/postgres}
+ postgres | public          | S     | {postgres=rwU/postgres,service_role=rwU/postgres}
+ postgres | public          | T     | {postgres=U/postgres,service_role=U/postgres}
+ postgres | public          | f     | {postgres=X/postgres,service_role=X/postgres}
+ postgres | public          | r     | {postgres=arwdDxt/postgres,service_role=arwdDxt/postgres}
+(5 rows)
+
+--- and neither verifier false-positives on that shape ---
+  default privileges for objects this role creates: revoked
+  EXECUTE on future functions, granted to PUBLIC by default: revoked
+  RESULT: locked down.
+  browser path:
+  -----+------------------+----------------------------------------------------------------------+---------
+     1 | existing objects | 8 object(s) in public                                                | OK
+     3 | future functions | EXECUTE on new functions, which Postgres grants to PUBLIC by default | OK
+  (2 rows)
+  

@@ -303,9 +303,78 @@ consequence is a deployment-order requirement: **apply migrations before or with
 the code that depends on them**, or these three endpoints will 429 until the
 `RateLimit` table exists. The log says exactly that when it happens.
 
-The migration only takes effect where it is applied. Production and preview
-migrate separately, so `prisma migrate deploy` must be run against **both**
-Supabase projects.
+The migration only takes effect where it is applied, and production and preview
+migrate separately by hand. `scripts/secure-database.sh` does the whole job for
+one project — preflight checks, `migrate deploy`, verification, and rotating the
+credentials the exposure made readable:
+
+```bash
+./scripts/secure-database.sh                 # prompts for the connection string
+./scripts/secure-database.sh --verify-only   # read-only: report state, change nothing
+```
+
+Run with no arguments and it asks for the connection string (input hidden), echoes
+back which project that string points at, and offers the second project when the
+first finishes — so securing both is one invocation with nothing to fill in.
+
+**Without a terminal:** [`docs/supabase-lockdown.sql`](docs/supabase-lockdown.sql)
+is the same work as one script to paste into each project's Supabase SQL Editor —
+no clone, no Node, no connection string. It applies the lockdown migrations, records
+them in `_prisma_migrations` with the checksums `prisma migrate deploy` expects
+(so the CLI stays consistent afterwards — checked end to end in
+`docs/logs/99-paste-path-cli-consistency.txt`: a project fixed through the browser
+alone leaves `prisma migrate status` reporting up to date and `deploy` a no-op),
+rotates the exposed credentials, and
+ends in **one** verification query whose every row must say `OK`. One query is
+deliberate: the SQL Editor renders only the last statement's grid, so splitting
+the verdict in two showed the operator half of it — a green lockdown once read as
+a live exposure that way. The first row covers what exists now. The `future
+objects` rows cover default privileges, one per (role, object class), and read
+`OK` for Supabase's own internal role because a default-ACL entry only governs
+objects created by its owner, never one your migrations make. **A grid of one row
+saying `OK` is a pass**, not a truncated result — those rows are absent when
+nothing grants at all. `supabase-lockdown-sql.test.ts` holds the single-statement
+tail so it cannot silently split again.
+
+The two paths differ in exactly one place, and the file says so where it matters:
+`secure-database.sh` rotates only after verification passes and takes
+`--skip-rotation`, while the paste file rotates inside the transaction, before the
+verdict grid is read. That is what applying everything in one atomic paste costs,
+and it fails in the safe direction — a transaction that aborts rotates nothing. To
+defer rotation in the browser, delete the two `UPDATE` statements before clicking
+Run; the SQL Editor is a scratch buffer, so that is not hand-editing the committed
+file.
+
+`pg_default_acl` holds a row per object class, so the revoke covers all of them —
+`TABLES`, `SEQUENCES`, `FUNCTIONS`, `TYPES`. Functions need a second statement on
+top of that: Postgres grants `EXECUTE` on every new function to `PUBLIC`, `anon`
+is a member of `PUBLIC`, and that built-in default is recorded nowhere, so
+revoking from `anon` by name leaves it standing. Measured before it was fixed — a
+`SECURITY DEFINER` function in `public` (which runs as its owner, so RLS is no
+help) returned a user's email address to `anon`, and both verifiers still said
+`OK`. It is revoked **database-wide** by `20260819001500`, because the
+schema-qualified spelling writes no row and changes nothing. Both tools now check
+that revoke positively, since its failure state is an absent row rather than a
+bad one.
+
+One knock-on, measured: extension functions inherit it. Enable `pgcrypto` after
+the lockdown and its functions come out callable by the owner and `service_role`
+but not by `anon`. That is the intended direction here — nothing in this app
+calls PostgREST — but if you ever want a function reachable from the browser,
+grant `EXECUTE` on that function explicitly rather than reopening the default.
+
+Covering only tables and sequences was also an operational trap, not just a gap:
+the verifier read the surviving functions row as a failure, and a failed
+verification is what makes `secure-database.sh` skip credential rotation.
+`security-rls.test.ts` asserts each class by name.
+
+One transaction, and safe to run twice. It is generated from the migrations by
+`node scripts/generate-supabase-sql.mjs`; `supabase-lockdown-sql.test.ts` fails CI
+if the committed file drifts from them or is hand-edited.
+
+It refuses the transaction pooler (port 6543, which cannot run migrations), names
+which project the URL points at before touching it, and stops if the local Prisma
+is not the pinned major. Re-running is safe.
 
 ## End-to-end verification
 

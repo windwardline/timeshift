@@ -19,3 +19,9 @@
 *.pem
 npm-debug.log*
 .vercel
+
+# Rewritten by `next dev` and `next build` with DIFFERENT contents
+# (.next/dev/types/... vs .next/types/...), so tracking it means the file flips
+# back and forth for anyone who runs both. `npm run typecheck` regenerates it
+# via `next typegen` first, so nothing depends on it being in the checkout.
+next-env.d.ts

@@ -1,0 +1,179 @@
+// Reports whether the public-schema lockdown is actually in force on the database
+// DATABASE_URL points at. Read-only. Uses @prisma/client, which is already a
+// dependency, so it needs no psql and no extra tooling.
+import { PrismaClient } from '@prisma/client';
+
+import { lockdownMigrations } from './lockdown-migrations.mjs';
+
+const prisma = new PrismaClient();
+let bad = 0;
+
+try {
+  // Checked against the same surface the migration revokes, not a narrower one.
+  // SELECT alone would report "denied" for a role holding INSERT/UPDATE/DELETE --
+  // PostgREST writes through those too -- and tables alone would miss views and
+  // materialised views, which are their own exposure path: a view over "User" is
+  // not covered by the base table's RLS unless it is security_invoker.
+  // `has_table_privilege` raises if the role does not exist rather than returning
+  // NULL, so COALESCE cannot rescue it: on a local Postgres without Supabase's
+  // roles the whole query would throw and report as unverifiable, which reads
+  // identically to a database that is genuinely open. Guard on the role instead.
+  const PRIVS = ['SELECT', 'INSERT', 'UPDATE', 'DELETE'];
+  const anyPriv = (role) =>
+    `(to_regrole('${role}') IS NOT NULL AND (` +
+    PRIVS.map((p) => `COALESCE(has_table_privilege('${role}', c.oid, '${p}'), false)`).join(' OR ') +
+    '))';
+  const tables = await prisma.$queryRawUnsafe(`
+    SELECT c.relname::text AS table,
+           CASE c.relkind WHEN 'r' THEN '' WHEN 'p' THEN ' (partitioned)'
+                          WHEN 'v' THEN ' (view)' WHEN 'm' THEN ' (matview)'
+                          WHEN 'f' THEN ' (foreign)' ELSE ' (sequence)' END AS kind,
+           -- RLS is meaningless on a view or sequence; report it as n/a rather
+           -- than as a failure, so the summary is not noisy about the wrong thing.
+           (c.relkind IN ('r','p')) AS rls_applies,
+           c.relrowsecurity AS rls,
+           (${anyPriv('anon')}) AS anon_any,
+           (${anyPriv('authenticated')}) AS auth_any
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m','f','S')
+    ORDER BY 1
+  `);
+
+  console.log('object                    RLS    anon      authenticated');
+  console.log('------------------------- ------ --------- -------------');
+  for (const t of tables) {
+    const rlsOk = t.rls_applies ? t.rls : true;
+    const ok = rlsOk && !t.anon_any && !t.auth_any;
+    if (!ok) bad += 1;
+    console.log(
+      `${(t.table + t.kind).padEnd(25)} ` +
+        `${(t.rls_applies ? (t.rls ? 'on' : 'OFF') : 'n/a').padEnd(6)} ` +
+        `${(t.anon_any ? 'CAN USE!' : 'denied').padEnd(9)} ` +
+        `${(t.auth_any ? 'CAN USE!' : 'denied').padEnd(13)}${ok ? '' : '  <-- NOT LOCKED DOWN'}`,
+    );
+  }
+
+  // The half of the migration that regresses silently: if the default privileges
+  // are re-granted, the NEXT table a migration creates is exposed again, and
+  // nothing about today's tables would show it.
+  //
+  // Scoped to the CONNECTING role, because that is the surface the migration can
+  // actually change: `ALTER DEFAULT PRIVILEGES ... REVOKE` without `FOR ROLE`
+  // only touches entries owned by the role running it, and a default-ACL entry
+  // only governs tables created BY its owner. Supabase's bootstrap also sets
+  // these under `supabase_admin`, which survives and is harmless here -- Prisma
+  // creates our tables as this role, not that one. Reported separately rather
+  // than counted as a failure: a condition this tooling cannot remediate must
+  // not fail the run, because in secure-database.sh a failed verification skips
+  // credential rotation, which is part of the fix rather than an extra.
+  // Grouped by object class as well as owner. pg_default_acl holds one row per
+  // (role, schema, class), the migrations revoke every class it can hold in a
+  // schema, and naming the class is what makes a surviving row diagnosable --
+  // a report that says "tables" while the row standing is functions sends the
+  // operator to look in the wrong place.
+  const defaults = await prisma.$queryRawUnsafe(`
+    SELECT pg_get_userbyid(d.defaclrole) AS owner,
+           (pg_get_userbyid(d.defaclrole) = current_user) AS is_ours,
+           CASE d.defaclobjtype WHEN 'r' THEN 'tables'    WHEN 'S' THEN 'sequences'
+                                WHEN 'f' THEN 'functions' WHEN 'T' THEN 'types'
+                                ELSE d.defaclobjtype::text END AS class,
+           string_agg(DISTINCT COALESCE(r.rolname, 'PUBLIC'), ', ') AS roles
+    FROM pg_default_acl d
+    LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+    CROSS JOIN LATERAL aclexplode(d.defaclacl) a
+    LEFT JOIN pg_roles r ON r.oid = a.grantee
+    WHERE (n.nspname = 'public' OR d.defaclnamespace = 0)
+      AND (r.rolname IN ('anon', 'authenticated') OR a.grantee = 0)
+    GROUP BY d.defaclrole, d.defaclobjtype
+  `);
+  const ours = defaults.filter((d) => d.is_ours);
+  bad += ours.length;
+  console.log(
+    `\ndefault privileges for objects this role creates: ${
+      ours.length === 0
+        ? 'revoked'
+        : ours
+            .map((d) => `${d.class} GRANTED TO ${d.roles} <-- next one will be exposed`)
+            .join('; ')
+    }`,
+  );
+  for (const d of defaults.filter((x) => !x.is_ours)) {
+    console.log(
+      `  note: ${d.owner} still grants ${d.roles} on ${d.class} IT creates — not ours, not a failure`,
+    );
+  }
+
+  // Checked positively, because its failure state is the ABSENCE of a row.
+  // Postgres grants EXECUTE on every new function to PUBLIC as a built-in
+  // default, and `anon` is a member of PUBLIC. Nothing records that default in
+  // pg_default_acl, so a query looking for a bad row finds nothing and reports
+  // clean while a future SECURITY DEFINER function in `public` -- which runs as
+  // its owner and so bypasses RLS -- would be callable by anyone with the
+  // publishable key, over PostgREST's RPC surface. What IS recorded is the
+  // revoke: a database-wide (defaclnamespace = 0) entry for this role that does
+  // not grant EXECUTE to PUBLIC. Its presence is the control.
+  const fnDefaults = await prisma.$queryRawUnsafe(`
+    SELECT EXISTS (
+      SELECT 1 FROM pg_default_acl d
+      WHERE d.defaclrole = current_user::regrole
+        AND d.defaclobjtype = 'f'
+        AND d.defaclnamespace = 0
+        AND NOT EXISTS (
+          SELECT 1 FROM aclexplode(d.defaclacl) a
+          WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+        )
+    ) AS revoked
+  `);
+  if (!fnDefaults[0].revoked) bad += 1;
+  console.log(
+    `EXECUTE on future functions, granted to PUBLIC by default: ${
+      fnDefaults[0].revoked ? 'revoked' : 'STILL GRANTED <-- a future function is a public RPC'
+    }`,
+  );
+
+  // A database that has never been migrated has no _prisma_migrations table at
+  // all. That is a legitimate state to report -- "nothing applied yet" -- not an
+  // error to throw, since --verify-only is the natural way to check before acting.
+  const hasHistory = await prisma.$queryRawUnsafe(
+    `SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS present`,
+  );
+  const applied = hasHistory[0].present
+    ? await prisma.$queryRawUnsafe(
+        `SELECT migration_name::text AS name FROM "_prisma_migrations"
+         WHERE finished_at IS NOT NULL ORDER BY started_at`,
+      )
+    : [];
+  const names = applied.map((r) => r.name);
+  console.log('\nmigrations applied:');
+  // Derived from the migrations directory, not a hand-kept list: a list written
+  // out here goes stale the moment a migration is added, and it goes stale
+  // silently -- reporting "locked down" for a database missing the newest one.
+  for (const want of lockdownMigrations()) {
+    const hit = names.find((n) => n === want);
+    if (!hit) bad += 1;
+    console.log(`  ${hit ? 'yes' : 'NO '}  ${want}`);
+  }
+
+  const userExists = await prisma.$queryRawUnsafe(
+    `SELECT to_regclass('public."User"') IS NOT NULL AS present`,
+  );
+  if (!userExists[0].present) {
+    console.log('\ndead passwordHash column: n/a (User table not created yet)');
+  } else {
+    const cols = await prisma.$queryRawUnsafe(
+      `SELECT count(*)::int AS n FROM information_schema.columns
+       WHERE table_name = 'User' AND column_name = 'passwordHash'`,
+    );
+    const dropped = cols[0].n === 0;
+    if (!dropped) bad += 1;
+    console.log(`\ndead passwordHash column: ${dropped ? 'dropped' : 'STILL PRESENT'}`);
+  }
+
+  console.log(bad === 0 ? '\nRESULT: locked down.' : `\nRESULT: ${bad} problem(s) above.`);
+} catch (error) {
+  console.error('\nCould not verify:', error instanceof Error ? error.message : error);
+  bad = 1;
+} finally {
+  await prisma.$disconnect();
+}
+process.exit(bad === 0 ? 0 : 1);

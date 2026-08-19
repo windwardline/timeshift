@@ -1,0 +1,39 @@
+=== The PostgREST RPC hole, measured and closed ===
+
+BEFORE: a database with every lockdown migration up to 20260818233000 applied
+        -- RLS on every table, anon/authenticated revoked, default privileges
+        revoked on all four object classes. Both verifiers reported 'locked down'.
+
+  CREATE FUNCTION public.leak_probe_def() ... SECURITY DEFINER
+    -> proacl NULL, has_function_privilege('anon', ...) = t
+  SET ROLE anon; SELECT public.leak_probe_def();
+    -> demo@timeshift.app
+
+  Revoking from anon by name does not close it: Postgres grants EXECUTE on new
+  functions to PUBLIC, and anon is a member of PUBLIC. SECURITY DEFINER runs as
+  the owner, so RLS is not a second line of defence.
+
+  Neither verifier could see it: the implicit PUBLIC default is not a row in
+  pg_default_acl, so there was nothing to find.
+
+ALSO MEASURED: the obvious fix does nothing. On Postgres 16.13,
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC
+  writes no pg_default_acl row and changes nothing -- a schema-scoped entry is
+  layered on top of the built-in defaults, and the built-in PUBLIC grant is
+  database-wide. Only the unqualified form subtracts it.
+
+AFTER 20260819001500, on a fresh Supabase-shaped database:
+        proacl         | anon_execute | owner_execute 
+-----------------------+--------------+---------------
+ {postgres=X/postgres} | f            | t
+(1 row)
+
+  the attack, as anon:
+    ERROR:  permission denied for function leak_probe_def
+
+  and both verifiers can now observe the property, positively -- its failure
+  state is the ABSENCE of a row, so they check the revoke is present:
+    EXECUTE on future functions, granted to PUBLIC by default: revoked
+    RESULT: locked down.
+  on a database without the fix:
+    EXECUTE on future functions, granted to PUBLIC by default: STILL GRANTED <-- a future function is a public RPC

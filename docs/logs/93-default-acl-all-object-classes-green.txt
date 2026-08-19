@@ -1,0 +1,13 @@
+
+> timeshift@0.1.0 test:run
+> vitest run security-rls.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+
+ Test Files  1 passed (1)
+      Tests  23 passed (23)
+   Start at  23:28:47
+   Duration  324ms (transform 110ms, setup 0ms, import 126ms, tests 20ms, environment 0ms)
+

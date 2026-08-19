@@ -1,0 +1,51 @@
+=== TimeShift end-to-end, run against a database in the FULL post-lockdown state:
+===   RLS enabled on every table, anon/authenticated revoked, default privileges
+===   revoked on all four object classes, User.passwordHash dropped, RateLimit
+===   present, and every session expired by the rotation.
+=== The deployed app is unreachable from this sandbox (network policy), so this
+=== runs the real Next.js app locally against that database, exercising the same
+=== code paths against the same schema.
+
+--- database state under test ---
+       object       | rls | anon_select 
+--------------------+-----+-------------
+ FlightQueryCache   | t   | f
+ FlightSegment      | t   | f
+ LoginToken         | t   | f
+ RateLimit          | t   | f
+ Session            | t   | f
+ Trip               | t   | f
+ User               | t   | f
+ _prisma_migrations | t   | f
+(8 rows)
+
+--- Playwright regression suite (AGENTS.md 8.B) ---
+  ✓  2 [chromium] › e2e/regression.spec.ts:13:5 › home showcase renders the engine headline numbers (2.6s)
+  ✓  1 [chromium] › e2e/coach.spec.ts:7:5 › coach answers a KB question with sources and refuses an off-topic one (2.8s)
+  ✓  3 [chromium] › e2e/regression.spec.ts:48:5 › home showcase flags the date-line crossing example (1.4s)
+  3 passed (5.8s)
+
+--- pages, with a session obtained through the real magic-link flow ---
+/            200
+/profile     200
+/coach       200
+/login       200
+/privacy     200
+/trips/:id   200
+
+--- auth flow, the surface the session rotation touched ---
+magic link requested   -> LoginToken row written under RLS
+token redeemed         -> 307 to /, ts_session cookie set (HttpOnly, SameSite=lax)
+live session rows      : 1
+tokens marked used     : 1
+profile renders the signed-in email: 1
+
+--- rate limiter (needs the RateLimit table the migration adds) ---
+12 requests to /api/auth/request-link: 5 allowed, then 429 from the 6th on
+RateLimit rows written : 4
+/api/coach             : 200 (extractive fallback, keyless)
+
+--- the only non-2xx responses, both expected and unrelated to this work ---
+/api/auth/request-link 502 : RESEND_API_KEY is not set in this sandbox
+/api/trips/:id/advice  503 : AI advice is not configured (set GEMINI_API_KEY)
+Both are the documented keyless behaviours (AGENTS.md 13); neither is a regression.

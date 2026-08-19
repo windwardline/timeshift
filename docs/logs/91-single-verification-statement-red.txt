@@ -1,0 +1,37 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (5 tests | 1 failed) 87ms
+     × ends with a single verification statement 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > docs/supabase-lockdown.sql > ends with a single verification statement
+AssertionError: the editor would show only the last of these: expected [ …(2) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ supabase-lockdown-sql.test.ts:85:72
+     83|       .split(';')
+     84|       .filter((s) => s.trim().length > 0);
+     85|     expect(statements, 'the editor would show only the last of these')…
+       |                                                                        ^
+     86|     expect(after, 'the verdict column is what the operator reads').toC…
+     87|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  23:21:49
+   Duration  361ms (transform 48ms, setup 0ms, import 72ms, tests 87ms, environment 0ms)
+

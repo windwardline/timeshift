@@ -1,0 +1,30 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (16 tests | 1 failed) 186ms
+     × never changes a migration that has already been applied somewhere 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > docs/supabase-lockdown.sql > never changes a migration that has already been applied somewhere
+Error: ENOENT: no such file or directory, open '/home/user/timeshift/prisma/migrations/shipped.lock.json'
+ ❯ supabase-lockdown-sql.test.ts:206:29
+    204|     // a pin outside the generator's reach notices. Adding a NEW migra…
+    205|     // always fine; this is about editing an old one.
+    206|     const lock = JSON.parse(readFileSync(join(root, 'prisma/migrations…
+       |                             ^
+    207|     for (const [name, checksum] of Object.entries(lock)) {
+    208|       const raw = readFileSync(join(root, 'prisma/migrations', name, '…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  00:30:17
+   Duration  559ms (transform 135ms, setup 0ms, import 172ms, tests 186ms, environment 0ms)
+
