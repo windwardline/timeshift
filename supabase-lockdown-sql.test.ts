@@ -158,9 +158,9 @@ describe('rerunnable guard', () => {
     // "n$x" -- but the masker did not skip quoted identifiers, so "p$x$" opened a
     // phantom dollar quote that closed at the next one and BLANKED everything
     // between. That is the one direction that hides a defect rather than
-    // corrupting the parse: every other special character in an identifier
-    // (a semicolon, a quote, a paren, a comma, a keyword) leaves an unparseable
-    // fragment and refuses.
+    // corrupting the parse. A paren or a comma inside a name did leave an
+    // unparseable fragment and refuse; a semicolon and a keyword did NOT, which
+    // this comment previously claimed and the test below now pins.
     expect(() =>
       assertRerunnable('20990101_x', `UPDATE "T" SET "a" = "p$x$", "n" = "n" + 1, "q$x$" = 2;`),
     ).toThrow(/20990101_x/);
@@ -190,15 +190,54 @@ describe('rerunnable guard', () => {
     ).toThrow(/20990101_x/);
   });
 
+  it('does not read the inside of a quoted name as structure either', () => {
+    // Skipping quoted spans in the statement splitter removed an accidental
+    // refusal without adding a real one: the `;` inside "b;c" used to split the
+    // statement and strand the tail on an unknown verb. Now it stays one
+    // statement -- correct -- and the clause parser walks into the name and cuts
+    // there instead, hiding the increment past it. A name is a name in every
+    // scanner or it is a name in none.
+    for (const ddl of [
+      `UPDATE "T" SET "a" = "b;c", "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = "b WHERE c", "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = "b,c", "n" = "n" + 1;`,
+      `UPDATE "T" SET "a" = "b)c", "n" = "n" + 1;`,
+      // a subquery that reads the column being written is still a self-reference
+      `UPDATE "T" SET "n" = (SELECT max("n") FROM "T") + 1;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+    // a name carrying those characters is still legal on its own
+    expect(() => assertRerunnable('m', `UPDATE "T" SET "sort;order" = 1;`)).not.toThrow();
+  });
+
+  it('names the kind of thing that did not close', () => {
+    // maskLiterals refuses an unterminated quoted identifier and an unterminated
+    // string literal alike, and called both a string literal. The statement below
+    // contains no literal at all.
+    let message = '';
+    try {
+      assertRerunnable('m', `UPDATE "T" SET "a = 1;`);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/quoted identifier/i);
+    expect(message).not.toMatch(/string literal/i);
+  });
+
   it('says it could not parse a clause rather than inventing a reason', () => {
-    // A quoted identifier with a space is legal Postgres. It is refused because
-    // the guard cannot decompose it, which is the right call -- but the message
-    // asserted a self-reference, of a statement assigning a constant.
+    // A left-hand side that is not one name is a shape this cannot judge, so it
+    // refuses -- the right call. The message used to assert a self-reference of
+    // a statement that has none.
+    //
+    // (A quoted name with a space used to land here too. It no longer does: a
+    // quoted name means whatever is inside the quotes, so "sort order" is simply
+    // a column and the statement is accepted, asserted below.)
     let message = '';
     try {
       assertRerunnable(
         'm',
-        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "sort order" = 1;`,
+        `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "a"."b" = 1;`,
       );
     } catch (error) {
       message = (error as Error).message;
@@ -268,10 +307,14 @@ describe('rerunnable guard', () => {
       `UPDATE "T" SET ("a","b") = (1, 2);`,
       // A bracketed array is one value, not two assignments.
       `UPDATE "T" SET "a" = ARRAY[1,2];`,
+      // A subquery is judged on what it reads, not refused for being one.
+      `UPDATE "T" SET "a" = (SELECT 1 FROM "U");`,
       // DO UPDATE named inside a literal is not a DO UPDATE clause.
       `INSERT INTO "T" ("msg") VALUES ('use DO UPDATE instead') ON CONFLICT DO NOTHING;`,
       // A constant whose text happens to contain the column's own name.
       `UPDATE "RateLimit" SET "key" = 'key:global';`,
+      // A quoted name means what is between the quotes, spaces and all.
+      `INSERT INTO "T" VALUES (1) ON CONFLICT ("k") DO UPDATE SET "sort order" = 1;`,
     ]) {
       expect(() => assertRerunnable('m', ok), ok).not.toThrow();
     }

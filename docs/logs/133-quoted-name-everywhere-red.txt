@@ -1,0 +1,57 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (28 tests | 2 failed) 251ms
+     × does not read the inside of a quoted name as structure either 8ms
+     × names the kind of thing that did not close 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > does not read the inside of a quoted name as structure either
+AssertionError: UPDATE "T" SET "a" = "b;c", "n" = "n" + 1;: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:206:62
+    204|       `UPDATE "T" SET "a" = "b)c", "n" = "n" + 1;`,
+    205|     ]) {
+    206|       expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/…
+       |                                                              ^
+    207|     }
+    208|     // a name carrying those characters is still legal on its own
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > names the kind of thing that did not close
+AssertionError: expected 'm: "UPDATE \"T\" SET \"a = 1;" has an…' to match /quoted identifier/i
+
+- Expected:
+/quoted identifier/i
+
++ Received:
+"m: \"UPDATE \\\"T\\\" SET \\\"a = 1;\" has an unterminated string literal, so scripts/rerunnable.mjs cannot judge whether it is safe to run twice."
+
+ ❯ supabase-lockdown-sql.test.ts:222:21
+    220|       message = (error as Error).message;
+    221|     }
+    222|     expect(message).toMatch(/quoted identifier/i);
+       |                     ^
+    223|     expect(message).not.toMatch(/string literal/i);
+    224|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 26 passed (28)
+   Start at  01:43:08
+   Duration  694ms (transform 203ms, setup 0ms, import 240ms, tests 251ms, environment 0ms)
+

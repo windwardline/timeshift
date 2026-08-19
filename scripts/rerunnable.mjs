@@ -157,9 +157,9 @@ export function assertRerunnable(name, sql) {
     // masked, the INSERT predicate did not, and a literal saying ON CONFLICT was
     // read as a conflict clause. One mask, passed down, cannot drift apart.
     const mask = maskLiterals(statement);
-    if (mask === null) {
+    if (mask === UNCLOSED_IDENTIFIER || mask === UNCLOSED_LITERAL) {
       throw new Error(
-        `${name}: ${JSON.stringify(preview(statement))} has an unterminated string literal, so ` +
+        `${name}: ${JSON.stringify(preview(statement))} has an unterminated ${mask}, so ` +
           'scripts/rerunnable.mjs cannot judge whether it is safe to run twice.',
       );
     }
@@ -263,6 +263,11 @@ function matches(safe, statement, mask) {
   return typeof safe === 'function' ? safe(statement, mask) : safe.test(mask);
 }
 
+/** maskLiterals could not finish: a `"…"` name never closed. */
+const UNCLOSED_IDENTIFIER = 'quoted identifier';
+/** maskLiterals could not finish: a `'…'` or `$tag$…$tag$` literal never closed. */
+const UNCLOSED_LITERAL = 'string literal';
+
 /** The clause is re-runnable. */
 const SAFE_CLAUSE = null;
 /** An assignment reads the column it writes, so the value climbs on every run. */
@@ -313,9 +318,16 @@ function setClauseVerdict(statement, mask) {
       if (eq === -1) return UNPARSEABLE;
       const lhs = text.slice(0, eq).trim();
       // Both the single-column form and the multi-column `("a","b") = (1, 2)`.
+      // A quoted name means whatever is between the quotes, whatever it contains
+      // -- "sort order" and "sort;order" are both legal columns. Only a BARE
+      // name has to look like an identifier; anything else is a shape this
+      // cannot judge, and says so rather than guessing.
+      const quoted = /^"([^"]*)"$/.exec(lhs);
       const columns = /^\(.*\)$/s.test(lhs)
         ? identifiers(lhs)
-        : [lhs.replace(/^"|"$/g, '')].filter((c) => /^[A-Za-z_][\w$]*$/.test(c));
+        : quoted
+          ? [quoted[1]]
+          : [lhs].filter((c) => /^[A-Za-z_][\w$]*$/.test(c));
       if (columns.length === 0) return UNPARSEABLE; // not a shape this can judge
       // EXCLUDED.<col> is the proposed row, not the stored one, so an upsert
       // written `SET x = EXCLUDED.x` is re-runnable. Dropped before the test so
@@ -352,9 +364,11 @@ function identifiers(expression) {
  * A copy of `sql` with the CONTENTS of every string literal replaced by spaces,
  * so positions still line up with the original but nothing inside a literal can
  * be read as syntax. Handles `'…'` (with `''` escapes) and `$tag$…$tag$`.
- * Returns `null` when a literal is never closed.
+ * Returns UNCLOSED_IDENTIFIER or UNCLOSED_LITERAL when one never closes, so the
+ * message can name the kind that did rather than guess -- an unterminated `"`
+ * was previously reported as a string literal, of statements containing none.
  * @param {string} sql
- * @returns {string | null}
+ * @returns {string}
  */
 function maskLiterals(sql) {
   let out = '';
@@ -367,7 +381,7 @@ function maskLiterals(sql) {
     // than the truth.
     if (sql[i] === '"') {
       const close = sql.indexOf('"', i + 1);
-      if (close === -1) return null;
+      if (close === -1) return UNCLOSED_IDENTIFIER;
       out += sql.slice(i, close + 1);
       i = close + 1;
       continue;
@@ -375,13 +389,13 @@ function maskLiterals(sql) {
     const tag = dollarTagAt(sql, i);
     if (tag) {
       const close = sql.indexOf(tag, i + tag.length);
-      if (close === -1) return null;
+      if (close === -1) return UNCLOSED_LITERAL;
       out += tag + ' '.repeat(close - i - tag.length) + tag;
       i = close + tag.length;
     } else if (sql[i] === "'") {
       let j = i + 1;
       for (;;) {
-        if (j >= sql.length) return null;
+        if (j >= sql.length) return UNCLOSED_LITERAL;
         if (sql[j] === "'" && sql[j + 1] === "'") j += 2;
         else if (sql[j] === "'") break;
         else j += 1;
@@ -410,6 +424,16 @@ function sliceSetClause(statement, mask, from) {
   let depth = 0;
   for (let i = from; i < mask.length; i += 1) {
     const c = mask[i];
+    // A quoted name is jumped, not walked into. maskLiterals copies its span
+    // through verbatim -- it must, since identifiers() reads the value off the
+    // mask -- so its contents would otherwise sit at depth 0 like structure, and
+    // a `;` or a WHERE inside a name would cut the clause short.
+    if (c === '"') {
+      const close = mask.indexOf('"', i + 1);
+      if (close === -1) return null;
+      i = close;
+      continue;
+    }
     if (c === '(' || c === '[') depth += 1;
     else if (c === ')' || c === ']') {
       depth -= 1;
@@ -440,6 +464,12 @@ function splitTopLevel(clause) {
   let start = 0;
   for (let i = 0; i < clause.mask.length; i += 1) {
     const c = clause.mask[i];
+    if (c === '"') {
+      const close = clause.mask.indexOf('"', i + 1);
+      if (close === -1) break;
+      i = close;
+      continue;
+    }
     if (c === '(' || c === '[') depth += 1;
     else if (c === ')' || c === ']') depth -= 1;
     else if (c === ',' && depth === 0) {
