@@ -1,0 +1,37 @@
+
+> timeshift@0.1.0 test:run
+> vitest run supabase-lockdown-sql.test.ts
+
+
+ RUN  v4.1.10 /home/user/timeshift
+
+ ❯ supabase-lockdown-sql.test.ts (15 tests | 1 failed) 197ms
+     × refuses a data INSERT that has no conflict clause 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  supabase-lockdown-sql.test.ts > rerunnable guard > refuses a data INSERT that has no conflict clause
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ supabase-lockdown-sql.test.ts:79:93
+     77|     // written as INSERT ... SELECT ... WHERE NOT EXISTS, so the knowl…
+     78|     // it just lived in a string template rather than in the guard.
+     79|     expect(() => assertRerunnable('20990101_x', `INSERT INTO "Setting"…
+       |                                                                                             ^
+     80|       /20990101_x/,
+     81|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  00:27:40
+   Duration  529ms (transform 110ms, setup 0ms, import 145ms, tests 197ms, environment 0ms)
+

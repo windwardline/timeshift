@@ -357,6 +357,12 @@ schema-qualified spelling writes no row and changes nothing. Both tools now chec
 that revoke positively, since its failure state is an absent row rather than a
 bad one.
 
+One knock-on, measured: extension functions inherit it. Enable `pgcrypto` after
+the lockdown and its functions come out callable by the owner and `service_role`
+but not by `anon`. That is the intended direction here — nothing in this app
+calls PostgREST — but if you ever want a function reachable from the browser,
+grant `EXECUTE` on that function explicitly rather than reopening the default.
+
 Covering only tables and sequences was also an operational trap, not just a gap:
 the verifier read the surviving functions row as a failure, and a failed
 verification is what makes `secure-database.sh` skip credential rotation.

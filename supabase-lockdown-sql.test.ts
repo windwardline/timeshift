@@ -67,6 +67,31 @@ describe('rerunnable guard', () => {
     }
   });
 
+  it('refuses a data INSERT that has no conflict clause', () => {
+    // INSERT sat in the "unconditionally re-runnable" bucket, which it does not
+    // belong in: a seed row or a backfill in a future migration would ship into
+    // the paste file under its safe-to-run-twice header and, on a second paste,
+    // either duplicate the row or abort the whole transaction on a unique
+    // constraint -- the wall-of-ERROR-on-an-already-secured-project failure this
+    // guard exists to prevent. The generator's own _prisma_migrations INSERT is
+    // written as INSERT ... SELECT ... WHERE NOT EXISTS, so the knowledge existed;
+    // it just lived in a string template rather than in the guard.
+    expect(() => assertRerunnable('20990101_x', `INSERT INTO "Setting" VALUES ('a','b');`)).toThrow(
+      /20990101_x/,
+    );
+    expect(() =>
+      assertRerunnable('20990101_x', `UPDATE "Counter" SET "n" = "n" + 1;`),
+    ).toThrow(/20990101_x/);
+    for (const ok of [
+      `INSERT INTO "Setting" VALUES ('a','b') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO "Setting" VALUES ('a','b') ON CONFLICT ("key") DO UPDATE SET "value" = 'b';`,
+      `INSERT INTO "Setting" SELECT 'a','b' WHERE NOT EXISTS (SELECT 1 FROM "Setting");`,
+      `UPDATE "Session" SET "expiresAt" = now() WHERE "expiresAt" > now();`,
+    ]) {
+      expect(() => assertRerunnable('m', ok), ok).not.toThrow();
+    }
+  });
+
   it('fails closed inside ALTER TABLE too, not just at the leading verb', () => {
     // The allowlist held at the verb -- ALTER INDEX ... RENAME was refused --
     // but ALTER TABLE carries sub-rules that each skip when their pattern does
@@ -165,6 +190,32 @@ describe('docs/supabase-lockdown.sql', () => {
     const shipped = shippedMigrations();
     expect(shipped.length).toBeGreaterThan(0);
     for (const name of shipped) expect(sql, `${name} missing from the paste file`).toContain(name);
+  });
+
+  it('never changes a migration that has already been applied somewhere', () => {
+    // The checksums in this file are recorded into `_prisma_migrations` on every
+    // database that took the browser path. Edit a shipped migration -- even just
+    // its comments -- and the recorded checksum no longer matches the file, so
+    // the next `prisma migrate deploy` fails on mismatch against a database that
+    // is actually correct. That includes every Vercel build.
+    //
+    // The drift test above cannot catch this: regenerating updates the recorded
+    // checksum in lockstep with the file, so both move together and agree. Only
+    // a pin outside the generator's reach notices. Adding a NEW migration is
+    // always fine; this is about editing an old one.
+    const lock = JSON.parse(readFileSync(join(root, 'prisma/migrations/shipped.lock.json'), 'utf8'));
+    for (const [name, checksum] of Object.entries(lock)) {
+      const raw = readFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'utf8');
+      expect(
+        createHash('sha256').update(raw).digest('hex'),
+        `${name} has been edited since it shipped — add a new migration instead`,
+      ).toBe(checksum);
+    }
+    // And the pin has to cover everything the paste file carries, or a migration
+    // could ship, get applied, and then be edited freely.
+    for (const name of shippedMigrations()) {
+      expect(lock, `${name} missing from shipped.lock.json`).toHaveProperty(name);
+    }
   });
 
   it('records each migration under the checksum Prisma computes', () => {

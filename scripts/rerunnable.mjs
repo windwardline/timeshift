@@ -48,7 +48,24 @@ const SAFE = [
   { verb: /^(?:GRANT|REVOKE)\b/i, safe: /.*/ },
   { verb: /^(?:ALTER\s+TABLE\s+.*\s+(?:ENABLE|DISABLE|FORCE|NO\s+FORCE)\s+ROW\s+LEVEL\s+SECURITY)/i, safe: /.*/ },
   { verb: /^DO\b/i, safe: /.*/ }, // a DO block does its own catalog checks
-  { verb: /^(?:SELECT|INSERT|UPDATE|DELETE|SET|COMMENT|ANALYZE|VACUUM)\b/i, safe: /.*/ },
+  { verb: /^(?:SELECT|SET|COMMENT|ANALYZE|VACUUM)\b/i, safe: /.*/ },
+
+  // Writes. INSERT does NOT belong in the bucket above: a seed row or a backfill
+  // duplicates on a second paste, or aborts the transaction on a unique
+  // constraint. It needs a conflict clause or an existence guard -- the same
+  // spelling the generator already uses for its own _prisma_migrations row.
+  {
+    verb: /^INSERT\b/i,
+    safe: /\bON\s+CONFLICT\b|\bWHERE\s+NOT\s+EXISTS\b/i,
+    fix: 'INSERT ... ON CONFLICT DO NOTHING (or ... WHERE NOT EXISTS)',
+  },
+  // UPDATE and DELETE are re-runnable when the change is idempotent -- setting a
+  // column to a literal or a function of the row's identity, deleting rows
+  // matching a predicate. An UPDATE is NOT re-runnable when the new value is
+  // derived from the old one (SET "n" = "n" + 1 climbs on every paste), which is
+  // what a self-reference in the SET clause shows and a WHERE clause cannot.
+  { verb: /^UPDATE\b/i, safe: noSelfReferencingAssignment, fix: null },
+  { verb: /^DELETE\b/i, safe: /.*/ },
   { verb: /^CREATE\s+OR\s+REPLACE\b/i, safe: /.*/ },
 
   // Re-runnable only in their guarded spelling.
@@ -93,9 +110,12 @@ export function makeRerunnable(name, sql) {
 
 /**
  * Throws if `sql` still holds DDL that would abort a second paste.
- * Comments and string literals are stripped first: the lockdown migrations
- * discuss the very statements being scanned for, and a scanner that reads its
- * own prose refuses a migration that is fine.
+ *
+ * Comments are stripped first, because the lockdown migrations discuss the very
+ * statements being scanned for and a scanner that reads its own prose refuses a
+ * migration that is fine. String literals are deliberately NOT stripped:
+ * `EXECUTE format('CREATE TABLE ...')` collides on a second run exactly like the
+ * bare statement, so it has to stay visible.
  * @param {string} name migration directory name, for the message
  * @param {string} sql the migration's SQL, after makeRerunnable
  */
@@ -125,7 +145,7 @@ export function assertRerunnable(name, sql) {
       );
     }
     for (const rule of matched) {
-      if (rule.safe && rule.safe.test(statement)) continue;
+      if (rule.safe && matches(rule.safe, statement)) continue;
       {
         throw new Error(
           `${name}: ${JSON.stringify(preview(statement))} aborts if ` +
@@ -151,6 +171,21 @@ function statements(sql) {
   const out = [];
   let buf = '';
   for (let i = 0; i < sql.length; ) {
+    // Single quoting as well as dollar quoting, matching the shared stripper. A
+    // `;` inside a literal would otherwise split one statement into two, and the
+    // tail fragment lands on a verb the allowlist does not know -- so it failed
+    // closed rather than open, but on the wrong reason.
+    if (sql[i] === "'") {
+      let j = i + 1;
+      while (j < sql.length) {
+        if (sql[j] === "'" && sql[j + 1] === "'") j += 2;
+        else if (sql[j] === "'") break;
+        else j += 1;
+      }
+      buf += sql.slice(i, Math.min(j + 1, sql.length));
+      i = j + 1;
+      continue;
+    }
     const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))?.[0];
     if (tag) {
       const close = sql.indexOf(tag, i + tag.length);
@@ -168,6 +203,28 @@ function statements(sql) {
   }
   out.push(buf);
   return out.map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * A `safe` entry is either a pattern the statement must match or a predicate.
+ * @param {RegExp | ((statement: string) => boolean)} safe
+ * @param {string} statement
+ */
+function matches(safe, statement) {
+  return typeof safe === 'function' ? safe(statement) : safe.test(statement);
+}
+
+/**
+ * True when no assignment in the SET clause reads the column it writes.
+ * `SET "n" = "n" + 1` climbs on every run; `SET "expiresAt" = now()` does not.
+ * @param {string} statement
+ */
+function noSelfReferencingAssignment(statement) {
+  const set = /\bSET\b([\s\S]*?)(?:\bWHERE\b|$)/i.exec(statement)?.[1] ?? '';
+  for (const [, column, value] of set.matchAll(/"([^"]+)"\s*=\s*([^,]+)/g)) {
+    if (new RegExp(`"${column.replace(/[.*+?^$()|[\]\\]/g, '\\$&')}"`).test(value)) return false;
+  }
+  return true;
 }
 
 /** First line of a statement, for an error message that fits on a screen. */

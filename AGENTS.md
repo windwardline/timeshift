@@ -94,10 +94,12 @@ silently.
   work or not. `docs/supabase-lockdown.sql` carries all of them and promises exactly
   that, so `scripts/rerunnable.mjs` refuses to generate the file otherwise and CI goes
   red. It judges against an allowlist, so an unfamiliar statement is refused rather than
-  waved through. In practice: `CREATE TABLE IF NOT EXISTS`, `DROP … IF EXISTS`, and for
-  the forms with no idempotent spelling — `ADD CONSTRAINT` most likely, since the schema
-  already has relations — a `DO` block that checks the catalog first. The error names the
-  migration and the fix.
+  waved through, which means the first refusal is often a statement that is already
+  re-runnable and simply unlisted (`ALTER COLUMN … SET NOT NULL`, say) — that one just
+  needs adding to `SAFE`, not rewriting. Otherwise: `CREATE TABLE IF NOT EXISTS`,
+  `DROP … IF EXISTS`, `INSERT … ON CONFLICT`, and for the forms with no idempotent
+  spelling — `ADD CONSTRAINT` most likely, since the schema already has relations — a
+  `DO` block that checks the catalog first. The error names the migration and the fix.
 
 ## 6. Secrets & environment
 

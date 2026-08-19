@@ -1,0 +1,7 @@
+{
+  "20260818204500_lock_down_public_schema": "136eb5b43438ce48fec629e00ccec0ef6a98d5b1f1f219910c16b592191c9ae5",
+  "20260818211531_add_rate_limit": "8caf70cb1fc24d71e33a8d3b65ddabb4b659eb7caf2551127f647392995173bc",
+  "20260818212336_drop_dead_password_hash": "039dcc0bb2cf329b3b5ee5cf16f0e086a34f9bab0de1fa48a34cdffde4061791",
+  "20260818233000_revoke_default_privileges_all_classes": "7233dab722d697a3650d63c56c1ad8c193e35b05fdf66e90dcc09e976666dd99",
+  "20260819001500_revoke_public_function_execute": "0e2eb2974198378b56b09545b0de1602f7b2f718eea6dd6bdf74d179e62495f5"
+}
