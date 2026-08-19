@@ -20,7 +20,7 @@
 // suite's coverage number says nothing about this file. Its branches are covered
 // only by the explicit cases in supabase-lockdown-sql.test.ts, which is why new
 // ones are added there whenever a hole is found rather than trusted to a number.
-import { stripSqlComments } from './sql-text.mjs';
+import { dollarTagAt, stripSqlComments } from './sql-text.mjs';
 
 /** (needle -> replacement) per migration. Applied strictly; see makeRerunnable. */
 const REWRITES = {
@@ -232,7 +232,7 @@ function statements(sql) {
       i = j + 1;
       continue;
     }
-    const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))?.[0];
+    const tag = dollarTagAt(sql, i);
     if (tag) {
       const close = sql.indexOf(tag, i + tag.length);
       const end = close === -1 ? sql.length : close + tag.length;
@@ -372,7 +372,7 @@ function maskLiterals(sql) {
       i = close + 1;
       continue;
     }
-    const tag = /^\$[A-Za-z_0-9]*\$/.exec(sql.slice(i))?.[0];
+    const tag = dollarTagAt(sql, i);
     if (tag) {
       const close = sql.indexOf(tag, i + tag.length);
       if (close === -1) return null;

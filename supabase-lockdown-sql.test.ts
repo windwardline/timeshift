@@ -168,6 +168,28 @@ describe('rerunnable guard', () => {
     expect(() => assertRerunnable('m', `UPDATE "T" SET "price$usd$" = 0;`)).not.toThrow();
   });
 
+  it('opens a dollar quote only where Postgres would', () => {
+    // The quoted half of this was fixed one commit ago and the bare half left
+    // open, which is the same bug wearing different clothes: Postgres's
+    // ident_cont is [A-Za-z_0-9$], so `p$x$` lexes as ONE identifier whether or
+    // not it is quoted. A `$` that continues a name is not a tag opener.
+    for (const ddl of [
+      // erases the increment between two phantom tags
+      `UPDATE "T" SET a = p$x$, n = n + 1, q$x$ = 2;`,
+      // worse in the splitter: the tag spans statements and swallows the middle
+      // one whole, so nothing ever judges it
+      `UPDATE "T" SET a = p$x$;\nUPDATE "U" SET n = n + 1;\nUPDATE "V" SET b = q$x$;`,
+    ]) {
+      expect(() => assertRerunnable('20990101_x', ddl), ddl).toThrow(/20990101_x/);
+    }
+    // and the fail-closed twin: a valid statement called malformed
+    expect(() => assertRerunnable('m', `UPDATE "T" SET price$usd$ = 0;`)).not.toThrow();
+    // a real dollar-quoted body still masks, because $$ follows a space there
+    expect(() =>
+      assertRerunnable('20990101_x', `UPDATE "T" SET a = $$ WHERE $$, n = n + 1;`),
+    ).toThrow(/20990101_x/);
+  });
+
   it('says it could not parse a clause rather than inventing a reason', () => {
     // A quoted identifier with a space is legal Postgres. It is refused because
     // the guard cannot decompose it, which is the right call -- but the message

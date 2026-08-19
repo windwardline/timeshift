@@ -1,16 +1,21 @@
 # shipped.sha256
 
-Pins the SHA-256 of every migration `docs/supabase-lockdown.sql` carries.
+Pins the SHA-256 of **every** migration directory under `prisma/migrations` — not
+only the five `docs/supabase-lockdown.sql` carries.
 
 Written in `sha256sum`'s own format, so `sha256sum -c shipped.sha256` verifies it
 from this directory with no bespoke tooling. It is deliberately not JSON: a
 `"name": "<64 hex>"` pair reads as a key assignment to gitleaks' generic API-key
 rule, which failed the secret scan on a public checksum.
 
-Those checksums are written into `_prisma_migrations` on any database fixed
-through the browser path. Editing a shipped migration — even only its comments —
-changes its checksum, and the next `prisma migrate deploy` then fails on mismatch
-against a database that is in fact correct.
+Prisma records a migration's checksum in `_prisma_migrations` when it applies it,
+so every migration this repo has ever shipped is pinned by both live databases —
+the sprint's five through `migrate deploy`, the lockdown's five through that or
+through the browser path, which writes the same checksums.
+
+Editing a shipped migration — even only its comments — changes its checksum, and
+the next `prisma migrate deploy` then fails on mismatch against a database that
+is in fact correct.
 
 Not on a deploy, though — and that is the point. `build` is `next build`,
 `postinstall` is `prisma generate`, and `vercel.json` carries only headers, so
