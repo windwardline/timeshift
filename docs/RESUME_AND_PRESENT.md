@@ -107,7 +107,7 @@ a visible loading state. The live call happens in the demo; tests never need a k
 
 ## 4. Monday presentation script (aim 5–6 min)
 
-Show your **CLAUDE.md** at some point — it's the "rules/context file you control"
+Show your **AGENTS.md** at some point — it's the "rules/context file you control"
 the instructor explicitly wants to see. Point at the sections that prove control:
 §2 (TDD law), §4 (time-handling/delegation), §7 (git workflow), §8 (real-evidence-
 only), §13 (AI boundary).
@@ -127,7 +127,7 @@ only), §13 (AI boundary).
   click "get my plan" for the live AI advice.
 
 ### Section 3 — Live TDD (~2 min)
-- Show CLAUDE.md (the rules). Then code **one small, rehearsed feature** live with
+- Show AGENTS.md (the rules). Then code **one small, rehearsed feature** live with
   the CLI agent: prompt it to write a **failing test first**, run it red, then make
   it pass, run it green. The point is the *flow*, not the feature. See §6 below for
   candidates and the exact rehearsed steps.
