@@ -3,6 +3,8 @@
 This file is the operating contract for any AI assistance on this repo. Read it in
 full before doing anything. If a request conflicts with these rules, stop and flag it.
 
+Work here follows the CONVERGE cycle and delivery discipline in `FLEET.md` (windwardline/windwardline) — find → refute → verify yourself → fix → re-rank → test → update → report, and the delivery rules under it.
+
 ---
 
 ## 1. What this project is
