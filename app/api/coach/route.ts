@@ -11,7 +11,7 @@ import { consume } from '@/lib/ratelimit/limit';
 import { LIMITS, clientIp } from '@/lib/ratelimit/config';
 import { tooManyRequests } from '@/lib/ratelimit/response';
 
-// Server-only grounded coach endpoint (US-R, CLAUDE.md §13). The API key is read
+// Server-only grounded coach endpoint (US-R, AGENTS.md §13). The API key is read
 // here, server-side, and never reaches the browser. Retrieval is semantic when a
 // key is configured (embedQuery returns a vector) and falls back to lexical when
 // not — so this route works keyless, returning extractive grounded answers.

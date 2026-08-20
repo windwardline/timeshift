@@ -7,7 +7,7 @@ facts and narrates them. The model can never feed back into the time-math, which
 is the whole identity of this project.
 
 Where it lives: a new server-only module `lib/ai/`. An LLM call is a network
-call, so by **CLAUDE.md §4** it is categorically forbidden in `lib/engine/`.
+call, so by **AGENTS.md §4** it is categorically forbidden in `lib/engine/`.
 
 ---
 
@@ -62,7 +62,7 @@ snapshot-asserted.)
 ## 3. Architecture
 
 ```
-lib/engine/        ← unchanged. pure. no network. (CLAUDE.md §4)
+lib/engine/        ← unchanged. pure. no network. (AGENTS.md §4)
 lib/ai/            ← new. server-only.
   facts.ts         ← assembleTripFacts(timeline, sleepWindows, offsets) → TripFacts   (PURE)
   prompt.ts        ← buildAdvicePrompt(facts) → string                                 (PURE)
@@ -185,9 +185,9 @@ cannot be hardcoded.
 
 ---
 
-## 8. CLAUDE.md — add as a new section (§13)
+## 8. AGENTS.md — add as a new section (§13)
 
-Paste verbatim into `CLAUDE.md`:
+Paste verbatim into `AGENTS.md`:
 
 > **§13 — AI integration boundary**
 > - An AI/LLM call is a network call. Per §4 it is forbidden in `lib/engine/`. All AI code lives in `lib/ai/` and is server-only.
@@ -202,7 +202,7 @@ Paste verbatim into `CLAUDE.md`:
 
 ## 9. Sequencing (no disruption to the engine work)
 
-1. **Now — guardrail checkpoint (docs/chore commit).** Add §13 to `CLAUDE.md`,
+1. **Now — guardrail checkpoint (docs/chore commit).** Add §13 to `AGENTS.md`,
    create `.env.example`, confirm `.env.local` is gitignored, and commit this doc.
    No AI *code* yet. This puts the boundary in the repo before the first line of AI
    code, exactly as §4 was in place before the engine.

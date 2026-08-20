@@ -3,7 +3,7 @@ import type { Segment } from '../engine/timeline';
 import type { SleepWindow } from '../engine/sleep';
 
 // Structured facts the engine hands to the AI layer. Pure data. The AI feature
-// sits strictly downstream of the engine (CLAUDE.md §13 / docs/AI_ADVICE.md):
+// sits strictly downstream of the engine (AGENTS.md §13 / docs/AI_ADVICE.md):
 // the model narrates these already-computed facts and can never feed back into
 // the time-math, which is the identity of this project.
 

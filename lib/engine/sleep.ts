@@ -29,7 +29,7 @@ function clock(instant: Date, tz: string): string {
  * window can never fall outside an in-air segment — we walk the destination-local
  * nights the segment touches, clip each night to the segment, and keep any
  * non-empty overlap. Boundaries stay in absolute UTC; offset/DST is delegated to
- * Luxon (CLAUDE.md §4). The label reads the window in destination-local night
+ * Luxon (AGENTS.md §4). The label reads the window in destination-local night
  * clock alongside the traveler's home clock.
  */
 export function recommendSleepWindows(

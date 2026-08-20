@@ -1,5 +1,5 @@
 /* v8 ignore file */
-// The ONLY module in lib/ai that touches the network/SDK (CLAUDE.md §13). It is
+// The ONLY module in lib/ai that touches the network/SDK (AGENTS.md §13). It is
 // never unit-tested and is explicitly excluded from coverage — model output is
 // non-deterministic, so it is exercised live only in the demo with a real key.
 // Everything else in lib/ai/ is pure and TDD'd against this interface's mock.

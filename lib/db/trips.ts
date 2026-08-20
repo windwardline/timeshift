@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 
-// Thin persistence layer for trips. Per CLAUDE.md §4/§5 the database owns
+// Thin persistence layer for trips. Per AGENTS.md §4/§5 the database owns
 // persistence and the engine owns the time reasoning: these functions just
 // move rows in and out. Timestamps are persisted in UTC (`DateTime`) with the
 // original IANA zone string stored alongside, so all offset/DST math stays

@@ -1,5 +1,5 @@
 /* v8 ignore file */
-// The ONLY module in lib/flights that touches the network/API key (CLAUDE.md
+// The ONLY module in lib/flights that touches the network/API key (AGENTS.md
 // §13). Never unit-tested and explicitly excluded from coverage — it is
 // exercised live only in the demo with a real key. Everything else in
 // lib/flights/ is pure and TDD'd against this interface's mock.

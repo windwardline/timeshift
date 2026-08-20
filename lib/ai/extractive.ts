@@ -1,4 +1,4 @@
-// Keyless / live-failure fallback for the grounded coach (US-R, CLAUDE.md §13).
+// Keyless / live-failure fallback for the grounded coach (US-R, AGENTS.md §13).
 // Builds a { answer, followUp } purely from the retrieved passages already
 // embedded in the grounded prompt's Context block — no model call, fully
 // deterministic, so the coach answers (grounded) even with no key or a failed

@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 // Standalone demo seed: one traveler with one multi-leg trip, so the timeline
 // page has real data to render. Run with `npm run seed`. Idempotent — safe to
 // re-run before a demo. Timestamps are UTC; the IANA zone is stored alongside
-// each end of every leg (CLAUDE.md §4), and airport coordinates are included so
+// each end of every leg (AGENTS.md §4), and airport coordinates are included so
 // SunCalc day/night arcs resolve precisely at the destination.
 //
 // Mirrors lib/db/trips.ts#createTrip (nested write). The seed keeps its own

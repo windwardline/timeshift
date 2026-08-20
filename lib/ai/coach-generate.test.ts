@@ -6,7 +6,7 @@ import type { ScoredChunk } from '@/lib/rag/types';
 
 // makeCoachGenerate picks the coach's generation strategy and — critically for a
 // live demo — degrades a failed provider call to the grounded extractive answer
-// instead of erroring out (CLAUDE.md §13). Deterministic, so held to 100%.
+// instead of erroring out (AGENTS.md §13). Deterministic, so held to 100%.
 
 const PROMPT = buildGroundedPrompt('When should I take melatonin?', [
   { docId: 'a', heading: 'Melatonin timing', text: 'Take melatonin 30 minutes before bed.', score: 1 } as ScoredChunk,

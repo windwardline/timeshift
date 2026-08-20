@@ -1,6 +1,6 @@
 // The magic-link email's HTML (US-A2). Pure — lib/auth/email.ts is the Resend
 // network shell, and the shell is the part that stays untested and uncovered
-// (CLAUDE.md §13). Splitting the body out is what makes the markup assertable,
+// (AGENTS.md §13). Splitting the body out is what makes the markup assertable,
 // the same way lib/rag keeps its pure units beside chunk.ts while embed.ts holds
 // the network.
 //

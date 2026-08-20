@@ -70,11 +70,11 @@ demo; P5 is rehearsal, not building.
 1. Create `prisma/schema.prisma` from the schema in `docs/SPECIFICATIONS.md`
    (User, Trip, FlightSegment). Keep the time fields as **UTC `DateTime` + an IANA
    timezone string** alongside each (so offset/DST stays delegated to Luxon —
-   CLAUDE.md §4), exactly as the engine's segment shape already expects.
+   AGENTS.md §4), exactly as the engine's segment shape already expects.
 2. Run `npx prisma migrate dev --name init` — this creates the real tables in the
    `timeshift` database (your `DATABASE_URL`). This is the first time the DB is
    actually exercised.
-3. Run `npx prisma generate` (Prisma 6, per CLAUDE.md §3).
+3. Run `npx prisma generate` (Prisma 6, per AGENTS.md §3).
 4. Add a thin repository module (e.g. `lib/db/trips.ts`) with the real queries:
    - `createTrip(input)` — insert a Trip with its FlightSegments.
    - `getTripWithSegments(id)` — `findUnique` with `include: { segments: { orderBy: { departureTime: 'asc' } } }`. **This ordered include is your "most complex query"** — it's the join that feeds the whole engine pipeline.
@@ -171,7 +171,7 @@ history is evidence the code was driven by requirements, not retrofitted to pass
 discriminate instead of always returning true.)
 
 **How does your CLI coding agent fit into the workflow?**
-I direct it through CLAUDE.md — the rules file. It writes the failing test, captures
+I direct it through AGENTS.md — the rules file. It writes the failing test, captures
 the real red run, implements the minimal green, captures the green, and commits with
 exact messages. The control shows up where it *stops and asks* rather than taking a
 shortcut: e.g. it refused to fabricate a red when behavior was already correct, and
@@ -210,7 +210,7 @@ Rehearse the actual keystrokes and the agent's latency so the timing is real.
 ## 7. Include / exclude for the presentation
 
 **Include:** the Prisma schema, the one ordered query, the timeline rendering, your
-CLAUDE.md rules, one clean live TDD cycle, and (if built) the live AI call with the
+AGENTS.md rules, one clean live TDD cycle, and (if built) the live AI call with the
 "AI-generated" label.
 
 **Exclude / don't get pulled into:** the screenshot-rendering tooling internals, every
@@ -237,7 +237,7 @@ spend the clock walking through each one.
 
 > You are resuming the TimeShift TDD sprint after a short break. Re-establish context, then continue toward the Monday presentation in the priority order below.
 >
-> STEP 1 — Read in full before touching anything: `CLAUDE.md` (note the new **§13 — AI integration boundary**), `docs/SPECIFICATIONS.md`, `docs/USER_STORIES.md`, `docs/ACCEPTANCE_CRITERIA.md`, `docs/TDD_PLAN.md`, `docs/AI_ADVICE.md`, and `docs/RESUME_AND_PRESENT.md` (the roadmap + presentation plan).
+> STEP 1 — Read in full before touching anything: `AGENTS.md` (note the new **§13 — AI integration boundary**), `docs/SPECIFICATIONS.md`, `docs/USER_STORIES.md`, `docs/ACCEPTANCE_CRITERIA.md`, `docs/TDD_PLAN.md`, `docs/AI_ADVICE.md`, and `docs/RESUME_AND_PRESENT.md` (the roadmap + presentation plan).
 >
 > STEP 2 — Orient: run `git log --oneline -12` and `git status`; run `npm run test:run` and confirm the suite is green and `npm run test:coverage` shows the engine at 100%. If anything is not green/clean, STOP and report before doing anything else.
 >

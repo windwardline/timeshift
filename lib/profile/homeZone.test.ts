@@ -4,7 +4,7 @@ import { validateHomeTimeZone, resolveHomeBaseline } from './homeZone';
 // US-A3: a traveler sets a home time zone on their profile, and that zone is the
 // biological-clock baseline for their trips. Two pure units back the feature:
 // input validation (delegated to Luxon's IANA database, never a hand-rolled
-// list — CLAUDE.md §4) and the baseline-resolution fallback.
+// list — AGENTS.md §4) and the baseline-resolution fallback.
 
 describe('validateHomeTimeZone', () => {
   it('accepts a valid IANA zone and returns it', () => {

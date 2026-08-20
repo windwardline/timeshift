@@ -44,7 +44,7 @@ describe('parseAdviceResponse (malformed)', () => {
 
 // US-R / AC-R1: the grounded coach response carries a single `answer` string.
 // It mirrors parseAdviceResponse's contract — a clean parse on well-formed JSON,
-// a typed AdviceParseError on malformed input (covered per CLAUDE.md §13).
+// a typed AdviceParseError on malformed input (covered per AGENTS.md §13).
 describe('parseGroundedResponse', () => {
   it('parses a well-formed response into a trimmed answer and followUp', () => {
     const raw = JSON.stringify({

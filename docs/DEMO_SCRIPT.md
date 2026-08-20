@@ -90,7 +90,7 @@ sleep-window chip), then the **"AI-generated"** badge.
 > `LoginToken` back passwordless magic-link auth, and `FlightQueryCache` memoizes real flight-API
 > lookups so we don't burn the free-tier quota — that one's live behind the app's flight search."
 
-**[POINT]** `prisma/schema.prisma` **lines 66–69** (`departureTime`, `arrivalTime`, `departureTz`,
+**[POINT]** `prisma/schema.prisma` **lines 65–68** (`departureTime`, `arrivalTime`, `departureTz`,
 `arrivalTz` on `FlightSegment`).
 
 **[SAY] — the decision worth defending**
@@ -99,7 +99,7 @@ sleep-window chip), then the **"AI-generated"** badge.
 > offset/DST calculation to Luxon and never hand-roll a timezone table — the project's core
 > bug-avoidance rule."
 
-**[POINT]** `prisma/schema.prisma` **line 75** — `@@unique([tripId, sequence])`.
+**[POINT]** `prisma/schema.prisma` **line 74** — `@@unique([tripId, sequence])`.
 
 **[SAY] — relationships (answers "what relationships & why?")**
 > "`User → Trip → FlightSegment`. Segments are ordered by a `sequence` integer that's unique per
@@ -172,7 +172,7 @@ file, so it can't disturb the green suite. Show the rules file first, then let t
 **[SCREEN]** Terminal. **Type prompt 1 (RED) — exactly this:**
 
 ```text
-Per CLAUDE.md §2, write ONLY a failing test (no implementation) for a new pure function daysToAdjust(min) in lib/trips/jetlag-burden.ts. Assert daysToAdjust(780) === 13 (~1 recovery day per time zone). Run it.
+Per AGENTS.md §2, write ONLY a failing test (no implementation) for a new pure function daysToAdjust(min) in lib/trips/jetlag-burden.ts. Assert daysToAdjust(780) === 13 (~1 recovery day per time zone). Run it.
 ```
 
 **[POINT]** the failing run — red, `daysToAdjust` is not defined / cannot find module.
@@ -192,7 +192,7 @@ Now write the minimal code to pass. Run it.
 **[SAY] — answers "why test first?" + "how does the agent fit?"**
 > "Green, minimal code. Writing the test first means I defined *correct* before any code existed,
 > so the test could actually fail and actually prove the fix — the same discipline that made the
-> date-line case real earlier. The CLI agent is the implementer inside that loop; CLAUDE.md §2 is
+> date-line case real earlier. The CLI agent is the implementer inside that loop; AGENTS.md §2 is
 > what stops it from writing code before a failing test exists."
 
 *(Expected green file — for your reference, don't read aloud. No branches, so it stays 100%
@@ -207,7 +207,7 @@ export function daysToAdjust(offsetDeltaMinutes: number): number {
 ```
 
 **Easiest-possible fallback:** keep a sticky note with just the two prompts. The agent already has
-the TDD law from CLAUDE.md and scaffolds the file path itself. (Throwaway demo unit — discard
+the TDD law from AGENTS.md and scaffolds the file path itself. (Throwaway demo unit — discard
 after, or keep it as a real helper. In a real cycle the rules also have me capture the red/green
 logs and commit each; skipped live to stay under 2 minutes.)
 
@@ -237,11 +237,11 @@ logs and commit each; skipped live to stay under 2 minutes.)
 
 | Show | File:line |
 | --- | --- |
-| UTC + IANA tz fields | `prisma/schema.prisma:66–69` |
-| Ordered-unique constraint | `prisma/schema.prisma:75` |
+| UTC + IANA tz fields | `prisma/schema.prisma:65–68` |
+| Ordered-unique constraint | `prisma/schema.prisma:74` |
 | Ownership-scoped query | `lib/db/trips.ts:59–64` (the `where` is line 61) |
 | Most complex query | `lib/db/trips.ts:106–121` (delete line 108, `$transaction` 117–119) |
-| TDD law (rules file) | `AGENTS.md:20` (also §4 line 47, §7 line 119, §13 line 197) |
+| TDD law (rules file) | `AGENTS.md:20` (also §4 line 47, §7 line 119, §13 line 203) |
 
 ## Timing budget
 

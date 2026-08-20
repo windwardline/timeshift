@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// E2E regression harness (CLAUDE.md §8.B). A single spec opens the running app,
+// E2E regression harness (AGENTS.md §8.B). A single spec opens the running app,
 // drives it to a known itinerary (the seeded showcase trip), and ASSERTS the
 // engine's headline numbers — it is a regression test, not just a screenshotter.
 // globalSetup seeds the demo trip first so the home page has deterministic data
@@ -23,7 +23,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     // Run the E2E harness keyless so AI surfaces are deterministic: the coach
-    // serves its extractive, grounded fallback (US-R, CLAUDE.md §8.B/§13) rather
+    // serves its extractive, grounded fallback (US-R, AGENTS.md §8.B/§13) rather
     // than a non-deterministic live model response.
     env: { ...process.env, GEMINI_API_KEY: '' },
   },

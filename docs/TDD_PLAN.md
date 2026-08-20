@@ -8,7 +8,7 @@ Each unit follows **Red → Green → Refactor**:
 2. **Green** — write the minimum code to make it pass. Run the suite; confirm green.
 3. **Refactor** — clean up while the suite stays green.
 
-Commit on every Red and every Green (see `CLAUDE.md` for the exact commit format).
+Commit on every Red and every Green (see `AGENTS.md` for the exact commit format).
 Capture the terminal output of each Red and Green run for the README test-evidence
 section.
 

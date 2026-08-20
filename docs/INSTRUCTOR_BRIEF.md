@@ -85,8 +85,8 @@ reproduced verbatim below so they don't need to be re-supplied. The demo script
 | Table relationships | `User 1→* Trip 1→* FlightSegment`; segments ordered & unique by `sequence`; layovers derived, not stored. |
 | Queries the app runs | `lib/db/trips.ts` — `getTripWithSegments` (ordered, ownership-scoped) feeds the engine; `deleteSegment` (scoped delete + `$transaction` resequencing) is the most complex. |
 | Story / problem / user | Long-haul jetlag: "when will I be jet-lagged and when should I sleep on the plane?" Demoed via the live timeline + computed plan. |
-| Live TDD | New pure `daysToAdjust()` — failing test first → red → minimal green, driven by the CLI agent under `CLAUDE.md` §2. |
-| Rules/context file you control | `CLAUDE.md` (§2 TDD law, §4 time-handling, §7 git workflow, §13 AI boundary). |
+| Live TDD | New pure `daysToAdjust()` — failing test first → red → minimal green, driven by the CLI agent under `AGENTS.md` §2. |
+| Rules/context file you control | `AGENTS.md` (§2 TDD law, §4 time-handling, §7 git workflow, §13 AI boundary). |
 
 **Assignment 2 (Vibe RAG → the Jetlag Coach, `/coach`)** — theme: *health/wellness → sleep routine.*
 

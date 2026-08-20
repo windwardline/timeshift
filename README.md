@@ -44,7 +44,7 @@ The build was specified before it was written: user stories in
 [`docs/ACCEPTANCE_CRITERIA.md`](docs/ACCEPTANCE_CRITERIA.md), technical
 specifications in [`docs/SPECIFICATIONS.md`](docs/SPECIFICATIONS.md), the
 test-writing plan in [`docs/TDD_PLAN.md`](docs/TDD_PLAN.md), and the operating
-contract (guardrails, TDD law, AI boundary) in [`CLAUDE.md`](CLAUDE.md).
+contract (guardrails, TDD law, AI boundary) in [`AGENTS.md`](AGENTS.md).
 
 ---
 
@@ -159,7 +159,7 @@ captured from real runs: [`21-full-suite-green.txt`](docs/logs/21-full-suite-gre
 
 ## The AI boundary — one rule, three features
 
-Every AI-adjacent feature follows the same contract (CLAUDE.md §13): the
+Every AI-adjacent feature follows the same contract (AGENTS.md §13): the
 deterministic surface (prompt assembly, parsing, orchestration, retrieval,
 validation) is pure, server-only, driven Red → Green against **mocked** clients,
 and held at **100% coverage** including malformed-response and failure branches.
