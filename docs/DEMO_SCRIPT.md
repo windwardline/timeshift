@@ -37,7 +37,7 @@ The RAG brief came in two forms. Be ready to name which one this satisfies:
 
 1. **Tab A — homepage:** <https://timeshift.windwardline.com> (the two worked-example cards).
 2. **Tab B — Coach:** <https://timeshift.windwardline.com/coach>
-3. **Editor — pin three files:** `prisma/schema.prisma`, `lib/db/trips.ts`, `CLAUDE.md`.
+3. **Editor — pin three files:** `prisma/schema.prisma`, `lib/db/trips.ts`, `AGENTS.md`.
 4. **Terminal** with the CLI coding agent running, cwd at the repo root.
 5. The Coach has clickable example chips — you'll just click **"When should I take melatonin?"**.
 
@@ -163,7 +163,7 @@ sleep-window chip), then the **"AI-generated"** badge.
 Deliberately the smallest possible: one pure function, **two short prompts, one assertion**. New
 file, so it can't disturb the green suite. Show the rules file first, then let the agent run it.
 
-**[SCREEN]** Editor → `CLAUDE.md`, **line 18** (`## 2. The TDD law (highest priority)`).
+**[SCREEN]** Editor → `AGENTS.md`, **line 20** (`## 2. The TDD law (highest priority)`).
 
 **[SAY] — show the control file FIRST (the brief asks for this)**
 > "This is the rules file the agent operates under. Section 2 — the TDD law: *no production code
@@ -231,7 +231,7 @@ logs and commit each; skipped live to stay under 2 minutes.)
 | Most complex query? | `deleteSegment` (`lib/db/trips.ts:106`): ownership-scoped delete + a `$transaction` re-numbering remaining legs to a contiguous 0-based sequence. |
 | Who's the user / one problem? | Long-haul travelers; "when will I be jet-lagged and when should I sleep on the plane?" |
 | Why test before code? | A test written after the code can't fail; writing it first defines *correct* and proves the fix is real (e.g. the date-line negative test). |
-| How does the CLI agent fit? | It's the implementer inside Red→Green→Refactor; `CLAUDE.md` §2 (line 18) forbids it writing code before a failing test exists. |
+| How does the CLI agent fit? | It's the implementer inside Red→Green→Refactor; `AGENTS.md` §2 (line 20) forbids it writing code before a failing test exists. |
 
 ## File/line quick-reference (so you never fumble)
 
@@ -241,7 +241,7 @@ logs and commit each; skipped live to stay under 2 minutes.)
 | Ordered-unique constraint | `prisma/schema.prisma:75` |
 | Ownership-scoped query | `lib/db/trips.ts:59–64` (the `where` is line 61) |
 | Most complex query | `lib/db/trips.ts:106–121` (delete line 108, `$transaction` 117–119) |
-| TDD law (rules file) | `CLAUDE.md:18` (also §4 line 45, §7 line 68, §13 line 144) |
+| TDD law (rules file) | `AGENTS.md:20` (also §4 line 47, §7 line 119, §13 line 197) |
 
 ## Timing budget
 
