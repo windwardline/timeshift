@@ -25,7 +25,7 @@ const PHASES: { key: 'preFlight' | 'inFlight' | 'postArrival'; label: string; ic
 ];
 
 /**
- * The live AI beat (CLAUDE.md §13 / docs/AI_ADVICE.md). Posts to the server
+ * The live AI beat (AGENTS.md §13 / docs/AI_ADVICE.md). Posts to the server
  * route, which makes the real per-trip model call behind the env key. A visible
  * "consulting" state shows the live call in flight; the panel is clearly marked
  * "AI-generated". Output is unique to the on-screen trip — it can't be canned.

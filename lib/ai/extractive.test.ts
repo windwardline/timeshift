@@ -5,7 +5,7 @@ import type { ScoredChunk } from '@/lib/rag/types';
 
 // extractiveResponse composes a grounded { answer, followUp } from the retrieved
 // passages embedded in the prompt's Context block — no model call. It is the
-// keyless path AND the live-failure fallback (CLAUDE.md §13), so it is held to
+// keyless path AND the live-failure fallback (AGENTS.md §13), so it is held to
 // 100% coverage like the rest of the deterministic AI surface.
 
 function chunk(docId: string, heading: string, text: string): ScoredChunk {

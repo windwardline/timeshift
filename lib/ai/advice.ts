@@ -3,7 +3,7 @@ import { buildAdvicePrompt } from './prompt';
 import { parseAdviceResponse, type AdvicePlan } from './parse';
 
 // The network seam. `generateAdvice` depends only on this interface, so tests
-// inject a mock and never touch the real provider (CLAUDE.md §13). The single
+// inject a mock and never touch the real provider (AGENTS.md §13). The single
 // real implementation lives in client.ts (the only network module).
 export interface LlmClient {
   complete(prompt: string): Promise<string>;

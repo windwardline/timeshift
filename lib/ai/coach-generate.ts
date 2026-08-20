@@ -2,7 +2,7 @@ import type { LlmClient } from './advice';
 import { extractiveResponse } from './extractive';
 
 // Chooses the coach's generation strategy and isolates the demo-critical
-// degradation (CLAUDE.md §13):
+// degradation (AGENTS.md §13):
 //   - no key            → compose the grounded extractive answer (no network).
 //   - key, call ok      → return the live model response.
 //   - key, call fails   → fall back to the grounded extractive answer rather

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Demo-morning smoke test against the DEPLOYED app (CLAUDE.md §8.B — "opens the
+// Demo-morning smoke test against the DEPLOYED app (AGENTS.md §8.B — "opens the
 // deployed app"). Runs ONLY the headline-number regression, never the coach spec:
 // prod serves live, non-deterministic AI, whereas the regression asserts the
 // engine's deterministic output, which must hold on the real deployment.

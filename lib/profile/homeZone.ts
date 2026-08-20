@@ -7,7 +7,7 @@ export type HomeZoneResult =
   | { ok: false; error: string };
 
 // Validate a home time zone. Validity is delegated to Luxon's IANA database
-// rather than any hand-rolled offset/zone list (CLAUDE.md §4).
+// rather than any hand-rolled offset/zone list (AGENTS.md §4).
 export function validateHomeTimeZone(raw: unknown): HomeZoneResult {
   if (typeof raw !== 'string') {
     return { ok: false, error: 'Please choose a home time zone.' };

@@ -178,4 +178,4 @@ IDL crossings, sleep windows confined to in-air segments and aligned to destinat
 
 A story is Done when: every acceptance criterion has a passing test; the engine
 coverage target holds; the Red-Green-Refactor history is captured in the README; the
-feature is committed following the conventions in `CLAUDE.md`.
+feature is committed following the conventions in `AGENTS.md`.

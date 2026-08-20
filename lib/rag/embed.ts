@@ -1,5 +1,5 @@
 /* v8 ignore file */
-// Network shell for query embedding (US-R, CLAUDE.md §13). The ONLY module in
+// Network shell for query embedding (US-R, AGENTS.md §13). The ONLY module in
 // lib/rag that touches the network/SDK — never unit-tested, explicitly excluded
 // from coverage, mirroring lib/ai/client.ts. Returns null when no key is
 // configured so the orchestrator falls back to the keyless lexical (BM25) path.

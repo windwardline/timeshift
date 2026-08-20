@@ -14,7 +14,7 @@ import { tooManyRequests } from '@/lib/ratelimit/response';
 // The public showcase trip is open to everyone; every other trip is owner-only.
 const SHOWCASE_EMAIL = 'demo@timeshift.app';
 
-// Server-only AI advice endpoint (CLAUDE.md §13). Loads the trip, enforces
+// Server-only AI advice endpoint (AGENTS.md §13). Loads the trip, enforces
 // access, runs the engine to derive the facts, then asks the model — via the
 // real client behind the env key — to narrate them.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

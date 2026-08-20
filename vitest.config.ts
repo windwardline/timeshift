@@ -13,7 +13,7 @@ export default defineConfig({
       // excludes itself with a /* v8 ignore file */ pragma per docs/AI_ADVICE.md §6.
       // lib/rag/** (US-R) is the same pattern: pure retrieval/grounding units are
       // covered, while its network/fs shells (embed.ts, corpus.ts) self-exclude
-      // with the same /* v8 ignore file */ pragma per CLAUDE.md §13.
+      // with the same /* v8 ignore file */ pragma per AGENTS.md §13.
       include: [
         'lib/engine/**',
         'lib/ai/**',

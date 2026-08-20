@@ -1,5 +1,5 @@
 /* v8 ignore file */
-// Filesystem shell (US-R, CLAUDE.md §4/§13): reads the KB markdown corpus and the
+// Filesystem shell (US-R, AGENTS.md §4/§13): reads the KB markdown corpus and the
 // precomputed kb-embeddings.json from disk. Excluded from coverage because it does
 // fs I/O; the pure chunking it delegates to is unit-tested in lib/rag/chunk.ts.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

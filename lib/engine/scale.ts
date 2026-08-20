@@ -1,6 +1,6 @@
 /**
  * Positioning math for the timeline visualization (US-D1). Pure and test-driven
- * per CLAUDE.md §4 ("arc positioning" is engine reasoning): it maps absolute UTC
+ * per AGENTS.md §4 ("arc positioning" is engine reasoning): it maps absolute UTC
  * instants onto a horizontal pixel axis so segments, layovers, day/night arcs,
  * and sleep windows all share one time-to-x scale.
  */
